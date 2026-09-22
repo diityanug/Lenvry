@@ -12,14 +12,12 @@ interface SubAccount {
   id: string;
   name: string;
 }
-
 interface Account {
   id: string;
   name: string;
   type: 'Dompet' | 'Bank' | 'Investasi' | 'Piutang' | 'Utang' | 'Valas';
   subAccounts: SubAccount[];
 }
-
 interface Transaction {
   id: string;
   type: 'income' | 'expense';
@@ -205,20 +203,21 @@ export default function FinanceTracker() {
   // --- RENDERS ---
   const renderAccountItem = ({ item }: { item: Account }) => (
     <View style={styles.accCard}>
+      <View style={styles.accCardAccent} />
       <View style={styles.accHeaderRow}>
-        <View style={styles.accIconName}>
-          <FontAwesome5 name={item.type === 'Bank' ? 'university' : item.type === 'Dompet' ? 'wallet' : 'chart-line'} size={14} color="#D4FF00" />
-          <Text style={styles.accName}>{item.name}</Text>
-        </View>
-        <Text style={styles.accTotalBalance}>{formatRupiah(getAccBalance(item.id))}</Text>
+        <Text style={styles.accName}>{item.name}</Text>
+        <FontAwesome5 name={item.type === 'Bank' ? 'university' : item.type === 'Dompet' ? 'wallet' : 'chart-line'} size={14} color="#D4FF00" />
       </View>
+      <Text style={styles.accTotalBalance}>{formatRupiah(getAccBalance(item.id))}</Text>
       
-      {item.subAccounts.map(sub => (
-        <View key={sub.id} style={styles.subAccRow}>
-          <Text style={styles.subAccName}>└ {sub.name}</Text>
-          <Text style={styles.subAccBalance}>{formatRupiah(getSubBalance(item.id, sub.id))}</Text>
-        </View>
-      ))}
+      <View style={styles.subAccContainer}>
+        {item.subAccounts.map(sub => (
+          <View key={sub.id} style={styles.subAccRow}>
+            <Text style={styles.subAccName}>{sub.name}</Text>
+            <Text style={styles.subAccBalance}>{formatRupiah(getSubBalance(item.id, sub.id))}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 
@@ -226,73 +225,90 @@ export default function FinanceTracker() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#121212" />
       
+      {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.title}>Finance</Text>
-        <TouchableOpacity style={styles.addAccBtn} onPress={() => setAccModalVisible(true)}>
-          <Ionicons name="add-circle-outline" size={16} color="#121212" />
-          <Text style={styles.addAccText}>AKUN / DOMPET</Text>
+        <View>
+          <Text style={styles.greeting}>Lenvry</Text>
+          <Text style={styles.title}>Finance</Text>
+        </View>
+        <TouchableOpacity style={styles.profileBtn}>
+          <Ionicons name="person" size={18} color="#121212" />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.balanceWrapper}>
-        <Text style={styles.balanceLabel}>TOTAL KEKAYAAN BERSIH</Text>
-        <Text style={styles.balanceAmount}>{formatRupiah(totalBalance)}</Text>
-      </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+        
+        {/* HERO CARD - TOTAL NET WORTH */}
+        <View style={styles.heroCard}>
+          <Text style={styles.balanceLabel}>TOTAL KEKAYAAN BERSIH</Text>
+          <Text style={styles.balanceAmount}>{formatRupiah(totalBalance)}</Text>
+        </View>
 
-      <View style={{ height: 130, marginBottom: 16 }}>
-        <FlatList
-          data={accounts}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          renderItem={renderAccountItem}
-          contentContainerStyle={{ paddingRight: 20 }}
-        />
-      </View>
+        {/* ACCOUNTS SECTION */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Akun & Dompet</Text>
+          <TouchableOpacity style={styles.addAccBtn} onPress={() => setAccModalVisible(true)}>
+            <Ionicons name="add" size={14} color="#121212" />
+            <Text style={styles.addAccText}>Baru</Text>
+          </TouchableOpacity>
+        </View>
 
-      <Text style={styles.sectionTitle}>Riwayat Transaksi</Text>
-      
-      <FlatList
-        data={transactions}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        ListEmptyComponent={<Text style={styles.emptyText}>Belum ada transaksi tercatat.</Text>}
-        renderItem={({ item }) => {
-          const accName = accounts.find(a => a.id === item.accountId)?.name || 'Unknown';
-          const subName = accounts.find(a => a.id === item.accountId)?.subAccounts.find(s => s.id === item.subAccountId)?.name || '';
-          return (
-            <View style={styles.txCard}>
-              <View style={[styles.iconContainer, item.type === 'income' ? styles.iconIncome : styles.iconExpense]}>
-                <Ionicons name={item.type === 'income' ? "arrow-down" : "arrow-up"} size={20} color={item.type === 'income' ? "#4ADE80" : "#FF453A"} />
-              </View>
-              <View style={styles.txInfo}>
-                <Text style={styles.txDesc}>{item.description}</Text>
-                <Text style={styles.txSub}>
-                  {item.category} • {item.date}
-                </Text>
-                <Text style={styles.txAccLabel}>{accName} ({subName})</Text>
-              </View>
-              
-              <View style={styles.txRight}>
-                <Text style={[styles.txAmount, item.type === 'income' ? styles.textIncome : styles.textExpense]}>
-                  {item.type === 'income' ? '+' : '-'} {formatRupiah(item.amount)}
-                </Text>
+        <View style={{ height: 160, marginBottom: 24 }}>
+          <FlatList
+            data={accounts}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            renderItem={renderAccountItem}
+            contentContainerStyle={{ paddingRight: 20 }}
+            snapToInterval={232} // 220 width + 12 margin
+            decelerationRate="fast"
+          />
+        </View>
+
+        {/* TRANSACTIONS SECTION */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Riwayat Transaksi</Text>
+        </View>
+
+        {transactions.length === 0 ? (
+          <Text style={styles.emptyText}>Belum ada transaksi tercatat.</Text>
+        ) : (
+          transactions.map((item) => {
+            const accName = accounts.find(a => a.id === item.accountId)?.name || 'Unknown';
+            const subName = accounts.find(a => a.id === item.accountId)?.subAccounts.find(s => s.id === item.subAccountId)?.name || '';
+            return (
+              <View key={item.id} style={styles.txCard}>
+                <View style={[styles.iconContainer, item.type === 'income' ? styles.iconIncome : styles.iconExpense]}>
+                  <Ionicons name={item.type === 'income' ? "arrow-down" : "arrow-up"} size={18} color={item.type === 'income' ? "#4ADE80" : "#FF453A"} />
+                </View>
+                <View style={styles.txInfo}>
+                  <Text style={styles.txDesc} numberOfLines={1}>{item.description}</Text>
+                  <Text style={styles.txSub}>
+                    {item.category} • {accName} {subName ? `(${subName})` : ''}
+                  </Text>
+                </View>
                 
-                <View style={styles.txActions}>
-                  <TouchableOpacity onPress={() => cloneTransaction(item)} style={styles.actionBtn}>
-                    <Ionicons name="copy-outline" size={16} color="#60A5FA" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => deleteTransaction(item.id)} style={styles.actionBtn}>
-                    <Ionicons name="trash-outline" size={16} color="#FF453A" />
-                  </TouchableOpacity>
+                <View style={styles.txRight}>
+                  <Text style={[styles.txAmount, item.type === 'income' ? styles.textIncome : styles.textExpense]}>
+                    {item.type === 'income' ? '+' : '-'}{formatRupiah(item.amount)}
+                  </Text>
+                  <View style={styles.txActions}>
+                    <TouchableOpacity onPress={() => cloneTransaction(item)} style={styles.actionBtn}>
+                      <Ionicons name="copy" size={14} color="#888" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => deleteTransaction(item.id)} style={styles.actionBtn}>
+                      <Ionicons name="trash" size={14} color="#FF453A" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
-            </View>
-          )
-        }}
-      />
+            )
+          })
+        )}
+      </ScrollView>
 
+      {/* FAB ADD TRANSACTION */}
       <TouchableOpacity style={styles.floatingButton} onPress={openNewTransaction} activeOpacity={0.9}>
         <FontAwesome5 name="plus" size={16} color="#121212" style={{ marginRight: 8 }} />
         <Text style={styles.floatingButtonText}>CATAT TRANSAKSI</Text>
@@ -300,19 +316,17 @@ export default function FinanceTracker() {
 
       {/* ================= MODAL ADD/CLONE TRANSACTION ================= */}
       <Modal animationType="slide" transparent={true} visible={txModalVisible} onRequestClose={() => setTxModalVisible(false)}>
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-          style={styles.modalOverlay}
-        >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={styles.modalOverlayDismissArea} />
           </TouchableWithoutFeedback>
 
           <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Catat Transaksi</Text>
               <TouchableOpacity onPress={() => setTxModalVisible(false)}>
-                <Ionicons name="close-circle" size={28} color="#666" />
+                <Text style={styles.closeText}>Tutup</Text>
               </TouchableOpacity>
             </View>
             
@@ -325,7 +339,19 @@ export default function FinanceTracker() {
               </TouchableOpacity>
             </View>
 
-            <TextInput style={styles.inputAmount} placeholder="0" placeholderTextColor="#666" keyboardType="numeric" value={amount} onChangeText={setAmount} />
+            <View style={styles.amountContainer}>
+              <Text style={styles.currencySymbol}>Rp</Text>
+              <TextInput 
+                style={styles.inputAmountLarge} 
+                placeholder="0" 
+                placeholderTextColor="#333" 
+                keyboardType="numeric" 
+                value={amount} 
+                onChangeText={setAmount} 
+                maxLength={12}
+              />
+            </View>
+            
             <TextInput style={styles.input} placeholder="Keterangan (ex: Makan Siang)" placeholderTextColor="#666" value={description} onChangeText={setDescription} />
 
             <Text style={styles.inputLabel}>KATEGORI</Text>
@@ -337,7 +363,7 @@ export default function FinanceTracker() {
               ))}
             </ScrollView>
 
-            <Text style={styles.inputLabel}>SUMBER DANA (AKUN)</Text>
+            <Text style={styles.inputLabel}>SUMBER DANA</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} keyboardShouldPersistTaps="handled">
               {accounts.map(acc => (
                 <TouchableOpacity key={acc.id} style={[styles.chip, selectedAccId === acc.id && styles.chipActive]} onPress={() => { setSelectedAccId(acc.id); setSelectedSubAccId(''); }}>
@@ -347,16 +373,13 @@ export default function FinanceTracker() {
             </ScrollView>
 
             {selectedAccId ? (
-              <>
-                <Text style={styles.inputLabel}>SUB-AKUN</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} keyboardShouldPersistTaps="handled">
-                  {accounts.find(a => a.id === selectedAccId)?.subAccounts.map(sub => (
-                    <TouchableOpacity key={sub.id} style={[styles.chip, selectedSubAccId === sub.id && styles.chipActive]} onPress={() => setSelectedSubAccId(sub.id)}>
-                      <Text style={[styles.chipText, selectedSubAccId === sub.id && styles.chipTextActive]}>{sub.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.chipScroll, {marginTop: 4}]} keyboardShouldPersistTaps="handled">
+                {accounts.find(a => a.id === selectedAccId)?.subAccounts.map(sub => (
+                  <TouchableOpacity key={sub.id} style={[styles.chipSub, selectedSubAccId === sub.id && styles.chipSubActive]} onPress={() => setSelectedSubAccId(sub.id)}>
+                    <Text style={[styles.chipSubText, selectedSubAccId === sub.id && styles.chipSubTextActive]}>└ {sub.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             ) : null}
 
             <TouchableOpacity style={styles.saveButton} onPress={saveTransaction}>
@@ -368,10 +391,7 @@ export default function FinanceTracker() {
 
       {/* ================= MODAL ADD ACCOUNT ================= */}
       <Modal animationType="fade" transparent={true} visible={accModalVisible} onRequestClose={() => setAccModalVisible(false)}>
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-          style={styles.modalOverlayCenter}
-        >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlayCenter}>
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={StyleSheet.absoluteFill} /> 
           </TouchableWithoutFeedback>
@@ -434,73 +454,94 @@ export default function FinanceTracker() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', paddingHorizontal: 20, paddingTop: 50 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  title: { fontSize: 28, fontWeight: '900', color: '#D4FF00' },
+  container: { flex: 1, backgroundColor: '#0D0D0D', paddingHorizontal: 20, paddingTop: 50 },
+  
+  // Header
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 },
+  greeting: { fontSize: 14, color: '#888', fontWeight: '600', letterSpacing: 1 },
+  title: { fontSize: 28, fontWeight: '900', color: '#FFF', marginTop: 2 },
+  profileBtn: { backgroundColor: '#D4FF00', width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+
+  // Hero Card
+  heroCard: { backgroundColor: '#1A1A1A', borderRadius: 24, padding: 24, marginBottom: 32, alignItems: 'center', borderWidth: 1, borderColor: '#2A2A2A' },
+  balanceLabel: { color: '#888', fontSize: 11, fontWeight: 'bold', letterSpacing: 1.5, marginBottom: 8 },
+  balanceAmount: { color: '#D4FF00', fontSize: 36, fontWeight: '900', letterSpacing: -1 },
+
+  // Section Headers
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFF' },
   addAccBtn: { backgroundColor: '#D4FF00', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  addAccText: { fontSize: 10, fontWeight: 'bold', marginLeft: 4, color: '#121212' },
-  
-  balanceWrapper: { alignItems: 'center', marginBottom: 20 },
-  balanceLabel: { color: '#A1A1AA', fontSize: 11, fontWeight: 'bold', letterSpacing: 1, marginBottom: 4 },
-  balanceAmount: { color: '#FFF', fontSize: 34, fontWeight: '900' },
+  addAccText: { fontSize: 11, fontWeight: 'bold', marginLeft: 4, color: '#121212' },
 
-  accCard: { backgroundColor: '#1E1E1E', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#2A2A2A', width: 220, marginRight: 12 },
-  accHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#2A2A2A', paddingBottom: 10, marginBottom: 10 },
-  accIconName: { flexDirection: 'row', alignItems: 'center' },
-  accName: { color: '#FFF', fontWeight: 'bold', marginLeft: 8, fontSize: 15 },
-  accTotalBalance: { color: '#D4FF00', fontWeight: 'bold', fontSize: 13 },
-  subAccRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  // Accounts List (Cards)
+  accCard: { backgroundColor: '#1A1A1A', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#2A2A2A', width: 220, marginRight: 12, overflow: 'hidden' },
+  accCardAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 4, backgroundColor: '#D4FF00' },
+  accHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  accName: { color: '#888', fontWeight: '600', fontSize: 13 },
+  accTotalBalance: { color: '#FFF', fontWeight: '900', fontSize: 22, marginBottom: 16 },
+  subAccContainer: { borderTopWidth: 1, borderTopColor: '#2A2A2A', paddingTop: 12 },
+  subAccRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   subAccName: { color: '#888', fontSize: 12 },
-  subAccBalance: { color: '#CCC', fontSize: 12, fontWeight: '600' },
+  subAccBalance: { color: '#CCC', fontSize: 12, fontWeight: '700' },
 
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 12 },
+  // Transactions List
   emptyText: { color: '#666', textAlign: 'center', marginTop: 40, fontStyle: 'italic' },
-  
-  txCard: { backgroundColor: '#1E1E1E', padding: 16, borderRadius: 16, marginBottom: 10, flexDirection: 'row', alignItems: 'center' },
-  iconContainer: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  txCard: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#1A1A1A' },
+  iconContainer: { width: 44, height: 44, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
   iconIncome: { backgroundColor: 'rgba(74, 222, 128, 0.1)' },
   iconExpense: { backgroundColor: 'rgba(255, 69, 58, 0.1)' },
   txInfo: { flex: 1 },
-  txDesc: { fontSize: 15, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 2 },
-  txSub: { fontSize: 11, color: '#A1A1AA', marginBottom: 2 },
-  txAccLabel: { fontSize: 10, color: '#D4FF00', fontWeight: '600' },
-  
-  txRight: { alignItems: 'flex-end', justifyContent: 'space-between', height: '100%' },
-  txAmount: { fontSize: 14, fontWeight: 'bold', marginBottom: 8 },
+  txDesc: { fontSize: 15, fontWeight: 'bold', color: '#FFF', marginBottom: 4 },
+  txSub: { fontSize: 12, color: '#888' },
+  txRight: { alignItems: 'flex-end', justifyContent: 'center' },
+  txAmount: { fontSize: 15, fontWeight: 'bold', marginBottom: 6 },
   textIncome: { color: '#4ADE80' },
   textExpense: { color: '#FF453A' },
   txActions: { flexDirection: 'row', alignItems: 'center' },
-  actionBtn: { padding: 4, marginLeft: 10 },
+  actionBtn: { paddingHorizontal: 6 },
 
-  floatingButton: { position: 'absolute', bottom: 30, left: 20, right: 20, backgroundColor: '#D4FF00', paddingVertical: 18, borderRadius: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', elevation: 8 },
-  floatingButtonText: { color: '#121212', fontSize: 16, fontWeight: '900', letterSpacing: 0.5 },
+  // FAB
+  floatingButton: { position: 'absolute', bottom: 30, alignSelf: 'center', backgroundColor: '#D4FF00', paddingVertical: 16, paddingHorizontal: 24, borderRadius: 30, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#D4FF00', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  floatingButtonText: { color: '#121212', fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
   
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
+  // Modals
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
   modalOverlayDismissArea: { flex: 1 },
-  modalOverlayCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#1E1E1E', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40, maxHeight: '85%' },
-  modalContentSmall: { backgroundColor: '#1E1E1E', borderRadius: 24, padding: 24, width: '100%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
+  modalOverlayCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#121212', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40, maxHeight: '90%', borderWidth: 1, borderColor: '#2A2A2A' },
+  modalContentSmall: { backgroundColor: '#1A1A1A', borderRadius: 24, padding: 24, width: '100%', borderWidth: 1, borderColor: '#2A2A2A' },
   
-  typeRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, backgroundColor: '#121212', borderRadius: 12, padding: 4 },
-  typeBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  typeBtnExpense: { backgroundColor: 'rgba(255, 69, 58, 0.2)' },
-  typeBtnIncome: { backgroundColor: 'rgba(74, 222, 128, 0.2)' },
+  modalHandle: { width: 40, height: 4, backgroundColor: '#333', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFF' },
+  closeText: { color: '#D4FF00', fontWeight: 'bold', fontSize: 14 },
+  
+  typeRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, backgroundColor: '#1A1A1A', borderRadius: 16, padding: 4 },
+  typeBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+  typeBtnExpense: { backgroundColor: '#FF453A' },
+  typeBtnIncome: { backgroundColor: '#4ADE80' },
   typeBtnActiveLight: { backgroundColor: 'rgba(212, 255, 0, 0.2)' },
-  typeBtnText: { color: '#666', fontSize: 13, fontWeight: 'bold' },
-  typeBtnTextActive: { color: '#FFF' },
+  typeBtnText: { color: '#888', fontSize: 13, fontWeight: 'bold' },
+  typeBtnTextActive: { color: '#121212' },
 
-  inputLabel: { color: '#A1A1AA', fontSize: 11, fontWeight: 'bold', marginBottom: 6, letterSpacing: 1, marginTop: 10 },
-  input: { backgroundColor: '#121212', color: '#FFF', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, marginBottom: 10, fontSize: 14, borderWidth: 1, borderColor: '#2A2A2A' },
-  inputAmount: { backgroundColor: '#121212', color: '#D4FF00', paddingHorizontal: 16, paddingVertical: 16, borderRadius: 16, marginBottom: 12, fontSize: 24, fontWeight: 'bold', textAlign: 'center', borderWidth: 1, borderColor: '#2A2A2A' },
+  amountContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+  currencySymbol: { fontSize: 28, color: '#D4FF00', fontWeight: 'bold', marginRight: 8, marginTop: 4 },
+  inputAmountLarge: { color: '#D4FF00', fontSize: 48, fontWeight: '900', minWidth: 100 },
+
+  inputLabel: { color: '#888', fontSize: 11, fontWeight: 'bold', marginBottom: 8, letterSpacing: 1, marginTop: 16 },
+  input: { backgroundColor: '#1A1A1A', color: '#FFF', paddingHorizontal: 16, paddingVertical: 16, borderRadius: 16, marginBottom: 10, fontSize: 14, borderWidth: 1, borderColor: '#2A2A2A' },
   
   chipScroll: { flexDirection: 'row', flexGrow: 0, marginBottom: 4 },
-  chip: { backgroundColor: '#121212', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: '#2A2A2A' },
+  chip: { backgroundColor: '#1A1A1A', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: '#2A2A2A' },
   chipActive: { backgroundColor: '#D4FF00', borderColor: '#D4FF00' },
-  chipText: { color: '#A1A1AA', fontSize: 12, fontWeight: 'bold' },
+  chipText: { color: '#888', fontSize: 12, fontWeight: 'bold' },
   chipTextActive: { color: '#121212' },
 
-  saveButton: { backgroundColor: '#D4FF00', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginTop: 16 },
+  chipSub: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, marginRight: 8, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#333' },
+  chipSubActive: { backgroundColor: '#2A2A2A', borderColor: '#D4FF00' },
+  chipSubText: { color: '#666', fontSize: 11, fontWeight: 'bold' },
+  chipSubTextActive: { color: '#FFF' },
+
+  saveButton: { backgroundColor: '#D4FF00', paddingVertical: 18, borderRadius: 16, alignItems: 'center', marginTop: 24, shadowColor: '#D4FF00', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
   saveButtonText: { color: '#121212', fontSize: 15, fontWeight: '900', letterSpacing: 0.5 },
 });
