@@ -16,13 +16,24 @@ export default function AppLayout() {
         tabBarInactiveTintColor: '#A1A1AA',
       }}
     >
+      {/* Home Screen: Menjadi halaman pertama (Summary / Pengingat) */}
       <Tabs.Screen 
         name="index" 
+        options={{ 
+          title: 'Home',
+          tabBarIcon: ({ color }) => <FontAwesome5 name="home" size={20} color={color} />
+        }} 
+      />
+      
+      {/* Gym Screen: Dipindah menjadi file gym.tsx terpisah */}
+      <Tabs.Screen 
+        name="gym" 
         options={{ 
           title: 'Gym',
           tabBarIcon: ({ color }) => <FontAwesome5 name="dumbbell" size={20} color={color} />
         }} 
       />
+
       <Tabs.Screen 
         name="habit" 
         options={{ 
@@ -30,18 +41,12 @@ export default function AppLayout() {
           tabBarIcon: ({ color }) => <FontAwesome5 name="check-square" size={20} color={color} />
         }} 
       />
+
       <Tabs.Screen 
         name="finance" 
         options={{ 
           title: 'Finance',
           tabBarIcon: ({ color }) => <FontAwesome5 name="wallet" size={20} color={color} />
-        }} 
-      />
-      <Tabs.Screen 
-        name="nutrition" 
-        options={{ 
-          title: 'NutriGo',
-          tabBarIcon: ({ color }) => <FontAwesome5 name="utensils" size={20} color={color} />
         }} 
       />
     </Tabs>
