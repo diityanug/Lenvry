@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar, Modal, TextInput, FlatList, Alert, KeyboardAvoidingView, Platform, Keyboard, ScrollView, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, TouchableOpacity, SafeAreaView, StatusBar, FlatList, Alert, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { Account, Transaction, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, ACCOUNT_TYPES, MONTHS, DAYS, formatMoney } from '../types/finance';
+import { Account, Transaction, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, MONTHS } from '../types/finance';
 import { TransactionCard, AccountCard, HeroSummaryCard } from '../components/Finance/FinanceCards';
+import { TransactionModal } from '../components/Finance/TransactionModal';
+import { AccountDetailModal } from '../components/Finance/AccountDetailModal';
+import { HistoryModal } from '../components/Finance/HistoryModal';
+import { AddAccountModal } from '../components/Finance/AddAccountModal';
+import { CalendarModal } from '../components/Finance/CalendarModal';
+import { EditBalanceModal, RenameModal, AddCategoryModal } from '../components/Finance/DialogModals';
+import { financeStyles as styles } from '../styles/financeStyles';
 
 export default function FinanceTracker() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -12,6 +19,7 @@ export default function FinanceTracker() {
   const [expenseCategories, setExpenseCategories] = useState<string[]>(DEFAULT_EXPENSE_CATEGORIES);
   const [incomeCategories, setIncomeCategories] = useState<string[]>(DEFAULT_INCOME_CATEGORIES);
 
+  // Modals Visibility
   const [txModalVisible, setTxModalVisible] = useState(false);
   const [accModalVisible, setAccModalVisible] = useState(false);
   const [catModalVisible, setCatModalVisible] = useState(false);
@@ -24,30 +32,32 @@ export default function FinanceTracker() {
   const [selectedMonthFilter, setSelectedMonthFilter] = useState(new Date());
   const [selectedAccountForDetail, setSelectedAccountForDetail] = useState<Account | null>(null);
 
+  // Transaction Form State
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(DEFAULT_EXPENSE_CATEGORIES[0]);
   const [selectedAccId, setSelectedAccId] = useState('');
   const [selectedSubAccId, setSelectedSubAccId] = useState('');
-  
   const [txDate, setTxDate] = useState(new Date());
   const [viewDate, setViewDate] = useState(new Date());
 
+  // Account Form State
   const [accFormType, setAccFormType] = useState<'main' | 'sub'>('main');
   const [newAccName, setNewAccName] = useState('');
   const [newAccType, setNewAccType] = useState<Account['type']>('Bank');
   const [newAccCurrency, setNewAccCurrency] = useState<'IDR' | 'USD'>('IDR');
   const [parentAccId, setParentAccId] = useState(''); 
 
+  // Helpers State
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editAccId, setEditAccId] = useState('');
   const [editSubAccId, setEditSubAccId] = useState('');
   const [editBalanceValue, setEditBalanceValue] = useState('');
-
   const [renameTarget, setRenameTarget] = useState<{ type: 'main' | 'sub', accId: string, subId?: string } | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
+  // History Filter
   const [historyTypeFilter, setHistoryTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [historyCatFilter, setHistoryCatFilter] = useState<string>('all');
 
@@ -65,14 +75,13 @@ export default function FinanceTracker() {
       if (storedIncCat) setIncomeCategories(JSON.parse(storedIncCat));
 
       if (storedAcc) {
-        const parsedAccounts = JSON.parse(storedAcc).map((a: any) => ({ ...a, currency: a.currency || 'IDR' }));
-        setAccounts(parsedAccounts);
+        setAccounts(JSON.parse(storedAcc).map((a: any) => ({ ...a, currency: a.currency || 'IDR' })));
       } else {
-        const defaultAcc: Account[] = [{ id: 'acc_1', name: 'Cash', type: 'Wallet', currency: 'IDR', subAccounts: [{ id: 'sub_1', name: 'Utama' }] }];
+        const defaultAcc: Account[] = [{ id: 'acc_1', name: 'Cash', type: 'Cash', currency: 'IDR', subAccounts: [{ id: 'sub_1', name: 'Main' }] }];
         setAccounts(defaultAcc);
         await AsyncStorage.setItem('@finance_acc', JSON.stringify(defaultAcc));
       }
-    } catch (e) { console.error('Gagal memuat data', e); }
+    } catch (e) { console.error('Failed to load finance data', e); }
   };
 
   const getSubBalance = (accId: string, subId: string) => {
@@ -101,9 +110,6 @@ export default function FinanceTracker() {
   const monthlyExpenseUSD = filteredMonthlyTransactions.filter(t => t.type === 'expense' && accounts.find(a => a.id === t.accountId)?.currency === 'USD').reduce((sum, t) => sum + t.amount, 0);
 
   const sortedTransactions = [...filteredMonthlyTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const handlePrevMonthFilter = () => setSelectedMonthFilter(new Date(selectedMonthFilter.getFullYear(), selectedMonthFilter.getMonth() - 1, 1));
-  const handleNextMonthFilter = () => setSelectedMonthFilter(new Date(selectedMonthFilter.getFullYear(), selectedMonthFilter.getMonth() + 1, 1));
-
   const historyTransactions = transactions.filter(t => {
     if (historyTypeFilter !== 'all' && t.type !== historyTypeFilter) return false;
     if (historyCatFilter !== 'all' && t.category !== historyCatFilter) return false;
@@ -124,17 +130,20 @@ export default function FinanceTracker() {
   };
 
   const saveTransaction = async () => {
-    if (!amount || !description.trim() || !selectedAccId || !selectedSubAccId) { Alert.alert('Data Belum Lengkap', 'Lengkapi nominal, keterangan, dan pilih sumber dana.'); return; }
+    if (!amount || !description.trim() || !selectedAccId || !selectedSubAccId) { 
+      Alert.alert('Incomplete Data', 'Please fill in the amount, description, and select the funding source.'); 
+      return; 
+    }
     const parsedAmount = parseFloat(amount.replace(/[^0-9.]/g, '')) || 0;
     const newTx: Transaction = { id: Date.now().toString(), type, amount: parsedAmount, description: description.trim(), category: selectedCategory, date: txDate.toISOString(), accountId: selectedAccId, subAccountId: selectedSubAccId };
-    const updatedTx = [newTx, ...transactions]; setTransactions(updatedTx); await AsyncStorage.setItem('@finance_tx', JSON.stringify(updatedTx)); setAmount(''); setDescription(''); Keyboard.dismiss(); setTxModalVisible(false);
+    const updatedTx = [newTx, ...transactions]; setTransactions(updatedTx); await AsyncStorage.setItem('@finance_tx', JSON.stringify(updatedTx)); setAmount(''); setDescription(''); setTxModalVisible(false);
   };
 
   const saveAccount = async () => {
     if (!newAccName.trim()) return;
     let updatedAccounts = [...accounts];
     if (accFormType === 'main') {
-      updatedAccounts.push({ id: Date.now().toString(), name: newAccName.trim(), type: newAccType, currency: newAccCurrency, subAccounts: [{ id: Date.now().toString() + '_sub', name: 'Utama' }] });
+      updatedAccounts.push({ id: Date.now().toString(), name: newAccName.trim(), type: newAccType, currency: newAccCurrency, subAccounts: [{ id: Date.now().toString() + '_sub', name: 'Main' }] });
     } else {
       if (!parentAccId) return;
       updatedAccounts = updatedAccounts.map(acc => {
@@ -146,40 +155,41 @@ export default function FinanceTracker() {
   };
 
   const deleteAccount = (accId: string) => {
-    Alert.alert("Hapus Akun Utama?", "Semua sub-akun dan transaksi di dalamnya akan terhapus permanen.", [
-      { text: "Batal", style: "cancel" },
-      { text: "Hapus", style: "destructive", onPress: async () => {
-          const updatedTx = transactions.filter(t => t.accountId !== accId); setTransactions(updatedTx); await AsyncStorage.setItem('@finance_tx', JSON.stringify(updatedTx));
-          const updatedAcc = accounts.filter(acc => acc.id !== accId); setAccounts(updatedAcc); await AsyncStorage.setItem('@finance_acc', JSON.stringify(updatedAcc)); setAccDetailModalVisible(false);
+    Alert.alert("Delete Main Account?", "All sub-accounts and associated transactions will be deleted permanently.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: async () => {
+        const updatedTx = transactions.filter(t => t.accountId !== accId); setTransactions(updatedTx); await AsyncStorage.setItem('@finance_tx', JSON.stringify(updatedTx));
+        const updatedAcc = accounts.filter(acc => acc.id !== accId); setAccounts(updatedAcc); await AsyncStorage.setItem('@finance_acc', JSON.stringify(updatedAcc)); setAccDetailModalVisible(false);
       }}
     ]);
   };
 
   const deleteSubAccount = (accId: string, subId: string) => {
-    Alert.alert("Hapus Sub-Akun?", "Menghapus sub-akun ini juga akan menghapus semua transaksinya.", [
-      { text: "Batal", style: "cancel" },
-      { text: "Hapus", style: "destructive", onPress: async () => {
-          const updatedTx = transactions.filter(t => !(t.accountId === accId && t.subAccountId === subId)); setTransactions(updatedTx); await AsyncStorage.setItem('@finance_tx', JSON.stringify(updatedTx));
-          const updatedAcc = accounts.map(acc => { if (acc.id === accId) return { ...acc, subAccounts: acc.subAccounts.filter(s => s.id !== subId) }; return acc; });
-          setAccounts(updatedAcc); await AsyncStorage.setItem('@finance_acc', JSON.stringify(updatedAcc));
-          if (selectedAccountForDetail?.id === accId) { const updatedSelected = updatedAcc.find(a => a.id === accId); if (updatedSelected) setSelectedAccountForDetail(updatedSelected); }
+    Alert.alert("Delete Sub-Account?", "Transactions recorded under this sub-account will also be deleted.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: async () => {
+        const updatedTx = transactions.filter(t => !(t.accountId === accId && t.subAccountId === subId)); setTransactions(updatedTx); await AsyncStorage.setItem('@finance_tx', JSON.stringify(updatedTx));
+        const updatedAcc = accounts.map(acc => acc.id === accId ? { ...acc, subAccounts: acc.subAccounts.filter(s => s.id !== subId) } : acc); setAccounts(updatedAcc); await AsyncStorage.setItem('@finance_acc', JSON.stringify(updatedAcc));
+        if (selectedAccountForDetail?.id === accId) { const updatedSelected = updatedAcc.find(a => a.id === accId); if (updatedSelected) setSelectedAccountForDetail(updatedSelected); }
       }}
     ]);
   };
 
   const deleteTransaction = (id: string) => {
-    Alert.alert("Hapus Transaksi?", "Data ini akan dihapus permanen.", [{ text: "Batal", style: "cancel" }, { text: "Hapus", style: "destructive", onPress: () => {
+    Alert.alert("Delete Transaction?", "This record will be permanently deleted.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => {
         const updated = transactions.filter(t => t.id !== id); setTransactions(updated); AsyncStorage.setItem('@finance_tx', JSON.stringify(updated));
-    }}]);
+      }}
+    ]);
   };
 
-  const openRename = (type: 'main' | 'sub', accId: string, subId?: string, currentName: string = '') => { setRenameTarget({ type, accId, subId }); setRenameValue(currentName); setRenameModalVisible(true); };
   const saveRename = async () => {
     if (!renameValue.trim() || !renameTarget) return;
     const updated = accounts.map(acc => {
       if (acc.id === renameTarget.accId) {
         if (renameTarget.type === 'main') return { ...acc, name: renameValue.trim() };
-        else if (renameTarget.type === 'sub') return { ...acc, subAccounts: acc.subAccounts.map(sub => sub.id === renameTarget.subId ? { ...sub, name: renameValue.trim() } : sub) };
+        return { ...acc, subAccounts: acc.subAccounts.map(s => s.id === renameTarget.subId ? { ...s, name: renameValue.trim() } : s) };
       }
       return acc;
     });
@@ -190,18 +200,22 @@ export default function FinanceTracker() {
 
   const saveCategory = async () => {
     if (!newCategoryName.trim()) return;
-    if (type === 'expense') { const updated = [...expenseCategories, newCategoryName.trim()]; setExpenseCategories(updated); setSelectedCategory(newCategoryName.trim()); await AsyncStorage.setItem('@finance_exp_cat', JSON.stringify(updated));
-    } else { const updated = [...incomeCategories, newCategoryName.trim()]; setIncomeCategories(updated); setSelectedCategory(newCategoryName.trim()); await AsyncStorage.setItem('@finance_inc_cat', JSON.stringify(updated)); }
+    if (type === 'expense') {
+      const updated = [...expenseCategories, newCategoryName.trim()]; setExpenseCategories(updated); setSelectedCategory(newCategoryName.trim()); await AsyncStorage.setItem('@finance_exp_cat', JSON.stringify(updated));
+    } else {
+      const updated = [...incomeCategories, newCategoryName.trim()]; setIncomeCategories(updated); setSelectedCategory(newCategoryName.trim()); await AsyncStorage.setItem('@finance_inc_cat', JSON.stringify(updated));
+    }
     setNewCategoryName(''); setCatModalVisible(false);
   };
 
-  const openEditBalance = (accId: string, subId: string) => { const currentBal = getSubBalance(accId, subId); setEditBalanceValue(currentBal.toString()); setEditAccId(accId); setEditSubAccId(subId); setBalanceModalVisible(true); };
   const saveBalanceCorrection = async () => {
-    const targetBal = parseFloat(editBalanceValue.replace(/[^0-9.-]/g, '')) || 0; const currentBal = getSubBalance(editAccId, editSubAccId); const diff = targetBal - currentBal;
+    const targetBal = parseFloat(editBalanceValue.replace(/[^0-9.-]/g, '')) || 0;
+    const currentBal = getSubBalance(editAccId, editSubAccId);
+    const diff = targetBal - currentBal;
     if (diff === 0) { setBalanceModalVisible(false); return; }
-    const newTx: Transaction = { id: Date.now().toString(), type: diff > 0 ? 'income' : 'expense', amount: Math.abs(diff), description: 'Penyesuaian Saldo', category: 'Penyesuaian', date: new Date().toISOString(), accountId: editAccId, subAccountId: editSubAccId };
+    const newTx: Transaction = { id: Date.now().toString(), type: diff > 0 ? 'income' : 'expense', amount: Math.abs(diff), description: 'Balance Adjustment', category: 'Adjustment', date: new Date().toISOString(), accountId: editAccId, subAccountId: editSubAccId };
     const updatedTx = [newTx, ...transactions]; setTransactions(updatedTx); await AsyncStorage.setItem('@finance_tx', JSON.stringify(updatedTx)); setBalanceModalVisible(false);
-    if (accDetailModalVisible && selectedAccountForDetail) { const updatedAcc = accounts.find(a => a.id === selectedAccountForDetail.id); if(updatedAcc) setSelectedAccountForDetail(updatedAcc); }
+    if (accDetailModalVisible && selectedAccountForDetail) { const updatedAcc = accounts.find(a => a.id === selectedAccountForDetail.id); if (updatedAcc) setSelectedAccountForDetail(updatedAcc); }
   };
 
   return (
@@ -209,26 +223,23 @@ export default function FinanceTracker() {
       <StatusBar barStyle="light-content" backgroundColor="#09090B" translucent={true} />
       
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Finance</Text>
-          <Text style={styles.slogan}>Kelola keuanganmu dengan bijak.</Text>
-        </View>
+        <Text style={styles.title}>Finance</Text>
+        <Text style={styles.slogan}>Manage Your Money Wisely, Live Freely</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        
-        {/* --- HERO SECTION KINI DIEKSTRAK --- */}
         <HeroSummaryCard 
           totalIDR={totalBalanceIDR} totalUSD={totalBalanceUSD} month={selectedMonthFilter}
-          onPrevMonth={handlePrevMonthFilter} onNextMonth={handleNextMonthFilter}
+          onPrevMonth={() => setSelectedMonthFilter(new Date(selectedMonthFilter.getFullYear(), selectedMonthFilter.getMonth() - 1, 1))}
+          onNextMonth={() => setSelectedMonthFilter(new Date(selectedMonthFilter.getFullYear(), selectedMonthFilter.getMonth() + 1, 1))}
           incIDR={monthlyIncomeIDR} incUSD={monthlyIncomeUSD} expIDR={monthlyExpenseIDR} expUSD={monthlyExpenseUSD}
         />
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Akun & Dompet</Text>
-          <TouchableOpacity style={styles.addAccBtn} onPress={() => setAccModalVisible(true)}>
+          <Text style={styles.sectionTitle}>Accounts</Text>
+          <TouchableOpacity style={styles.addAccBtn} onPress={() => setAccModalVisible(true)} activeOpacity={0.8}>
             <Ionicons name="add" size={14} color="#09090B" />
-            <Text style={styles.addAccText}>BARU</Text>
+            <Text style={styles.addAccText}>Add Account</Text>
           </TouchableOpacity>
         </View>
 
@@ -238,7 +249,7 @@ export default function FinanceTracker() {
             keyExtractor={(item) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
-            renderItem={({item}) => <AccountCard item={item} balance={getAccBalance(item.id)} onPress={(acc) => { setSelectedAccountForDetail(acc); setAccDetailModalVisible(true); }} />}
+            renderItem={({ item }) => <AccountCard item={item} balance={getAccBalance(item.id)} onPress={(acc) => { setSelectedAccountForDetail(acc); setAccDetailModalVisible(true); }} />}
             contentContainerStyle={{ paddingRight: 20 }}
             snapToInterval={232}
             decelerationRate="fast"
@@ -246,17 +257,17 @@ export default function FinanceTracker() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Riwayat {MONTHS[selectedMonthFilter.getMonth()]}</Text>
-          <TouchableOpacity style={styles.addAccBtn} onPress={() => setHistoryModalVisible(true)}>
+          <Text style={styles.sectionTitle}>History {MONTHS[selectedMonthFilter.getMonth()]}</Text>
+          <TouchableOpacity style={styles.addAccBtn} onPress={() => setHistoryModalVisible(true)} activeOpacity={0.8}>
             <Ionicons name="list" size={14} color="#09090B" />
-            <Text style={styles.addAccText}>SEMUA</Text>
+            <Text style={styles.addAccText}>ALL</Text>
           </TouchableOpacity>
         </View>
 
         {sortedTransactions.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="receipt-outline" size={48} color="#27272A" />
-            <Text style={styles.emptyText}>Belum ada transaksi di bulan ini.</Text>
+            <Text style={styles.emptyText}>There are no transactions recorded this month.</Text>
           </View>
         ) : (
           sortedTransactions.map(item => <TransactionCard key={item.id} item={item} accounts={accounts} onClone={cloneTransaction} onDelete={deleteTransaction} />)
@@ -267,379 +278,60 @@ export default function FinanceTracker() {
         <Ionicons name="add" size={28} color="#09090B" />
       </TouchableOpacity>
 
-      {/* =====================================================================================================
-          SEMUA KODE MODAL TETAP ADA DI BAWAH SINI (Tidak diubah, hanya styles CSS-nya yang dibersihkan)
-          ===================================================================================================== */}
-      
-      {/* MODAL RIWAYAT LENGKAP */}
-      <Modal animationType="slide" transparent={true} visible={historyModalVisible} onRequestClose={() => setHistoryModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { height: '95%' }]}>
-            <View style={styles.modalHandle} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Semua Transaksi</Text>
-              <TouchableOpacity onPress={() => setHistoryModalVisible(false)}><Ionicons name="close-circle" size={28} color="#3F3F46" /></TouchableOpacity>
-            </View>
+      <TransactionModal 
+        visible={txModalVisible} type={type} amount={amount} description={description} txDate={txDate}
+        selectedCategory={selectedCategory} selectedAccId={selectedAccId} selectedSubAccId={selectedSubAccId}
+        accounts={accounts} expenseCategories={expenseCategories} incomeCategories={incomeCategories}
+        onClose={() => setTxModalVisible(false)} onSave={saveTransaction} setType={setType} setAmount={setAmount}
+        setDescription={setDescription} setSelectedCategory={setSelectedCategory} setSelectedAccId={setSelectedAccId}
+        setSelectedSubAccId={setSelectedSubAccId} onOpenDatePicker={() => setDatePickerVisible(true)} onOpenAddCategory={() => setCatModalVisible(true)}
+      />
 
-            <Text style={styles.inputLabel}>TIPE TRANSAKSI</Text>
-            <View style={styles.typeRowSmall}>
-              {['all', 'expense', 'income'].map(flt => (
-                <TouchableOpacity key={flt} style={[styles.typeBtnSmall, historyTypeFilter === flt && styles.typeBtnSmallActive]} onPress={() => { setHistoryTypeFilter(flt as any); setHistoryCatFilter('all'); }}>
-                  <Text style={[styles.typeBtnTextSmall, historyTypeFilter === flt && styles.typeBtnTextSmallActive]}>{flt === 'all' ? 'Semua' : flt === 'expense' ? 'Pengeluaran' : 'Pemasukan'}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+      <AccountDetailModal 
+        visible={accDetailModalVisible} account={selectedAccountForDetail} totalBalance={selectedAccountForDetail ? getAccBalance(selectedAccountForDetail.id) : 0}
+        getSubBalance={getSubBalance} onClose={() => setAccDetailModalVisible(false)}
+        onRenameAccount={(acc) => { setRenameTarget({ type: 'main', accId: acc.id }); setRenameValue(acc.name); setRenameModalVisible(true); }}
+        onDeleteAccount={deleteAccount} onEditBalance={(accId, subId) => { setEditAccId(accId); setEditSubAccId(subId); setEditBalanceValue(getSubBalance(accId, subId).toString()); setBalanceModalVisible(true); }}
+        onRenameSubAccount={(accId, subId, name) => { setRenameTarget({ type: 'sub', accId, subId }); setRenameValue(name); setRenameModalVisible(true); }}
+        onDeleteSubAccount={deleteSubAccount}
+      />
 
-            <Text style={styles.inputLabel}>KATEGORI</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScrollSmall} contentContainerStyle={{ paddingRight: 24 }}>
-              <TouchableOpacity style={[styles.chip, historyCatFilter === 'all' && styles.chipActive]} onPress={() => setHistoryCatFilter('all')}>
-                <Text style={[styles.chipText, historyCatFilter === 'all' && styles.chipTextActive]}>Semua</Text>
-              </TouchableOpacity>
-              {historyAvailableCategories.map(cat => (
-                <TouchableOpacity key={cat} style={[styles.chip, historyCatFilter === cat && styles.chipActive]} onPress={() => setHistoryCatFilter(cat)}>
-                  <Text style={[styles.chipText, historyCatFilter === cat && styles.chipTextActive]}>{cat}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+      <HistoryModal 
+        visible={historyModalVisible} historyTransactions={historyTransactions} accounts={accounts} historyTypeFilter={historyTypeFilter}
+        historyCatFilter={historyCatFilter} historyAvailableCategories={historyAvailableCategories}
+        onClose={() => setHistoryModalVisible(false)} setTypeFilter={setHistoryTypeFilter} setCatFilter={setHistoryCatFilter}
+        onClone={cloneTransaction} onDelete={deleteTransaction}
+      />
 
-            <FlatList
-              data={historyTransactions}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 40 }}
-              ListEmptyComponent={<View style={styles.emptyState}><Ionicons name="receipt-outline" size={48} color="#27272A" /><Text style={styles.emptyText}>Tidak ada transaksi.</Text></View>}
-              renderItem={({item}) => <TransactionCard item={item} accounts={accounts} onClone={cloneTransaction} onDelete={deleteTransaction} />}
-            />
-          </View>
-        </View>
-      </Modal>
+      <AddAccountModal 
+        visible={accModalVisible} accFormType={accFormType} newAccName={newAccName} newAccType={newAccType}
+        newAccCurrency={newAccCurrency} parentAccId={parentAccId} accounts={accounts}
+        onClose={() => setAccModalVisible(false)} onSave={saveAccount} setAccFormType={setAccFormType}
+        setNewAccName={setNewAccName} setNewAccType={setNewAccType} setNewAccCurrency={setNewAccCurrency} setParentAccId={setParentAccId}
+      />
 
-      {/* MODAL DETAIL AKUN */}
-      <Modal animationType="slide" transparent={true} visible={accDetailModalVisible} onRequestClose={() => setAccDetailModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback onPress={() => setAccDetailModalVisible(false)}><View style={styles.modalOverlayDismissArea} /></TouchableWithoutFeedback>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHandle} />
-            <View style={styles.modalHeader}>
-              <View style={{flex: 1}}>
-                <Text style={styles.modalTitle}>{selectedAccountForDetail?.name}</Text>
-                <Text style={styles.modalSubtitle}>{selectedAccountForDetail?.type} ({selectedAccountForDetail?.currency}) • Total: {selectedAccountForDetail ? formatMoney(getAccBalance(selectedAccountForDetail.id), selectedAccountForDetail.currency) : 'Rp 0'}</Text>
-              </View>
-              <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                <TouchableOpacity onPress={() => openRename('main', selectedAccountForDetail!.id, undefined, selectedAccountForDetail!.name)} style={{marginRight: 16}}><Ionicons name="pencil" size={24} color="#D4FF00" /></TouchableOpacity>
-                <TouchableOpacity onPress={() => deleteAccount(selectedAccountForDetail!.id)} style={{marginRight: 16}}><Ionicons name="trash-outline" size={24} color="#FF453A" /></TouchableOpacity>
-                <TouchableOpacity onPress={() => setAccDetailModalVisible(false)}><Ionicons name="close-circle" size={28} color="#3F3F46" /></TouchableOpacity>
-              </View>
-            </View>
+      <CalendarModal 
+        visible={datePickerVisible} txDate={txDate} viewDate={viewDate}
+        onClose={() => setDatePickerVisible(false)}
+        onSelectDate={(d) => { setTxDate(d); setDatePickerVisible(false); }}
+        onPrevMonth={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}
+        onNextMonth={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}
+      />
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.inputLabel}>DAFTAR SUB-AKUN (Ketuk untuk ubah saldo)</Text>
-              {selectedAccountForDetail?.subAccounts.map(sub => (
-                <View key={sub.id} style={styles.subAccDetailRow}>
-                  <TouchableOpacity style={{flex: 1, flexDirection: 'row', alignItems: 'center'}} onPress={() => openEditBalance(selectedAccountForDetail.id, sub.id)}>
-                    <Text style={styles.subAccDetailName}>{sub.name}</Text>
-                    <Text style={[styles.subAccDetailBalance, {marginLeft: 12}]}>{formatMoney(getSubBalance(selectedAccountForDetail.id, sub.id), selectedAccountForDetail.currency)}</Text>
-                  </TouchableOpacity>
-                  <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                    <TouchableOpacity onPress={() => openRename('sub', selectedAccountForDetail.id, sub.id, sub.name)} style={{padding: 8, marginRight: 4}}><Ionicons name="pencil" size={16} color="#D4FF00" /></TouchableOpacity>
-                    <TouchableOpacity onPress={() => deleteSubAccount(selectedAccountForDetail.id, sub.id)} style={{padding: 8}}><Ionicons name="trash-outline" size={16} color="#FF453A" /></TouchableOpacity>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      <EditBalanceModal 
+        visible={balanceModalVisible} value={editBalanceValue} currency={accounts.find(a => a.id === editAccId)?.currency || 'IDR'}
+        onClose={() => setBalanceModalVisible(false)} onSave={saveBalanceCorrection} onChangeValue={setEditBalanceValue}
+      />
 
-      {/* MODAL CATAT TRANSAKSI */}
-      <Modal animationType="slide" transparent={true} visible={txModalVisible} onRequestClose={() => setTxModalVisible(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}><View style={styles.modalOverlayDismissArea} /></TouchableWithoutFeedback>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHandle} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Catat Transaksi</Text>
-              <TouchableOpacity onPress={() => setTxModalVisible(false)}><Ionicons name="close-circle" size={28} color="#3F3F46" /></TouchableOpacity>
-            </View>
-            
-            <View style={styles.typeRow}>
-              <TouchableOpacity style={[styles.typeBtn, type === 'expense' && styles.typeBtnExpense]} onPress={() => {setType('expense'); setSelectedCategory(expenseCategories[0])}}>
-                <Text style={[styles.typeBtnText, type === 'expense' && styles.typeBtnTextActive]}>Pengeluaran</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.typeBtn, type === 'income' && styles.typeBtnIncome]} onPress={() => {setType('income'); setSelectedCategory(incomeCategories[0])}}>
-                <Text style={[styles.typeBtnText, type === 'income' && styles.typeBtnTextActive]}>Pemasukan</Text>
-              </TouchableOpacity>
-            </View>
+      <RenameModal 
+        visible={renameModalVisible} value={renameValue} onClose={() => setRenameModalVisible(false)}
+        onSave={saveRename} onChangeValue={setRenameValue}
+      />
 
-            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              <View style={styles.amountContainer}>
-                <Text style={styles.currencySymbol}>{accounts.find(a => a.id === selectedAccId)?.currency === 'USD' ? '$' : 'Rp'}</Text>
-                <TextInput style={styles.inputAmountLarge} placeholder="0" placeholderTextColor="#3F3F46" keyboardType="decimal-pad" value={amount} onChangeText={setAmount} maxLength={12} />
-              </View>
-
-              <View style={styles.datePickerContainer}>
-                <Text style={styles.inputLabel}>TANGGAL TRANSAKSI</Text>
-                <TouchableOpacity style={styles.datePickerBtn} onPress={() => setDatePickerVisible(true)}>
-                  <Ionicons name="calendar-outline" size={16} color="#D4FF00" style={{marginRight: 8}} />
-                  <Text style={styles.datePickerText}>{txDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <TextInput style={styles.input} placeholder="Keterangan (ex: Beli Saham)" placeholderTextColor="#52525B" value={description} onChangeText={setDescription} />
-
-              <Text style={styles.inputLabel}>SUMBER DANA</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={{ paddingRight: 48 }} keyboardShouldPersistTaps="handled">
-                {accounts.map(acc => (
-                  <TouchableOpacity key={acc.id} style={[styles.chip, selectedAccId === acc.id && styles.chipActive]} onPress={() => { setSelectedAccId(acc.id); setSelectedSubAccId(''); }}>
-                    <Text style={[styles.chipText, selectedAccId === acc.id && styles.chipTextActive]}>{acc.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              {selectedAccId && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.chipScroll, {marginTop: -12}]} contentContainerStyle={{ paddingRight: 48 }} keyboardShouldPersistTaps="handled">
-                  {accounts.find(a => a.id === selectedAccId)?.subAccounts.map(sub => (
-                    <TouchableOpacity key={sub.id} style={[styles.chipSub, selectedSubAccId === sub.id && styles.chipSubActive]} onPress={() => setSelectedSubAccId(sub.id)}>
-                      <Text style={[styles.chipSubText, selectedSubAccId === sub.id && styles.chipSubTextActive]}>└ {sub.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              )}
-
-              <Text style={styles.inputLabel}>KATEGORI</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={{ paddingRight: 48 }} keyboardShouldPersistTaps="handled">
-                {(type === 'expense' ? expenseCategories : incomeCategories).map(cat => (
-                  <TouchableOpacity key={cat} style={[styles.chip, selectedCategory === cat && styles.chipActive]} onPress={() => setSelectedCategory(cat)}>
-                    <Text style={[styles.chipText, selectedCategory === cat && styles.chipTextActive]}>{cat}</Text>
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity style={styles.chipAdd} onPress={() => setCatModalVisible(true)}><Text style={styles.chipAddText}>+ Baru</Text></TouchableOpacity>
-              </ScrollView>
-
-              <TouchableOpacity style={styles.saveButton} onPress={saveTransaction}><Text style={styles.saveButtonText}>SIMPAN TRANSAKSI</Text></TouchableOpacity>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* MODAL CALENDAR PICKER */}
-      <Modal animationType="fade" transparent={true} visible={datePickerVisible} onRequestClose={() => setDatePickerVisible(false)}>
-        <View style={styles.modalOverlayCenter}>
-          <View style={styles.modalContentSmall}>
-            <View style={styles.calendarHeaderRow}>
-              <TouchableOpacity onPress={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))} style={styles.calendarNavBtn}><Ionicons name="chevron-back" size={24} color="#FAFAFA" /></TouchableOpacity>
-              <Text style={styles.calendarMonthText}>{MONTHS[viewDate.getMonth()]} {viewDate.getFullYear()}</Text>
-              <TouchableOpacity onPress={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))} style={styles.calendarNavBtn}><Ionicons name="chevron-forward" size={24} color="#FAFAFA" /></TouchableOpacity>
-            </View>
-            <View style={styles.calendarDaysHeader}>{DAYS.map(d => <Text key={d} style={styles.calendarDayName}>{d}</Text>)}</View>
-            <View style={styles.calendarGrid}>
-              {Array.from({length: new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay()}).map((_, i) => <View key={`blank-${i}`} style={styles.calendarCell} />)}
-              {Array.from({length: new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate()}).map((_, i) => {
-                const day = i + 1;
-                const isSelected = txDate.getDate() === day && txDate.getMonth() === viewDate.getMonth() && txDate.getFullYear() === viewDate.getFullYear();
-                const isToday = new Date().getDate() === day && new Date().getMonth() === viewDate.getMonth() && new Date().getFullYear() === viewDate.getFullYear();
-                return (
-                  <TouchableOpacity key={`day-${day}`} style={[styles.calendarCell, isSelected && styles.calendarCellSelected, isToday && !isSelected && styles.calendarCellToday]} onPress={() => { setTxDate(new Date(viewDate.getFullYear(), viewDate.getMonth(), day)); setDatePickerVisible(false); }}>
-                    <Text style={[styles.calendarDayText, isSelected && styles.calendarDayTextSelected, isToday && !isSelected && styles.calendarDayTextToday]}>{day}</Text>
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
-            <TouchableOpacity style={styles.dialogBtnCancel} onPress={() => setDatePickerVisible(false)}><Text style={styles.dialogBtnCancelText}>TUTUP</Text></TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* MODAL KATEGORI BARU */}
-      <Modal animationType="fade" transparent={true} visible={catModalVisible} onRequestClose={() => setCatModalVisible(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlayCenter}>
-          <View style={styles.modalContentSmall}>
-            <Text style={styles.modalTitleCenter}>Kategori Baru</Text>
-            <TextInput style={styles.dialogInput} placeholder="Contoh: Belanja Online..." placeholderTextColor="#52525B" value={newCategoryName} onChangeText={setNewCategoryName} autoFocus={true} />
-            <View style={styles.dialogActionRow}>
-              <TouchableOpacity style={styles.dialogBtnCancel} onPress={() => setCatModalVisible(false)}><Text style={styles.dialogBtnCancelText}>BATAL</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.dialogBtnConfirm} onPress={saveCategory}><Text style={styles.dialogBtnConfirmText}>SIMPAN</Text></TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* MODAL EDIT SALDO */}
-      <Modal animationType="fade" transparent={true} visible={balanceModalVisible} onRequestClose={() => setBalanceModalVisible(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlayCenter}>
-          <View style={styles.modalContentSmall}>
-            <Text style={styles.modalTitleCenter}>Atur Nominal Saldo</Text>
-            <View style={[styles.amountContainer, {marginBottom: 24}]}>
-              <Text style={[styles.currencySymbol, {fontSize: 20}]}>{accounts.find(a => a.id === editAccId)?.currency === 'USD' ? '$' : 'Rp'}</Text>
-              <TextInput style={[styles.inputAmountLarge, {fontSize: 32}]} placeholder="0" placeholderTextColor="#3F3F46" keyboardType="decimal-pad" value={editBalanceValue} onChangeText={setEditBalanceValue} maxLength={12} autoFocus={true} />
-            </View>
-            <View style={styles.dialogActionRow}>
-              <TouchableOpacity style={styles.dialogBtnCancel} onPress={() => setBalanceModalVisible(false)}><Text style={styles.dialogBtnCancelText}>BATAL</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.dialogBtnConfirm} onPress={saveBalanceCorrection}><Text style={styles.dialogBtnConfirmText}>SIMPAN</Text></TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* MODAL UBAH NAMA */}
-      <Modal animationType="fade" transparent={true} visible={renameModalVisible} onRequestClose={() => setRenameModalVisible(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlayCenter}>
-          <View style={styles.modalContentSmall}>
-            <Text style={styles.modalTitleCenter}>Ubah Nama</Text>
-            <TextInput style={[styles.dialogInputLeft, {marginTop: 16}]} placeholder="Masukkan nama baru..." placeholderTextColor="#52525B" value={renameValue} onChangeText={setRenameValue} autoFocus={true} />
-            <View style={styles.dialogActionRow}>
-              <TouchableOpacity style={styles.dialogBtnCancel} onPress={() => setRenameModalVisible(false)}><Text style={styles.dialogBtnCancelText}>BATAL</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.dialogBtnConfirm} onPress={saveRename}><Text style={styles.dialogBtnConfirmText}>SIMPAN</Text></TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* MODAL TAMBAH AKUN */}
-      <Modal animationType="fade" transparent={true} visible={accModalVisible} onRequestClose={() => setAccModalVisible(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlayCenter}>
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}><View style={StyleSheet.absoluteFill} /></TouchableWithoutFeedback>
-          <View style={styles.modalContentSmall}>
-            <Text style={styles.modalTitleCenter}>Tambah Akun Baru</Text>
-            <View style={styles.typeRowSmall}>
-              <TouchableOpacity style={[styles.typeBtnSmall, accFormType === 'main' && styles.typeBtnSmallActive]} onPress={() => setAccFormType('main')}><Text style={[styles.typeBtnTextSmall, accFormType === 'main' && styles.typeBtnTextSmallActive]}>Akun Utama</Text></TouchableOpacity>
-              <TouchableOpacity style={[styles.typeBtnSmall, accFormType === 'sub' && styles.typeBtnSmallActive]} onPress={() => setAccFormType('sub')}><Text style={[styles.typeBtnTextSmall, accFormType === 'sub' && styles.typeBtnTextSmallActive]}>Sub-Akun</Text></TouchableOpacity>
-            </View>
-
-            {accFormType === 'sub' && (
-              <>
-                <Text style={styles.inputLabel}>PILIH AKUN INDUK</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScrollSmall} contentContainerStyle={{ paddingRight: 24 }} keyboardShouldPersistTaps="handled">
-                  {accounts.map(acc => (
-                    <TouchableOpacity key={acc.id} style={[styles.chip, parentAccId === acc.id && styles.chipActive]} onPress={() => setParentAccId(acc.id)}>
-                      <Text style={[styles.chipText, parentAccId === acc.id && styles.chipTextActive]}>{acc.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </>
-            )}
-
-            {accFormType === 'main' && (
-              <>
-                <Text style={styles.inputLabel}>MATA UANG</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScrollSmall} contentContainerStyle={{ paddingRight: 24 }} keyboardShouldPersistTaps="handled">
-                  {['IDR', 'USD'].map(c => (
-                    <TouchableOpacity key={c} style={[styles.chip, newAccCurrency === c && styles.chipActive]} onPress={() => setNewAccCurrency(c as 'IDR' | 'USD')}>
-                      <Text style={[styles.chipText, newAccCurrency === c && styles.chipTextActive]}>{c} {c==='IDR' ? '(Rupiah)' : '(Dolar)'}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                <Text style={styles.inputLabel}>TIPE AKUN</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScrollSmall} contentContainerStyle={{ paddingRight: 24 }} keyboardShouldPersistTaps="handled">
-                  {ACCOUNT_TYPES.map(t => (
-                    <TouchableOpacity key={t} style={[styles.chip, newAccType === t && styles.chipActive]} onPress={() => setNewAccType(t as any)}>
-                      <Text style={[styles.chipText, newAccType === t && styles.chipTextActive]}>{t}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </>
-            )}
-            <Text style={styles.inputLabel}>NAMA</Text>
-            <TextInput style={styles.dialogInputLeft} placeholder="Contoh: Bank BCA..." placeholderTextColor="#52525B" value={newAccName} onChangeText={setNewAccName} />
-            <View style={styles.dialogActionRow}>
-              <TouchableOpacity style={styles.dialogBtnCancel} onPress={() => setAccModalVisible(false)}><Text style={styles.dialogBtnCancelText}>BATAL</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.dialogBtnConfirm} onPress={saveAccount}><Text style={styles.dialogBtnConfirmText}>SIMPAN</Text></TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
+      <AddCategoryModal 
+        visible={catModalVisible} value={newCategoryName} onClose={() => setCatModalVisible(false)}
+        onSave={saveCategory} onChangeValue={setNewCategoryName}
+      />
     </SafeAreaView>
   );
 }
-
-// ==========================================
-// STYLES YANG TERSISA (Hanya Modal & Layout Utama)
-// ==========================================
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090B', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, marginTop: 24 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#FAFAFA', letterSpacing: -0.5 },
-  slogan: { fontSize: 13, color: '#A1A1AA', marginTop: 4, fontWeight: '500' },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#FAFAFA' },
-  addAccBtn: { backgroundColor: '#D4FF00', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  addAccText: { fontSize: 11, fontWeight: 'bold', marginLeft: 4, color: '#09090B' },
-  emptyState: { alignItems: 'center', justifyContent: 'center', marginTop: 40 },
-  emptyText: { color: '#71717A', fontSize: 14, fontWeight: '500', marginTop: 12 },
-  fab: { position: 'absolute', bottom: 32, right: 24, backgroundColor: '#D4FF00', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#D4FF00', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10 },
-  
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
-  modalOverlayDismissArea: { flex: 1 },
-  modalOverlayCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  modalContent: { backgroundColor: '#18181B', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, maxHeight: '90%', borderWidth: 1, borderColor: '#27272A' },
-  modalContentSmall: { backgroundColor: '#18181B', borderRadius: 24, padding: 24, width: '100%', borderWidth: 1, borderColor: '#27272A' },
-  modalHandle: { width: 40, height: 4, backgroundColor: '#3F3F46', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#FAFAFA' },
-  modalSubtitle: { fontSize: 13, color: '#A1A1AA', marginTop: 4, fontWeight: '600' },
-  modalTitleCenter: { fontSize: 20, fontWeight: 'bold', color: '#FAFAFA', marginBottom: 8, textAlign: 'center' },
-  
-  subAccDetailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#27272A' },
-  subAccDetailName: { color: '#FAFAFA', fontSize: 15, fontWeight: '600' },
-  subAccDetailBalance: { color: '#FAFAFA', fontSize: 15, fontWeight: 'bold' },
-  
-  typeRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, backgroundColor: '#09090B', borderRadius: 16, padding: 4, borderWidth: 1, borderColor: '#27272A' },
-  typeBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  typeBtnExpense: { backgroundColor: '#FF453A' },
-  typeBtnIncome: { backgroundColor: '#D4FF00' },
-  typeBtnText: { color: '#71717A', fontSize: 13, fontWeight: 'bold' },
-  typeBtnTextActive: { color: '#09090B' },
-  typeRowSmall: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, backgroundColor: '#09090B', borderRadius: 12, padding: 4, borderWidth: 1, borderColor: '#27272A' },
-  typeBtnSmall: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  typeBtnSmallActive: { backgroundColor: '#27272A' },
-  typeBtnTextSmall: { color: '#71717A', fontSize: 13, fontWeight: 'bold' },
-  typeBtnTextSmallActive: { color: '#FAFAFA' },
-
-  amountContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-  currencySymbol: { fontSize: 28, color: '#D4FF00', fontWeight: 'bold', marginRight: 8, marginTop: 4 },
-  inputAmountLarge: { color: '#D4FF00', fontSize: 48, fontWeight: '900', minWidth: 100 },
-  datePickerContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  datePickerBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#09090B', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: '#27272A' },
-  datePickerText: { color: '#FAFAFA', fontSize: 13, fontWeight: 'bold' },
-
-  inputLabel: { color: '#A1A1AA', fontSize: 11, fontWeight: 'bold', marginBottom: 8, letterSpacing: 1 },
-  input: { backgroundColor: '#09090B', color: '#FAFAFA', paddingHorizontal: 16, paddingVertical: 16, borderRadius: 16, marginBottom: 24, fontSize: 15, borderWidth: 1, borderColor: '#27272A' },
-  
-  chipScroll: { flexDirection: 'row', flexGrow: 0, marginBottom: 24, marginHorizontal: -24, paddingHorizontal: 24 },
-  chipScrollSmall: { flexDirection: 'row', flexGrow: 0, marginBottom: 24, marginHorizontal: -24, paddingHorizontal: 24 },
-  chip: { backgroundColor: '#09090B', borderWidth: 1, borderColor: '#27272A', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 20, marginRight: 10 },
-  chipActive: { backgroundColor: '#D4FF00', borderColor: '#D4FF00' },
-  chipText: { color: '#A1A1AA', fontSize: 13, fontWeight: '600' },
-  chipTextActive: { color: '#09090B', fontWeight: 'bold' },
-  chipSub: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16, marginRight: 8, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#3F3F46' },
-  chipSubActive: { backgroundColor: '#27272A', borderColor: '#D4FF00' },
-  chipSubText: { color: '#A1A1AA', fontSize: 12, fontWeight: '600' },
-  chipSubTextActive: { color: '#FAFAFA' },
-  chipAdd: { backgroundColor: '#27272A', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, marginRight: 8 },
-  chipAddText: { color: '#FAFAFA', fontSize: 13, fontWeight: '500' },
-
-  saveButton: { backgroundColor: '#D4FF00', paddingVertical: 18, borderRadius: 20, alignItems: 'center', marginTop: 16 },
-  saveButtonText: { color: '#09090B', fontSize: 15, fontWeight: 'bold', letterSpacing: 0.5 },
-  
-  dialogInput: { backgroundColor: '#09090B', color: '#FAFAFA', paddingHorizontal: 16, paddingVertical: 16, borderRadius: 16, marginBottom: 28, fontSize: 15, borderWidth: 1, borderColor: '#27272A', textAlign: 'center', width: '100%' },
-  dialogInputLeft: { backgroundColor: '#09090B', color: '#FAFAFA', paddingHorizontal: 16, paddingVertical: 16, borderRadius: 16, marginBottom: 28, fontSize: 15, borderWidth: 1, borderColor: '#27272A', width: '100%' },
-  dialogActionRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%' },
-  dialogBtnCancel: { flex: 1, paddingVertical: 16, borderRadius: 16, backgroundColor: '#27272A', marginRight: 12, alignItems: 'center' },
-  dialogBtnCancelText: { color: '#FAFAFA', fontSize: 14, fontWeight: 'bold', letterSpacing: 0.5 },
-  dialogBtnConfirm: { flex: 1, paddingVertical: 16, borderRadius: 16, backgroundColor: '#D4FF00', alignItems: 'center' },
-  dialogBtnConfirmText: { color: '#09090B', fontSize: 14, fontWeight: 'bold', letterSpacing: 0.5 },
-
-  calendarHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  calendarNavBtn: { padding: 8 },
-  calendarMonthText: { color: '#FAFAFA', fontSize: 16, fontWeight: 'bold' },
-  calendarDaysHeader: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 8 },
-  calendarDayName: { color: '#A1A1AA', fontSize: 12, fontWeight: 'bold', width: 32, textAlign: 'center' },
-  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', marginBottom: 24 },
-  calendarCell: { width: '14.28%', height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 20 },
-  calendarCellSelected: { backgroundColor: '#D4FF00' },
-  calendarCellToday: { borderWidth: 1, borderColor: '#27272A' },
-  calendarDayText: { color: '#FAFAFA', fontSize: 14, fontWeight: '500' },
-  calendarDayTextSelected: { color: '#09090B', fontWeight: 'bold' },
-  calendarDayTextToday: { color: '#D4FF00' }
-});

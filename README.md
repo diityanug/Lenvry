@@ -9,3 +9,6 @@ npx expo install expo-image-picker
 
 # 4. Jalankan aplikasi
 npx expo start
+
+- buat export import backup data
+npx expo install expo-file-system expo-sharing expo-document-picker

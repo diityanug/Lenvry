@@ -6,7 +6,7 @@ export interface SubAccount {
 export interface Account {
   id: string;
   name: string;
-  type: 'Wallet' | 'Bank' | 'Investment' | 'Receivable' | 'Payable' | 'Valas' | 'Emoney';
+  type: 'Bank' | 'E-Wallet' | 'Cash' | 'Investment' | 'Credit Card';
   currency: 'IDR' | 'USD';
   subAccounts: SubAccount[];
 }
@@ -22,19 +22,50 @@ export interface Transaction {
   subAccountId: string;
 }
 
-export const DEFAULT_EXPENSE_CATEGORIES = ['Foods and Beverages', 'Snacks', 'Transport', 'Parking', 'Shopping', 'Bills', 'Entertainment', 'Health', 'Personal', 'Adjustments', 'Others'];
-export const DEFAULT_INCOME_CATEGORIES = ['Salary', 'Allowance', 'Business', 'Bonus', 'Investment', 'Adjustments', 'Others'];
-export const ACCOUNT_TYPES = ['Wallet', 'Bank', 'Investment', 'Receivable', 'Payable', 'Valas', 'Emoney'];
-export const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-export const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+export const ACCOUNT_TYPES = ['Bank', 'E-Wallet', 'Cash', 'Investment', 'Credit Card'] as const;
 
-export const formatMoney = (angka: number, currency: 'IDR' | 'USD' = 'IDR') => {
+export const DEFAULT_EXPENSE_CATEGORIES = [
+  'Food & Beverages',
+  'Snacks',
+  'Transportation',
+  'Shopping',
+  'Bills & Utilities',
+  'Entertainment',
+  'Health & Medical',
+  'Education',
+  'Others',
+];
+
+export const DEFAULT_INCOME_CATEGORIES = [
+  'Salary',
+  'Allowance',
+  'Investment',
+  'Bonus',
+  'Gift',
+  'Others',
+];
+
+export const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+export const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+export const formatMoney = (amount: number, currency: 'IDR' | 'USD' = 'IDR'): string => {
   if (currency === 'USD') {
-    return '$ ' + angka.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
-  return 'Rp ' + angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `Rp ${amount.toLocaleString('id-ID')}`;
 };
 
-export const getAccountIcon = (type: string) => {
-  return type === 'Bank' ? 'university' : type === 'Wallet' ? 'wallet' : type === 'Payable' ? 'credit-card' : 'chart-line';
+export const getAccountIcon = (type: Account['type']): string => {
+  switch (type) {
+    case 'Bank': return 'university';
+    case 'E-Wallet': return 'mobile-alt';
+    case 'Cash': return 'money-bill-wave';
+    case 'Investment': return 'chart-line';
+    case 'Credit Card': return 'credit-card';
+    default: return 'wallet';
+  }
 };

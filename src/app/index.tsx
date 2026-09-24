@@ -1,399 +1,209 @@
-import React, { useState } from 'react';
-import { 
-  StyleSheet, Text, View, SafeAreaView, ScrollView, 
-  TouchableOpacity, StatusBar, Modal, Alert, Platform 
-} from 'react-native';
-import { FontAwesome5, Ionicons } from '@expo/vector-icons';
-import { router, Href } from 'expo-router';
+import React, { useState, useCallback } from 'react';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, StatusBar, Alert, Keyboard } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router, Href, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function HomeScreen() {
-  const [isSettingsModalVisible, setSettingsModalVisible] = useState(false);
+import { formatDateKey } from '../constants/habits';
+import { homeStyles as styles } from '../styles/homeStyles';
+import BentoGrid from '../components/Home/BentoGrid';
+import SettingsModal from '../components/Home/SettingsModal';
+import { exportBackup, importRestore, clearAllAppData } from '../services/backupService';
 
-  const today = new Date().toLocaleDateString('id-ID', { 
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
+const USERNAME_KEY = '@wakemove_user_name';
+
+export default function HomeScreen() {
+  const [userName, setUserName] = useState('User');
+  const [tempName, setTempName] = useState('User');
+  const [isSettingsVisible, setSettingsVisible] = useState(false);
+
+  const [todayExpenses, setTodayExpenses] = useState(0);
+  const [habitCompletedCount, setHabitCompletedCount] = useState(0);
+  const [habitTotalCount, setHabitTotalCount] = useState(0);
+  const [todayWorkoutCount, setTodayWorkoutCount] = useState(0);
+  const [todayWorkoutTitle, setTodayWorkoutTitle] = useState('Rest Day');
+  const [todayWorkoutSub, setTodayWorkoutSub] = useState('No workouts recorded');
+
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', month: 'short', day: 'numeric'
   });
 
-  // Mockup fungsi Backup
-  const handleBackup = () => {
-    Alert.alert(
-      "Fitur Segera Hadir", 
-      "Nantinya fitur ini akan mengekspor semua data latihan dan keuanganmu menjadi file yang bisa disimpan di HP untuk dipindahkan ke perangkat lain."
-    );
-  };
+  const fetchDashboardData = async () => {
+    try {
+      const storedName = await AsyncStorage.getItem(USERNAME_KEY);
+      if (storedName) {
+        setUserName(storedName);
+        setTempName(storedName);
+      }
 
-  // Mockup fungsi Restore
-  const handleRestore = () => {
-    Alert.alert(
-      "Fitur Segera Hadir", 
-      "Nantinya kamu bisa memilih file backup dari HP lamamu untuk mengembalikan semua data ke aplikasi ini."
-    );
-  };
+      const todayDateObj = new Date();
+      const habitKey = formatDateKey(todayDateObj);
+      const fitnessKey = todayDateObj.toISOString().split('T')[0];
 
-  const handleResetData = () => {
-    Alert.alert(
-      "Reset Semua Data?",
-      "Apakah kamu yakin ingin menghapus semua data? Tindakan ini tidak bisa dibatalkan.",
-      [
-        { text: "Batal", style: "cancel" },
-        { 
-          text: "Ya, Hapus", 
-          style: "destructive", 
-          onPress: async () => {
-            try {
-              const keys = await AsyncStorage.getAllKeys();
-              await AsyncStorage.multiRemove(keys);
-              Alert.alert("Berhasil", "Semua data telah dikosongkan.");
-              setSettingsModalVisible(false);
-            } catch (error) {
-              Alert.alert("Error", "Terjadi kesalahan saat menghapus data.");
-            }
-          } 
+      // Finance
+      const storedTx = await AsyncStorage.getItem('@finance_tx');
+      if (storedTx) {
+        const txs: any[] = JSON.parse(storedTx);
+        const exp = txs
+          .filter(t => {
+            const d = new Date(t.date);
+            return (
+              d.getFullYear() === todayDateObj.getFullYear() &&
+              d.getMonth() === todayDateObj.getMonth() &&
+              d.getDate() === todayDateObj.getDate() &&
+              t.type === 'expense'
+            );
+          })
+          .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+        setTodayExpenses(exp);
+      } else {
+        setTodayExpenses(0);
+      }
+
+      // Habits
+      const storedHabits = await AsyncStorage.getItem('@lenvry_habits');
+      if (storedHabits) {
+        const habits: any[] = JSON.parse(storedHabits);
+        const todayHabits = habits.filter(h => h.date === habitKey);
+        setHabitTotalCount(todayHabits.length);
+        setHabitCompletedCount(todayHabits.filter(h => h.completed).length);
+      } else {
+        setHabitTotalCount(0);
+        setHabitCompletedCount(0);
+      }
+
+      // Fitness
+      const storedWorkouts = await AsyncStorage.getItem('@fitness_workouts');
+      if (storedWorkouts) {
+        const workouts: any[] = JSON.parse(storedWorkouts);
+        const todayW = workouts.filter(w => w.date === fitnessKey);
+        setTodayWorkoutCount(todayW.length);
+        if (todayW.length > 0) {
+          setTodayWorkoutTitle(`${todayW.length} Exercises Done`);
+          setTodayWorkoutSub(`${todayW[0].exercise} (${todayW[0].sets} Sets × ${todayW[0].reps})`);
+        } else {
+          setTodayWorkoutTitle('Rest Day');
+          setTodayWorkoutSub('No workouts recorded');
         }
-      ]
-    );
+      } else {
+        setTodayWorkoutCount(0);
+        setTodayWorkoutTitle('Rest Day');
+        setTodayWorkoutSub('No workouts recorded');
+      }
+    } catch (e) {
+      console.error('Failed to sync dashboard metrics:', e);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboardData();
+    }, [])
+  );
+
+  const handleSaveName = async () => {
+    const trimmed = tempName.trim();
+    if (!trimmed) {
+      Alert.alert('Empty Name', 'Please provide a valid display name.');
+      return;
+    }
+    await AsyncStorage.setItem(USERNAME_KEY, trimmed);
+    setUserName(trimmed);
+    Keyboard.dismiss();
+    Alert.alert('Success', 'Profile name has been updated.');
+  };
+
+  const handleResetSuccess = () => {
+    setUserName('User');
+    setTempName('User');
+    setTodayExpenses(0);
+    setHabitTotalCount(0);
+    setHabitCompletedCount(0);
+    setTodayWorkoutCount(0);
+    setTodayWorkoutTitle('Rest Day');
+    setTodayWorkoutSub('No workouts recorded');
+    setSettingsVisible(false);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0D0D0D" translucent={true} />
-      
+      <StatusBar barStyle="light-content" backgroundColor="#09090B" translucent={true} />
+
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        {/* Header & Greeting */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Halo, Aditya</Text>
-            <Text style={styles.date}>{today}</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.userProfile}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{userName.charAt(0).toUpperCase()}</Text>
+            </View>
+            <View>
+              <Text style={styles.greetingText}>Hello, {userName}</Text>
+              <Text style={styles.dateText}>{today}</Text>
+            </View>
           </View>
-          
-          {/* Ubah Icon Person menjadi Settings */}
-          <TouchableOpacity style={styles.settingsBtn} onPress={() => setSettingsModalVisible(true)} activeOpacity={0.8}>
-            <Ionicons name="settings-sharp" size={22} color="#121212" />
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => {
+              setTempName(userName);
+              setSettingsVisible(true);
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="settings-sharp" size={18} color="#FAFAFA" />
           </TouchableOpacity>
         </View>
 
-        {/* Highlight / Pengingat Utama */}
-        <View style={styles.focusCard}>
+        <BentoGrid
+          habitCompletedCount={habitCompletedCount}
+          habitTotalCount={habitTotalCount}
+          todayWorkoutTitle={todayWorkoutTitle}
+          todayWorkoutSub={todayWorkoutSub}
+          todayWorkoutCount={todayWorkoutCount}
+          todayExpenses={todayExpenses}
+        />
+
+        <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
+        <View style={styles.quickActionRow}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push('/finance' as Href)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="add-circle" size={18} color="#D4FF00" />
+            <Text style={styles.actionBtnText}>Add Expense</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push('/habits' as Href)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="checkmark-circle" size={18} color="#8E97FD" />
+            <Text style={styles.actionBtnText}>Check Habits</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.focusContainer}>
           <View style={styles.focusHeader}>
-            <View style={styles.focusIconBg}>
-              <Ionicons name="flame" size={18} color="#FF453A" />
-            </View>
-            <Text style={styles.focusTitle}>Fokus Hari Ini</Text>
+            <Ionicons name="flash" size={15} color="#FF453A" style={{ marginRight: 6 }} />
+            <Text style={styles.focusHeaderText}>DAILY FOCUS</Text>
           </View>
-          <Text style={styles.focusTask}>
-            Jangan lupa selesaikan jadwal <Text style={{color: '#FFF', fontWeight: 'bold'}}>Push Day</Text> dan catat pengeluaran makan siangmu!
+          <Text style={styles.focusBodyText}>
+            {todayExpenses === 0 && habitTotalCount === 0 && todayWorkoutCount === 0
+              ? 'No activity registered for today yet. Start by checking off a habit, logging sets, or recording an expense.'
+              : `Status: ${habitCompletedCount}/${habitTotalCount} habits checked, ${todayWorkoutCount} workout logs, and Rp ${todayExpenses.toLocaleString('id-ID')} spent.`}
           </Text>
-        </View>
-
-        <Text style={styles.sectionTitle}>Ringkasan WakeMove</Text>
-
-        {/* Grid Summary */}
-        <View style={styles.gridContainer}>
-          <TouchableOpacity style={styles.card} onPress={() => router.push('/gym' as Href)} activeOpacity={0.8}>
-            <View style={styles.cardTop}>
-              <View style={[styles.iconBox, { backgroundColor: 'rgba(212, 255, 0, 0.1)' }]}>
-                <FontAwesome5 name="dumbbell" size={18} color="#D4FF00" />
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </View>
-            <Text style={styles.cardTitle}>Gym Tracker</Text>
-            <Text style={styles.cardDesc}>Jadwal hari ini: Push Day (4 Latihan)</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.card} onPress={() => router.push('/habit' as Href)} activeOpacity={0.8}>
-            <View style={styles.cardTop}>
-              <View style={[styles.iconBox, { backgroundColor: 'rgba(74, 222, 128, 0.1)' }]}>
-                <FontAwesome5 name="check-square" size={18} color="#4ADE80" />
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </View>
-            <Text style={styles.cardTitle}>Habit Tracker</Text>
-            <Text style={styles.cardDesc}>2 dari 5 kebiasaan harian selesai.</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.card} onPress={() => router.push('/finance' as Href)} activeOpacity={0.8}>
-            <View style={styles.cardTop}>
-              <View style={[styles.iconBox, { backgroundColor: 'rgba(96, 165, 250, 0.1)' }]}>
-                <FontAwesome5 name="wallet" size={18} color="#60A5FA" />
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </View>
-            <Text style={styles.cardTitle}>Finance Tracker</Text>
-            <Text style={styles.cardDesc}>Pengeluaran hari ini: Rp 45.000</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* --- MODAL PENGATURAN --- */}
-      <Modal animationType="slide" transparent={true} visible={isSettingsModalVisible} onRequestClose={() => setSettingsModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            
-            <View style={styles.modalHandle} />
-            
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Pengaturan</Text>
-              <TouchableOpacity onPress={() => setSettingsModalVisible(false)}>
-                <Ionicons name="close-circle" size={28} color="#3F3F46" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Menu Backup & Restore */}
-            <View style={styles.settingsGroup}>
-              <Text style={styles.sectionLabel}>MANAJEMEN DATA</Text>
-              
-              <TouchableOpacity style={styles.menuItem} onPress={handleBackup} activeOpacity={0.7}>
-                <View style={styles.menuIconBox}>
-                  <Ionicons name="cloud-upload-outline" size={22} color="#D4FF00" />
-                </View>
-                <View style={styles.menuTextContainer}>
-                  <Text style={styles.menuItemTitle}>Backup Data</Text>
-                  <Text style={styles.menuItemDesc}>Simpan data ke perangkat ini</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#3F3F46" />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.menuItem} onPress={handleRestore} activeOpacity={0.7}>
-                <View style={styles.menuIconBox}>
-                  <Ionicons name="cloud-download-outline" size={22} color="#4ADE80" />
-                </View>
-                <View style={styles.menuTextContainer}>
-                  <Text style={styles.menuItemTitle}>Restore Data</Text>
-                  <Text style={styles.menuItemDesc}>Pulihkan dari file backup</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#3F3F46" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Area Setting / Danger Zone */}
-            <View style={styles.settingsGroup}>
-              <Text style={styles.sectionLabel}>ZONA BERBAHAYA</Text>
-              <TouchableOpacity style={styles.resetButton} onPress={handleResetData} activeOpacity={0.8}>
-                <Ionicons name="trash-outline" size={20} color="#FF453A" style={{ marginRight: 8 }} />
-                <Text style={styles.resetButtonText}>Reset Semua Data Aplikasi</Text>
-              </TouchableOpacity>
-              <Text style={styles.resetWarning}>
-                Menghapus seluruh catatan (Gym, Habit, Finance) di perangkat ini secara permanen.
-              </Text>
-            </View>
-
-          </View>
-        </View>
-      </Modal>
-
+      <SettingsModal
+        visible={isSettingsVisible}
+        tempName={tempName}
+        onChangeTempName={setTempName}
+        onSaveName={handleSaveName}
+        onBackup={exportBackup}
+        onRestore={() => importRestore(fetchDashboardData)}
+        onReset={() => clearAllAppData(handleResetSuccess)}
+        onClose={() => setSettingsVisible(false)}
+      />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0D0D0D',
-    // SOLUSI HEADER TERLALU KEATAS: 
-    // Di Android akan otomatis menambah padding setinggi status bar, di iOS 0 (karena SafeAreaView iOS sudah handle)
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, 
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 24, // Sedikit jarak tambahan dari ujung status bar
-    paddingBottom: 40,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  greeting: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#FFF',
-    letterSpacing: 0.5,
-  },
-  date: {
-    fontSize: 14,
-    color: '#888',
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  settingsBtn: {
-    backgroundColor: '#D4FF00',
-    width: 44,
-    height: 44,
-    borderRadius: 14, // Dibuat sedikit kotak membulat agar lebih terlihat seperti tombol gear
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  focusCard: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 69, 58, 0.3)',
-  },
-  focusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  focusIconBg: {
-    backgroundColor: 'rgba(255, 69, 58, 0.1)',
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  focusTitle: {
-    color: '#FF453A',
-    fontSize: 14,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-  focusTask: {
-    color: '#A1A1AA',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginBottom: 16,
-    letterSpacing: 0.5,
-  },
-  gridContainer: {
-    gap: 16,
-  },
-  card: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-  },
-  cardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginBottom: 6,
-  },
-  cardDesc: {
-    fontSize: 13,
-    color: '#888',
-  },
-
-  // --- STYLE UNTUK MODAL PENGATURAN ---
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#18181B',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    borderWidth: 1,
-    borderColor: '#27272A',
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#3F3F46',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FAFAFA',
-  },
-  settingsGroup: {
-    marginBottom: 32,
-  },
-  sectionLabel: {
-    color: '#71717A',
-    fontSize: 12,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-    marginBottom: 16,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#09090B',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#27272A',
-  },
-  menuIconBox: {
-    backgroundColor: '#18181B',
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  menuTextContainer: {
-    flex: 1,
-  },
-  menuItemTitle: {
-    color: '#FAFAFA',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  menuItemDesc: {
-    color: '#A1A1AA',
-    fontSize: 13,
-  },
-  resetButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 69, 58, 0.1)',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 69, 58, 0.3)',
-  },
-  resetButtonText: {
-    color: '#FF453A',
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-  resetWarning: {
-    color: '#71717A',
-    fontSize: 12,
-    marginTop: 12,
-    lineHeight: 18,
-  }
-});
