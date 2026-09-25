@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { Account, Transaction, formatMoney, getAccountIcon, MONTHS } from '../../types/finance';
 import { financeStyles as styles } from '../../styles/financeStyles';
@@ -13,10 +13,10 @@ interface TransactionCardProps {
 }
 
 export const TransactionCard = ({ item, accounts, onClone, onDelete }: TransactionCardProps) => {
-  const account = accounts.find(a => a.id === item.accountId);
+  const account = accounts.find((a) => a.id === item.accountId);
   const accName = account?.name || 'Unknown';
   const accCurrency = account?.currency || 'IDR';
-  const subName = account?.subAccounts.find(s => s.id === item.subAccountId)?.name || '';
+  const subName = account?.subAccounts.find((s) => s.id === item.subAccountId)?.name || '';
   const dateStr = new Date(item.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
@@ -57,7 +57,7 @@ export const AccountCard = ({ item, balance, onPress }: AccountCardProps) => (
     <View style={[styles.accCardAccent, { backgroundColor: item.currency === 'USD' ? '#38BDF8' : '#0284C7' }]} />
     <View style={styles.accHeaderRow}>
       <Text style={styles.accName}>{item.name}</Text>
-      <FontAwesome5 name={getAccountIcon(item.type)} size={14} color={item.currency === 'USD' ? '#38BDF8' : '#38BDF8'} />
+      <FontAwesome5 name={getAccountIcon(item.type)} size={14} color="#38BDF8" />
     </View>
     <Text style={styles.accTotalBalance}>{formatMoney(balance, item.currency)}</Text>
     <View style={styles.subAccPreview}>
@@ -76,78 +76,154 @@ interface HeroSummaryProps {
   month: Date;
   onPrevMonth: () => void;
   onNextMonth: () => void;
+  onOpenCalendar?: () => void;
   incIDR: number;
   incUSD: number;
   expIDR: number;
   expUSD: number;
 }
 
-export const HeroSummaryCard = ({ totalIDR, totalUSD, month, onPrevMonth, onNextMonth, incIDR, incUSD, expIDR, expUSD }: HeroSummaryProps) => {
-  const netIDR = incIDR - expIDR;
-  const netUSD = incUSD - expUSD;
+export const HeroSummaryCard = ({
+  totalIDR,
+  totalUSD,
+  month,
+  onPrevMonth,
+  onNextMonth,
+  onOpenCalendar,
+  incIDR,
+  incUSD,
+  expIDR,
+  expUSD,
+}: HeroSummaryProps) => {
+  const [selectedCurrency, setSelectedCurrency] = useState<'IDR' | 'USD'>('IDR');
+
+  const isIDR = selectedCurrency === 'IDR';
+  const currentTotal = isIDR ? totalIDR : totalUSD;
+  const currentIncome = isIDR ? incIDR : incUSD;
+  const currentExpense = isIDR ? expIDR : expUSD;
+  const currentNet = currentIncome - currentExpense;
 
   return (
     <View style={styles.heroCard}>
-      <Text style={styles.balanceLabel}>TOTAL NET WORTH</Text>
-      <Text style={styles.balanceAmount}>{formatMoney(totalIDR, 'IDR')}</Text>
-      {totalUSD !== 0 && <Text style={styles.balanceAmountUSD}>{formatMoney(totalUSD, 'USD')}</Text>}
-      
+      {/* Top Header: Label & Currency Switcher */}
+      <View style={heroStyles.topRow}>
+        <Text style={styles.balanceLabel}>TOTAL NET WORTH</Text>
+
+        <View style={heroStyles.currencyToggle}>
+          <TouchableOpacity
+            style={[heroStyles.toggleBtn, isIDR && heroStyles.toggleBtnActive]}
+            onPress={() => setSelectedCurrency('IDR')}
+            activeOpacity={0.7}
+          >
+            <Text style={[heroStyles.toggleBtnText, isIDR && heroStyles.toggleBtnTextActive]}>IDR</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[heroStyles.toggleBtn, !isIDR && heroStyles.toggleBtnActive]}
+            onPress={() => setSelectedCurrency('USD')}
+            activeOpacity={0.7}
+          >
+            <Text style={[heroStyles.toggleBtnText, !isIDR && heroStyles.toggleBtnTextActive]}>USD</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Main Balance Display */}
+      <Text style={styles.balanceAmount}>{formatMoney(currentTotal, selectedCurrency)}</Text>
+
       <View style={styles.heroDivider} />
 
+      {/* Month Navigation */}
       <View style={styles.monthSelectorRow}>
         <TouchableOpacity onPress={onPrevMonth} style={styles.monthNavBtn} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={18} color="#FAFAFA" />
         </TouchableOpacity>
-        <Text style={styles.monthSelectorText}>{MONTHS[month.getMonth()]} {month.getFullYear()}</Text>
+
+        <TouchableOpacity
+          onPress={onOpenCalendar}
+          activeOpacity={0.7}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 8 }}
+        >
+          <Ionicons name="calendar-outline" size={16} color="#38BDF8" style={{ marginRight: 6 }} />
+          <Text style={styles.monthSelectorText}>
+            {MONTHS[month.getMonth()]} {month.getFullYear()}
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity onPress={onNextMonth} style={styles.monthNavBtn} activeOpacity={0.7}>
           <Ionicons name="chevron-forward" size={18} color="#FAFAFA" />
         </TouchableOpacity>
       </View>
 
+      {/* Summary Metrics */}
       <View style={styles.summaryContainer}>
-        {/* Row 1: Income & Expenses */}
+        {/* Income & Expense */}
         <View style={styles.summaryTwoCol}>
           <View style={styles.summaryBox}>
             <View style={styles.summaryLabelRow}>
               <Ionicons name="arrow-down-circle" size={14} color="#4ADE80" />
-              <Text style={styles.summaryLabel}>Income</Text>
+              <Text style={styles.summaryLabel}>Income ({selectedCurrency})</Text>
             </View>
-            <Text style={styles.summaryIncome}>+{formatMoney(incIDR, 'IDR')}</Text>
-            {incUSD > 0 && <Text style={styles.summaryIncomeSub}>+{formatMoney(incUSD, 'USD')}</Text>}
+            <Text style={styles.summaryIncome}>+{formatMoney(currentIncome, selectedCurrency)}</Text>
           </View>
 
           <View style={styles.summaryBox}>
             <View style={styles.summaryLabelRow}>
               <Ionicons name="arrow-up-circle" size={14} color="#FF453A" />
-              <Text style={styles.summaryLabel}>Expenses</Text>
+              <Text style={styles.summaryLabel}>Expenses ({selectedCurrency})</Text>
             </View>
-            <Text style={styles.summaryExpense}>-{formatMoney(expIDR, 'IDR')}</Text>
-            {expUSD > 0 && <Text style={styles.summaryExpenseSub}>-{formatMoney(expUSD, 'USD')}</Text>}
+            <Text style={styles.summaryExpense}>-{formatMoney(currentExpense, selectedCurrency)}</Text>
           </View>
         </View>
 
-        {/* Row 2: Net Month Cash Flow */}
+        {/* Net Cash Flow */}
         <View style={styles.balanceBoxFull}>
           <View style={styles.summaryLabelRow}>
-            <Ionicons 
-              name={netIDR >= 0 ? "wallet-outline" : "alert-circle-outline"} 
-              size={14} 
-              color={netIDR >= 0 ? "#4ADE80" : "#FF453A"} 
+            <Ionicons
+              name={currentNet >= 0 ? 'wallet-outline' : 'alert-circle-outline'}
+              size={14}
+              color={currentNet >= 0 ? '#4ADE80' : '#FF453A'}
             />
-            <Text style={styles.summaryLabel}>Net Cash Flow</Text>
+            <Text style={styles.summaryLabel}>Net Cash Flow ({selectedCurrency})</Text>
           </View>
-          <View style={styles.balanceValueRow}>
-            <Text style={netIDR >= 0 ? styles.summaryIncomeLarge : styles.summaryExpenseLarge}>
-              {netIDR >= 0 ? '+' : '-'}{formatMoney(Math.abs(netIDR), 'IDR')}
-            </Text>
-            {(incUSD > 0 || expUSD > 0) && (
-              <Text style={[styles.summaryIncomeSub, { marginLeft: 8, color: netUSD >= 0 ? '#38BDF8' : '#FF453A' }]}>
-                ({netUSD >= 0 ? '+' : '-'}{formatMoney(Math.abs(netUSD), 'USD')})
-              </Text>
-            )}
-          </View>
+          <Text style={currentNet >= 0 ? styles.summaryIncomeLarge : styles.summaryExpenseLarge}>
+            {currentNet >= 0 ? '+' : '-'}{formatMoney(Math.abs(currentNet), selectedCurrency)}
+          </Text>
         </View>
       </View>
     </View>
   );
 };
+
+const heroStyles = StyleSheet.create({
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  currencyToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#09090B',
+    borderRadius: 8,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: '#27272A',
+  },
+  toggleBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  toggleBtnActive: {
+    backgroundColor: '#38BDF8',
+  },
+  toggleBtnText: {
+    color: '#71717A',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  toggleBtnTextActive: {
+    color: '#09090B',
+    fontWeight: '800',
+  },
+});

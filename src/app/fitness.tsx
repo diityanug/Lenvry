@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import {
   Text, View, TouchableOpacity, SafeAreaView,
-  StatusBar, FlatList, Alert, Keyboard
+  StatusBar, FlatList, Keyboard
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Workout } from '../types/fitness';
 import { GYM_CATEGORIES } from '../constants/fitness';
+import { TAB_BAR_HEIGHT } from '../constants/tabBar';
 import DateStrip from '../components/Fitness/DateStrip';
 import HeroMetrics from '../components/Fitness/HeroMetrics';
 import CategoryFilter from '../components/Fitness/CategoryFilter';
 import WorkoutCard from '../components/Fitness/WorkoutCard';
 import CalendarModal from '../components/Fitness/CalendarModal';
 import AddWorkoutModal from '../components/Fitness/AddWorkoutModal';
-import WarningModal from '../components/Fitness/WarningModal';
+import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
 import { fitnessStyles as styles } from '../styles/fitnessStyles';
 
 export default function FitnessScreen() {
@@ -22,8 +23,13 @@ export default function FitnessScreen() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [warningVisible, setWarningVisible] = useState(false);
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
+
+  const [alertConfig, setAlertConfig] = useState<AppAlertConfig>({
+    visible: false,
+    title: '',
+    message: '',
+  });
 
   const [activeFilter, setActiveFilter] = useState('All');
   const [exercise, setExercise] = useState('');
@@ -35,6 +41,29 @@ export default function FitnessScreen() {
   useEffect(() => {
     loadWorkouts();
   }, []);
+
+  const showAlert = (
+    type: AppAlertConfig['type'],
+    title: string,
+    message: string,
+    confirmText = 'OK',
+    cancelText?: string,
+    onConfirm?: () => void
+  ) => {
+    setAlertConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      onConfirm,
+    });
+  };
+
+  const closeAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
 
   const loadWorkouts = async () => {
     try {
@@ -48,16 +77,20 @@ export default function FitnessScreen() {
   };
 
   const currentDateKey = selectedDate.toISOString().split('T')[0];
-  const currentDayWorkouts = workouts.filter(w => w.date === currentDateKey);
+  const currentDayWorkouts = workouts.filter((w) => w.date === currentDateKey);
   const filteredWorkouts = activeFilter === 'All'
     ? currentDayWorkouts
-    : currentDayWorkouts.filter(w => w.category === activeFilter);
+    : currentDayWorkouts.filter((w) => w.category === activeFilter);
 
   const saveWorkout = async () => {
     const isCardio = selectedCategory === 'Cardio';
 
     if (!exercise.trim() || !sets || !reps || (!isCardio && !weight)) {
-      setWarningVisible(true);
+      showAlert(
+        'warning',
+        'Incomplete Details',
+        'Please enter the exercise name, sets, and repetitions before saving.'
+      );
       return;
     }
 
@@ -90,21 +123,17 @@ export default function FitnessScreen() {
   };
 
   const deleteWorkout = (id: string) => {
-    Alert.alert(
+    showAlert(
+      'danger',
       'Delete Record?',
       'This exercise log will be permanently removed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const updatedWorkouts = workouts.filter(w => w.id !== id);
-            setWorkouts(updatedWorkouts);
-            await AsyncStorage.setItem('@fitness_workouts', JSON.stringify(updatedWorkouts));
-          },
-        },
-      ]
+      'DELETE',
+      'CANCEL',
+      async () => {
+        const updatedWorkouts = workouts.filter((w) => w.id !== id);
+        setWorkouts(updatedWorkouts);
+        await AsyncStorage.setItem('@fitness_workouts', JSON.stringify(updatedWorkouts));
+      }
     );
   };
 
@@ -112,7 +141,6 @@ export default function FitnessScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#09090B" translucent={true} />
 
-      {/* Header Tanpa Tombol Menu Burger */}
       <View style={styles.header}>
         <Text style={styles.title}>Fitness</Text>
         <Text style={styles.slogan}>Track Your Strength, Own Your Progress</Text>
@@ -152,10 +180,14 @@ export default function FitnessScreen() {
           </View>
         }
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 40 }}
       />
 
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)} activeOpacity={0.9}>
+      <TouchableOpacity 
+        style={[styles.fab, { bottom: TAB_BAR_HEIGHT + 16 }]} 
+        onPress={() => setModalVisible(true)} 
+        activeOpacity={0.9}
+      >
         <Ionicons name="add" size={28} color="#09090B" />
       </TouchableOpacity>
 
@@ -183,10 +215,7 @@ export default function FitnessScreen() {
         onChangeWeight={setWeight}
       />
 
-      <WarningModal
-        visible={warningVisible}
-        onClose={() => setWarningVisible(false)}
-      />
+      <AppAlertModal config={alertConfig} onClose={closeAlert} />
     </SafeAreaView>
   );
 }

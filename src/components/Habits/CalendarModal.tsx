@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
 
-interface CalendarModalProps {
+interface HabitCalendarModalProps {
   visible: boolean;
   selectedDate: Date;
   onClose: () => void;
@@ -17,11 +20,20 @@ export default function CalendarModal({
   selectedDate,
   onClose,
   onSelectDate,
-}: CalendarModalProps) {
+}: HabitCalendarModalProps) {
   const [viewDate, setViewDate] = useState<Date>(selectedDate);
+
+  useEffect(() => {
+    if (visible) {
+      setViewDate(selectedDate);
+    }
+  }, [visible, selectedDate]);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
+
+  const today = new Date();
+  const isViewingCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
 
   const firstDayIndex = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -35,13 +47,16 @@ export default function CalendarModal({
     selectedDate.getMonth() === month &&
     selectedDate.getFullYear() === year;
 
-  const isToday = (day: number) => {
-    const today = new Date();
-    return (
-      today.getDate() === day &&
-      today.getMonth() === month &&
-      today.getFullYear() === year
-    );
+  const isToday = (day: number) =>
+    today.getDate() === day &&
+    today.getMonth() === month &&
+    today.getFullYear() === year;
+
+  const handleSelectToday = () => {
+    const now = new Date();
+    setViewDate(now);
+    onSelectDate(now);
+    onClose();
   };
 
   return (
@@ -50,16 +65,30 @@ export default function CalendarModal({
         <View style={styles.overlay}>
           <TouchableWithoutFeedback onPress={() => {}}>
             <View style={styles.container}>
+              {/* Header Modal */}
               <View style={styles.header}>
                 <View style={styles.headerTitleWrap}>
-                  <Ionicons name="calendar" size={18} color="#FF6B00" style={{ marginRight: 8 }} />
+                  <Ionicons name="calendar" size={18} color="#8E97FD" style={{ marginRight: 8 }} />
                   <Text style={styles.headerTitle}>Select Date</Text>
                 </View>
-                <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
-                  <Ionicons name="close" size={20} color="#FAFAFA" />
-                </TouchableOpacity>
+
+                <View style={styles.headerActions}>
+                  <TouchableOpacity
+                    style={styles.todayPillBtn}
+                    onPress={handleSelectToday}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="today-outline" size={13} color="#8E97FD" style={{ marginRight: 4 }} />
+                    <Text style={styles.todayPillText}>Today</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
+                    <Ionicons name="close" size={20} color="#FAFAFA" />
+                  </TouchableOpacity>
+                </View>
               </View>
 
+              {/* Navigasi Bulan */}
               <View style={styles.navRow}>
                 <TouchableOpacity
                   style={styles.monthNavBtn}
@@ -68,7 +97,17 @@ export default function CalendarModal({
                 >
                   <Ionicons name="chevron-back" size={18} color="#FAFAFA" />
                 </TouchableOpacity>
-                <Text style={styles.monthText}>{MONTHS[month]} {year}</Text>
+
+                <TouchableOpacity
+                  onPress={() => setViewDate(new Date())}
+                  activeOpacity={0.7}
+                  style={styles.monthCenterBtn}
+                >
+                  <Text style={styles.monthText}>
+                    {MONTHS[month]} {year}
+                  </Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   style={styles.monthNavBtn}
                   onPress={() => setViewDate(new Date(year, month + 1, 1))}
@@ -78,6 +117,7 @@ export default function CalendarModal({
                 </TouchableOpacity>
               </View>
 
+              {/* Header Nama Hari */}
               <View style={styles.weekDaysRow}>
                 {DAYS_OF_WEEK.map((d, index) => (
                   <View key={index} style={styles.cellWrapper}>
@@ -86,6 +126,7 @@ export default function CalendarModal({
                 ))}
               </View>
 
+              {/* Grid Tanggal */}
               <View style={styles.daysGrid}>
                 {daysArray.map((day, idx) => {
                   if (day === null) {
@@ -93,7 +134,7 @@ export default function CalendarModal({
                   }
 
                   const selected = isSelected(day);
-                  const today = isToday(day);
+                  const currentDay = isToday(day);
 
                   return (
                     <View key={idx} style={styles.cellWrapper}>
@@ -101,16 +142,19 @@ export default function CalendarModal({
                         style={[
                           styles.dayBox,
                           selected && styles.dayBoxSelected,
-                          today && !selected && styles.dayBoxToday,
+                          currentDay && !selected && styles.dayBoxToday,
                         ]}
-                        onPress={() => onSelectDate(new Date(year, month, day))}
+                        onPress={() => {
+                          onSelectDate(new Date(year, month, day));
+                          onClose();
+                        }}
                         activeOpacity={0.7}
                       >
                         <Text
                           style={[
                             styles.dayText,
                             selected && styles.dayTextSelected,
-                            today && !selected && styles.dayTextToday,
+                            currentDay && !selected && styles.dayTextToday,
                           ]}
                         >
                           {day}
@@ -165,12 +209,32 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: '#FAFAFA',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  todayPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(142, 151, 253, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(142, 151, 253, 0.3)',
+  },
+  todayPillText: {
+    color: '#8E97FD',
+    fontSize: 11,
+    fontWeight: '800',
   },
   closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#27272A',
     justifyContent: 'center',
     alignItems: 'center',
@@ -188,6 +252,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#27272A',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  monthCenterBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
   monthText: {
     color: '#FAFAFA',
@@ -225,11 +293,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dayBoxSelected: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: '#8E97FD',
   },
   dayBoxToday: {
-    borderWidth: 1,
-    borderColor: '#FF6B00',
+    borderWidth: 1.5,
+    borderColor: '#8E97FD',
   },
   dayText: {
     color: '#FAFAFA',
@@ -241,7 +309,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   dayTextToday: {
-    color: '#FF6B00',
+    color: '#8E97FD',
     fontWeight: '700',
   },
 });

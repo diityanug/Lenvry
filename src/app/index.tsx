@@ -1,21 +1,18 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, StatusBar, Alert, Keyboard } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Href, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { formatDateKey } from '../constants/habits';
+import { TAB_BAR_HEIGHT } from '../constants/tabBar';
 import { homeStyles as styles } from '../styles/homeStyles';
 import BentoGrid from '../components/Home/BentoGrid';
-import SettingsModal from '../components/Home/SettingsModal';
-import { exportBackup, importRestore, clearAllAppData } from '../services/backupService';
 
 const USERNAME_KEY = '@wakemove_user_name';
 
 export default function HomeScreen() {
   const [userName, setUserName] = useState('User');
-  const [tempName, setTempName] = useState('User');
-  const [isSettingsVisible, setSettingsVisible] = useState(false);
 
   const [todayExpenses, setTodayExpenses] = useState(0);
   const [habitCompletedCount, setHabitCompletedCount] = useState(0);
@@ -25,7 +22,9 @@ export default function HomeScreen() {
   const [todayWorkoutSub, setTodayWorkoutSub] = useState('No workouts recorded');
 
   const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long', month: 'short', day: 'numeric'
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
   });
 
   const fetchDashboardData = async () => {
@@ -33,7 +32,6 @@ export default function HomeScreen() {
       const storedName = await AsyncStorage.getItem(USERNAME_KEY);
       if (storedName) {
         setUserName(storedName);
-        setTempName(storedName);
       }
 
       const todayDateObj = new Date();
@@ -45,7 +43,7 @@ export default function HomeScreen() {
       if (storedTx) {
         const txs: any[] = JSON.parse(storedTx);
         const exp = txs
-          .filter(t => {
+          .filter((t) => {
             const d = new Date(t.date);
             return (
               d.getFullYear() === todayDateObj.getFullYear() &&
@@ -64,9 +62,9 @@ export default function HomeScreen() {
       const storedHabits = await AsyncStorage.getItem('@lenvry_habits');
       if (storedHabits) {
         const habits: any[] = JSON.parse(storedHabits);
-        const todayHabits = habits.filter(h => h.date === habitKey);
+        const todayHabits = habits.filter((h) => h.date === habitKey);
         setHabitTotalCount(todayHabits.length);
-        setHabitCompletedCount(todayHabits.filter(h => h.completed).length);
+        setHabitCompletedCount(todayHabits.filter((h) => h.completed).length);
       } else {
         setHabitTotalCount(0);
         setHabitCompletedCount(0);
@@ -76,7 +74,7 @@ export default function HomeScreen() {
       const storedWorkouts = await AsyncStorage.getItem('@fitness_workouts');
       if (storedWorkouts) {
         const workouts: any[] = JSON.parse(storedWorkouts);
-        const todayW = workouts.filter(w => w.date === fitnessKey);
+        const todayW = workouts.filter((w) => w.date === fitnessKey);
         setTodayWorkoutCount(todayW.length);
         if (todayW.length > 0) {
           setTodayWorkoutTitle(`${todayW.length} Exercises Done`);
@@ -101,35 +99,14 @@ export default function HomeScreen() {
     }, [])
   );
 
-  const handleSaveName = async () => {
-    const trimmed = tempName.trim();
-    if (!trimmed) {
-      Alert.alert('Empty Name', 'Please provide a valid display name.');
-      return;
-    }
-    await AsyncStorage.setItem(USERNAME_KEY, trimmed);
-    setUserName(trimmed);
-    Keyboard.dismiss();
-    Alert.alert('Success', 'Profile name has been updated.');
-  };
-
-  const handleResetSuccess = () => {
-    setUserName('User');
-    setTempName('User');
-    setTodayExpenses(0);
-    setHabitTotalCount(0);
-    setHabitCompletedCount(0);
-    setTodayWorkoutCount(0);
-    setTodayWorkoutTitle('Rest Day');
-    setTodayWorkoutSub('No workouts recorded');
-    setSettingsVisible(false);
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#09090B' }]}>
       <StatusBar barStyle="light-content" backgroundColor="#09090B" translucent={true} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_HEIGHT + 40 }]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.headerRow}>
           <View style={styles.userProfile}>
             <View style={styles.avatar}>
@@ -140,16 +117,6 @@ export default function HomeScreen() {
               <Text style={styles.dateText}>{today}</Text>
             </View>
           </View>
-          <TouchableOpacity
-            style={styles.settingsBtn}
-            onPress={() => {
-              setTempName(userName);
-              setSettingsVisible(true);
-            }}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="settings-sharp" size={18} color="#FAFAFA" />
-          </TouchableOpacity>
         </View>
 
         <BentoGrid
@@ -168,7 +135,7 @@ export default function HomeScreen() {
             onPress={() => router.push('/finance' as Href)}
             activeOpacity={0.7}
           >
-            <Ionicons name="add-circle" size={18} color="#D4FF00" />
+            <Ionicons name="add-circle" size={18} color="#38BDF8" />
             <Text style={styles.actionBtnText}>Add Expense</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -193,17 +160,6 @@ export default function HomeScreen() {
           </Text>
         </View>
       </ScrollView>
-
-      <SettingsModal
-        visible={isSettingsVisible}
-        tempName={tempName}
-        onChangeTempName={setTempName}
-        onSaveName={handleSaveName}
-        onBackup={exportBackup}
-        onRestore={() => importRestore(fetchDashboardData)}
-        onReset={() => clearAllAppData(handleResetSuccess)}
-        onClose={() => setSettingsVisible(false)}
-      />
     </SafeAreaView>
   );
 }

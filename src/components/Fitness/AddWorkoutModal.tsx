@@ -43,12 +43,18 @@ export default function AddWorkoutModal({
     year: 'numeric',
   });
 
+  const handleDismiss = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
+
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <TouchableWithoutFeedback onPress={handleDismiss}>
           <View style={styles.modalDismissArea} />
         </TouchableWithoutFeedback>
+
         <View style={styles.modalContent}>
           <View style={styles.modalHandle} />
           <View style={styles.modalHeader}>

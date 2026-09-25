@@ -1,21 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Text, View, TouchableOpacity, SafeAreaView, 
-  StatusBar, Keyboard, ScrollView 
-} from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState } from 'react';
+import {
+  Keyboard,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
-import { Habit, ConfirmConfig } from '../types/habits';
-import { DEFAULT_CATEGORIES, formatDateKey } from '../constants/habits';
-import DateNavigator from '../components/Habits/DateNavigator';
-import ProgressCard from '../components/Habits/ProgressCard';
-import CategoryFilter from '../components/Habits/CategoryFilter';
-import MasonryCard from '../components/Habits/MasonryCard';
-import AddHabitModal from '../components/Habits/AddHabitModal';
+import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
 import AddCategoryModal from '../components/Habits/AddCategoryModal';
-import ConfirmDialogModal from '../components/Habits/ConfirmDialogModal';
+import AddHabitModal from '../components/Habits/AddHabitModal';
+import CalendarModal from '../components/Habits/CalendarModal';
+import CategoryFilter from '../components/Habits/CategoryFilter';
+import DateNavigator from '../components/Habits/DateNavigator';
+import HabitCard from '../components/Habits/HabitCard';
+import ProgressCard from '../components/Habits/ProgressCard';
+import { DEFAULT_CATEGORIES, formatDateKey } from '../constants/habits';
+import { TAB_BAR_HEIGHT } from '../constants/tabBar';
 import { habitStyles as styles } from '../styles/habitStyles';
+import { Habit } from '../types/habits';
 
 export default function HabitTrackerScreen() {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -25,29 +32,56 @@ export default function HabitTrackerScreen() {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [categoryInputVisible, setCategoryInputVisible] = useState(false);
-  const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig>({
-    visible: false, title: '', message: '', isDestructive: true, confirmText: 'Delete', onConfirm: () => {}
+  const [calendarModalVisible, setCalendarModalVisible] = useState(false);
+
+  const [alertConfig, setAlertConfig] = useState<AppAlertConfig>({
+    visible: false,
+    title: '',
+    message: '',
   });
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
   const [newCategoryText, setNewCategoryText] = useState('');
 
+  const todayDateKey = formatDateKey(new Date());
   const currentDateKey = formatDateKey(selectedDate);
-  const currentDayHabits = habits.filter(h => h.date === currentDateKey);
+  const isTodayActive = currentDateKey === todayDateKey;
+
+  const currentDayHabits = habits.filter((h) => h.date === currentDateKey);
   const filteredHabits = activeFilter === 'All' 
     ? currentDayHabits 
-    : currentDayHabits.filter(h => h.category === activeFilter);
+    : currentDayHabits.filter((h) => h.category === activeFilter);
 
-  const leftColumnData = filteredHabits.filter((_, i) => i % 2 === 0);
-  const rightColumnData = filteredHabits.filter((_, i) => i % 2 !== 0);
-
-  const completedCount = filteredHabits.filter(h => h.completed).length;
+  const completedCount = filteredHabits.filter((h) => h.completed).length;
   const progressPercent = filteredHabits.length > 0 ? (completedCount / filteredHabits.length) * 100 : 0;
 
   useEffect(() => {
     loadData();
   }, []);
+
+  const showAlert = (
+    type: AppAlertConfig['type'],
+    title: string,
+    message: string,
+    confirmText = 'OK',
+    cancelText?: string,
+    onConfirm?: () => void
+  ) => {
+    setAlertConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      onConfirm,
+    });
+  };
+
+  const closeAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
 
   const loadData = async () => {
     try {
@@ -84,9 +118,13 @@ export default function HabitTrackerScreen() {
     setSelectedDate(next);
   };
 
+  const handleGoToToday = () => {
+    setSelectedDate(new Date());
+  };
+
   const saveHabit = async () => {
     if (!title.trim() || !category) {
-      showDialog("Missing Data", "Habit name and category cannot be empty!", false, "OK", closeDialog);
+      showAlert('warning', 'Missing Data', 'Habit name and category cannot be empty.');
       return;
     }
 
@@ -108,7 +146,7 @@ export default function HabitTrackerScreen() {
   };
 
   const toggleHabitForDate = async (id: string) => {
-    const updatedHabits = habits.map(habit => {
+    const updatedHabits = habits.map((habit) => {
       if (habit.id === id) {
         return { ...habit, completed: !habit.completed };
       }
@@ -118,25 +156,25 @@ export default function HabitTrackerScreen() {
     await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updatedHabits));
   };
 
-  const showDialog = (title: string, message: string, isDestructive: boolean, confirmText: string, onConfirm: () => void) => {
-    setConfirmConfig({ visible: true, title, message, isDestructive, confirmText, onConfirm });
-  };
-
-  const closeDialog = () => setConfirmConfig(prev => ({ ...prev, visible: false }));
-
   const deleteHabit = (id: string) => {
-    showDialog("Delete Habit?", "Are you sure you want to remove this habit for this date?", true, "Delete", async () => {
-      const updatedHabits = habits.filter(h => h.id !== id);
-      setHabits(updatedHabits);
-      await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updatedHabits));
-      closeDialog();
-    });
+    showAlert(
+      'danger',
+      'Delete Habit?',
+      'Are you sure you want to remove this habit for this date?',
+      'DELETE',
+      'CANCEL',
+      async () => {
+        const updatedHabits = habits.filter((h) => h.id !== id);
+        setHabits(updatedHabits);
+        await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updatedHabits));
+      }
+    );
   };
 
   const addCategory = async () => {
     if (!newCategoryText.trim()) return;
     if (categories.includes(newCategoryText.trim())) {
-      showDialog("Category Exists", "This category already exists. Choose a different name.", false, "OK", closeDialog); 
+      showAlert('warning', 'Category Exists', 'This category already exists. Choose a different name.'); 
       return;
     }
     const updatedCategories = [...categories, newCategoryText.trim()];
@@ -148,93 +186,127 @@ export default function HabitTrackerScreen() {
   };
 
   const deleteCategory = (catToDelete: string) => {
-    showDialog("Delete Category?", `Remove category "${catToDelete}"?`, true, "Delete", async () => {
-      const updatedCategories = categories.filter(c => c !== catToDelete);
-      setCategories(updatedCategories);
-      if (category === catToDelete) setCategory(updatedCategories.length > 0 ? updatedCategories[0] : '');
-      if (activeFilter === catToDelete) setActiveFilter('All');
-      await AsyncStorage.setItem('@lenvry_habit_categories', JSON.stringify(updatedCategories));
-      closeDialog();
-    });
+    showAlert(
+      'danger',
+      'Delete Category?',
+      `Remove category "${catToDelete}"?`,
+      'DELETE',
+      'CANCEL',
+      async () => {
+        const updatedCategories = categories.filter((c) => c !== catToDelete);
+        setCategories(updatedCategories);
+        if (category === catToDelete) setCategory(updatedCategories.length > 0 ? updatedCategories[0] : '');
+        if (activeFilter === catToDelete) setActiveFilter('All');
+        await AsyncStorage.setItem('@lenvry_habit_categories', JSON.stringify(updatedCategories));
+      }
+    );
   };
 
   const getTotalCompletedCount = (habitTitle: string) => {
-    return habits.filter(h => h.title.toLowerCase() === habitTitle.toLowerCase() && h.completed).length;
+    return habits.filter((h) => h.title.toLowerCase() === habitTitle.toLowerCase() && h.completed).length;
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#09090B" translucent={true} />
       
-      <View style={styles.header}>
-        <View>
+      {/* Header dengan Tombol Add Terintegrasi */}
+      <View style={styles.headerRow}>
+        <View style={{ flex: 1, marginRight: 12 }}>
           <Text style={styles.headerTitleBold}>Habits</Text>
           <Text style={styles.headerSubtitleLight}>Build Consistency, Shape Your Future</Text>
         </View>
+
+        <TouchableOpacity 
+          style={styles.headerAddBtn} 
+          onPress={() => setModalVisible(true)} 
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={16} color="#09090B" />
+          <Text style={styles.headerAddBtnText}>Add</Text>
+        </TouchableOpacity>
       </View>
 
-      <DateNavigator 
-        selectedDate={selectedDate}
-        onPrevDay={handlePrevDay}
-        onNextDay={handleNextDay}
-      />
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 36 }}
+      >
+        {/* Navigasi Tanggal */}
+        <DateNavigator 
+          selectedDate={selectedDate}
+          onPrevDay={handlePrevDay}
+          onNextDay={handleNextDay}
+          onOpenCalendar={() => setCalendarModalVisible(true)}
+        />
 
-      <CategoryFilter 
-        categories={categories}
-        activeFilter={activeFilter}
-        onSelectFilter={setActiveFilter}
-      />
+        {/* Shortcut Kembali ke Hari Ini */}
+        {!isTodayActive && (
+          <TouchableOpacity 
+            style={styles.todayBanner} 
+            onPress={handleGoToToday}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="return-up-back" size={15} color="#8E97FD" style={{ marginRight: 6 }} />
+            <Text style={styles.todayBannerText}>Tap to jump back to Today</Text>
+          </TouchableOpacity>
+        )}
 
-      <ProgressCard 
-        completedCount={completedCount}
-        totalCount={filteredHabits.length}
-        progressPercent={progressPercent}
-      />
+        {/* Filter Kategori */}
+        <CategoryFilter 
+          categories={categories}
+          activeFilter={activeFilter}
+          onSelectFilter={setActiveFilter}
+        />
 
-      {filteredHabits.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Ionicons name="leaf-outline" size={64} color="#27272A" />
-          <Text style={styles.emptyText}>No habits scheduled for this date.</Text>
-          <Text style={styles.emptySubText}>Tap the + button below to plan a new habit.</Text>
+        {/* Kartu Ringkasan Progres */}
+        <ProgressCard 
+          completedCount={completedCount}
+          totalCount={filteredHabits.length}
+          progressPercent={progressPercent}
+        />
+
+        {/* Section List Header */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            DAILY TARGETS ({completedCount}/{filteredHabits.length})
+          </Text>
+          <Text style={styles.sectionHint}>Tap checkmark to complete</Text>
         </View>
-      ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-          <Text style={styles.helperText}>*Tap to complete, hold to delete</Text>
-          <View style={styles.masonryContainer}>
-            <View style={styles.masonryColumn}>
-              {leftColumnData.map((item, index) => (
-                <MasonryCard 
-                  key={item.id}
-                  item={item}
-                  isLeftColumn={true}
-                  arrayIndex={index}
-                  totalCompletedCount={getTotalCompletedCount(item.title)}
-                  onToggle={toggleHabitForDate}
-                  onDelete={deleteHabit}
-                />
-              ))}
-            </View>
-            <View style={[styles.masonryColumn, { marginTop: 24 }]}>
-              {rightColumnData.map((item, index) => (
-                <MasonryCard 
-                  key={item.id}
-                  item={item}
-                  isLeftColumn={false}
-                  arrayIndex={index}
-                  totalCompletedCount={getTotalCompletedCount(item.title)}
-                  onToggle={toggleHabitForDate}
-                  onDelete={deleteHabit}
-                />
-              ))}
-            </View>
+
+        {/* Daftar Habit Grid Kotak */}
+        {filteredHabits.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="leaf-outline" size={56} color="#27272A" />
+            <Text style={styles.emptyText}>No habits scheduled for this date.</Text>
+            <Text style={styles.emptySubText}>Tap Add in the top right to start a habit.</Text>
           </View>
-        </ScrollView>
-      )}
+        ) : (
+          <View style={styles.habitGridWrap}>
+            {filteredHabits.map((item) => (
+              <HabitCard
+                key={item.id}
+                item={item}
+                totalCompletedCount={getTotalCompletedCount(item.title)}
+                onToggle={toggleHabitForDate}
+                onDelete={deleteHabit}
+              />
+            ))}
+          </View>
+        )}
+      </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)} activeOpacity={0.9}>
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
+      {/* Modal Kalender */}
+      <CalendarModal
+        visible={calendarModalVisible}
+        selectedDate={selectedDate}
+        onClose={() => setCalendarModalVisible(false)}
+        onSelectDate={(d) => {
+          setSelectedDate(d);
+          setCalendarModalVisible(false);
+        }}
+      />
 
+      {/* Modal Tambah Habit */}
       <AddHabitModal 
         visible={modalVisible}
         selectedDate={selectedDate}
@@ -249,6 +321,7 @@ export default function HabitTrackerScreen() {
         onDeleteCategory={deleteCategory}
       />
 
+      {/* Modal Tambah Kategori */}
       <AddCategoryModal 
         visible={categoryInputVisible}
         value={newCategoryText}
@@ -257,11 +330,7 @@ export default function HabitTrackerScreen() {
         onClose={() => setCategoryInputVisible(false)}
       />
 
-      <ConfirmDialogModal 
-        config={confirmConfig}
-        onClose={closeDialog}
-      />
-
+      <AppAlertModal config={alertConfig} onClose={closeAlert} />
     </SafeAreaView>
   );
 }
