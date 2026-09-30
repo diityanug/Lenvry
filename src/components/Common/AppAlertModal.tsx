@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Modal, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { alertModalStyles as styles } from '../../styles/alertModalStyles';
+import { COLORS } from '../../constants/theme';
 
 export type AlertType = 'success' | 'warning' | 'danger' | 'info';
 
@@ -29,35 +30,35 @@ export default function AppAlertModal({ config, onClose }: AppAlertModalProps) {
       case 'success':
         return {
           icon: 'checkmark-circle' as const,
-          iconColor: '#D4FF00',
-          iconBg: 'rgba(212, 255, 0, 0.15)',
-          btnBg: '#D4FF00',
-          btnTextColor: '#09090B',
+          iconColor: COLORS.success,
+          iconBg: COLORS.successLight,
+          btnBg: COLORS.success,
+          btnTextColor: '#08090C',
         };
       case 'warning':
         return {
           icon: 'warning' as const,
-          iconColor: '#FF6B00',
-          iconBg: 'rgba(255, 107, 0, 0.15)',
-          btnBg: '#FF6B00',
-          btnTextColor: '#09090B',
+          iconColor: COLORS.warning,
+          iconBg: 'rgba(245, 158, 11, 0.14)',
+          btnBg: COLORS.warning,
+          btnTextColor: '#08090C',
         };
       case 'danger':
         return {
           icon: 'alert-circle' as const,
-          iconColor: '#FF453A',
-          iconBg: 'rgba(255, 69, 58, 0.15)',
-          btnBg: '#FF453A',
-          btnTextColor: '#FAFAFA',
+          iconColor: COLORS.danger,
+          iconBg: COLORS.dangerLight,
+          btnBg: COLORS.danger,
+          btnTextColor: '#FFFFFF',
         };
       case 'info':
       default:
         return {
           icon: 'information-circle' as const,
-          iconColor: '#38BDF8',
-          iconBg: 'rgba(56, 189, 248, 0.15)',
-          btnBg: '#38BDF8',
-          btnTextColor: '#09090B',
+          iconColor: COLORS.finance,
+          iconBg: COLORS.financeLight,
+          btnBg: COLORS.finance,
+          btnTextColor: '#08090C',
         };
     }
   };
@@ -86,7 +87,7 @@ export default function AppAlertModal({ config, onClose }: AppAlertModalProps) {
           <TouchableWithoutFeedback>
             <View style={styles.card}>
               <View style={[styles.iconWrapper, { backgroundColor: attr.iconBg }]}>
-                <Ionicons name={attr.icon} size={32} color={attr.iconColor} />
+                <Ionicons name={attr.icon} size={30} color={attr.iconColor} />
               </View>
 
               <Text style={styles.title}>{config.title}</Text>

@@ -3,13 +3,14 @@ import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-nati
 import Svg, { Path } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { TAB_BAR_HEIGHT, CENTER_BUTTON_SIZE } from '../../constants/tabBar';
+import { COLORS } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface TabItemProps {
   label: string;
-  iconName: any;
-  iconNameOutline: any;
+  iconName: keyof typeof Ionicons.glyphMap;
+  iconNameOutline: keyof typeof Ionicons.glyphMap;
   iconColor: string;
   isFocused: boolean;
   onPress: () => void;
@@ -33,12 +34,15 @@ function TabItem({
         <Ionicons
           name={isFocused ? iconName : iconNameOutline}
           size={22}
-          color={isFocused ? iconColor : '#71717A'}
+          color={isFocused ? iconColor : COLORS.textMuted}
         />
         <Text
           style={[
             styles.tabLabel,
-            { color: isFocused ? '#FAFAFA' : '#71717A' },
+            {
+              color: isFocused ? COLORS.textPrimary : COLORS.textMuted,
+              fontWeight: isFocused ? '700' : '500',
+            },
           ]}
           numberOfLines={1}
         >
@@ -84,7 +88,7 @@ export default function CurvedTabBar({ state, navigation }: CurvedTabBarProps) {
   return (
     <View style={[styles.container, { height: TAB_BAR_HEIGHT }]}>
       <Svg width={SCREEN_WIDTH} height={TAB_BAR_HEIGHT + 30} style={styles.svgBg}>
-        <Path d={d} fill="#18181B" stroke="#27272A" strokeWidth={1} />
+        <Path d={d} fill={COLORS.bgCard} stroke={COLORS.border} strokeWidth={1} />
       </Svg>
 
       <View style={styles.barContent}>
@@ -93,17 +97,17 @@ export default function CurvedTabBar({ state, navigation }: CurvedTabBarProps) {
           label="Fitness"
           iconName="barbell"
           iconNameOutline="barbell-outline"
-          iconColor="#FF6B00"
+          iconColor={COLORS.fitness}
           isFocused={isCurrent('fitness')}
           onPress={() => navigateTo('fitness')}
         />
 
         {/* Habits */}
         <TabItem
-          label="Habits"
+          label="To-Do"
           iconName="checkbox"
           iconNameOutline="checkbox-outline"
-          iconColor="#8E97FD"
+          iconColor={COLORS.habit}
           isFocused={isCurrent('habits')}
           onPress={() => navigateTo('habits')}
         />
@@ -111,24 +115,24 @@ export default function CurvedTabBar({ state, navigation }: CurvedTabBarProps) {
         {/* Fixed Center Space */}
         <View style={styles.centerSpace} pointerEvents="none" />
 
+        {/* Nutrition */}
+        <TabItem
+          label="Meal"
+          iconName="restaurant"
+          iconNameOutline="restaurant-outline"
+          iconColor={COLORS.nutrition}
+          isFocused={isCurrent('nutrition')}
+          onPress={() => navigateTo('nutrition')}
+        />
+
         {/* Finance */}
         <TabItem
           label="Finance"
           iconName="wallet"
           iconNameOutline="wallet-outline"
-          iconColor="#38BDF8"
+          iconColor={COLORS.finance}
           isFocused={isCurrent('finance')}
           onPress={() => navigateTo('finance')}
-        />
-
-        {/* Settings */}
-        <TabItem
-          label="Settings"
-          iconName="settings"
-          iconNameOutline="settings-outline"
-          iconColor="#FAFAFA"
-          isFocused={isCurrent('settings')}
-          onPress={() => navigateTo('settings')}
         />
       </View>
 
@@ -137,7 +141,9 @@ export default function CurvedTabBar({ state, navigation }: CurvedTabBarProps) {
         style={[
           styles.centerButton,
           {
-            borderColor: isCurrent('index') ? '#D4FF00' : '#27272A',
+            borderColor: isCurrent('index') ? COLORS.accent : COLORS.border,
+            shadowColor: isCurrent('index') ? COLORS.accent : '#000',
+            shadowOpacity: isCurrent('index') ? 0.45 : 0.25,
           },
         ]}
         onPress={() => navigateTo('index')}
@@ -145,8 +151,8 @@ export default function CurvedTabBar({ state, navigation }: CurvedTabBarProps) {
       >
         <Ionicons
           name={isCurrent('index') ? 'home' : 'home-outline'}
-          size={26}
-          color={isCurrent('index') ? '#D4FF00' : '#FAFAFA'}
+          size={25}
+          color={isCurrent('index') ? COLORS.accent : COLORS.textSecondary}
         />
       </TouchableOpacity>
     </View>
@@ -191,7 +197,6 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 10,
-    fontWeight: '600',
     marginTop: 4,
     letterSpacing: 0.2,
     textAlign: 'center',
@@ -204,14 +209,12 @@ const styles = StyleSheet.create({
     width: CENTER_BUTTON_SIZE,
     height: CENTER_BUTTON_SIZE,
     borderRadius: CENTER_BUTTON_SIZE / 2,
-    backgroundColor: '#09090B',
+    backgroundColor: COLORS.bgCardSub,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
+    borderWidth: 2.5,
     elevation: 8,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
     shadowRadius: 6,
   },
 });

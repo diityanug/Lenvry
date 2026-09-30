@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS, RADIUS } from '../../constants/theme';
 
 const DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTHS = [
@@ -15,25 +16,16 @@ interface HabitCalendarModalProps {
   onSelectDate: (date: Date) => void;
 }
 
-export default function CalendarModal({
-  visible,
+function CalendarModalContent({
   selectedDate,
   onClose,
   onSelectDate,
-}: HabitCalendarModalProps) {
-  const [viewDate, setViewDate] = useState<Date>(selectedDate);
-
-  useEffect(() => {
-    if (visible) {
-      setViewDate(selectedDate);
-    }
-  }, [visible, selectedDate]);
+}: Omit<HabitCalendarModalProps, 'visible'>) {
+  const [viewDate, setViewDate] = useState<Date>(() => new Date(selectedDate));
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
-
   const today = new Date();
-  const isViewingCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
 
   const firstDayIndex = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -41,6 +33,7 @@ export default function CalendarModal({
   const daysArray: (number | null)[] = [];
   for (let i = 0; i < firstDayIndex; i++) daysArray.push(null);
   for (let i = 1; i <= daysInMonth; i++) daysArray.push(i);
+  while (daysArray.length < 42) daysArray.push(null);
 
   const isSelected = (day: number) =>
     selectedDate.getDate() === day &&
@@ -60,15 +53,14 @@ export default function CalendarModal({
   };
 
   return (
-    <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
+    <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback onPress={() => {}}>
             <View style={styles.container}>
               {/* Header Modal */}
               <View style={styles.header}>
                 <View style={styles.headerTitleWrap}>
-                  <Ionicons name="calendar" size={18} color="#8E97FD" style={{ marginRight: 8 }} />
+                  <Ionicons name="calendar" size={17} color={COLORS.success} style={{ marginRight: 8 }} />
                   <Text style={styles.headerTitle}>Select Date</Text>
                 </View>
 
@@ -78,46 +70,38 @@ export default function CalendarModal({
                     onPress={handleSelectToday}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="today-outline" size={13} color="#8E97FD" style={{ marginRight: 4 }} />
+                    <Ionicons name="today-outline" size={12} color={COLORS.success} style={{ marginRight: 4 }} />
                     <Text style={styles.todayPillText}>Today</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
-                    <Ionicons name="close" size={20} color="#FAFAFA" />
+                    <Ionicons name="close" size={18} color={COLORS.textPrimary} />
                   </TouchableOpacity>
                 </View>
               </View>
 
-              {/* Navigasi Bulan */}
+              {/* Month Navigation */}
               <View style={styles.navRow}>
                 <TouchableOpacity
                   style={styles.monthNavBtn}
                   onPress={() => setViewDate(new Date(year, month - 1, 1))}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="chevron-back" size={18} color="#FAFAFA" />
+                  <Ionicons name="chevron-back" size={17} color={COLORS.textPrimary} />
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={() => setViewDate(new Date())}
-                  activeOpacity={0.7}
-                  style={styles.monthCenterBtn}
-                >
-                  <Text style={styles.monthText}>
-                    {MONTHS[month]} {year}
-                  </Text>
-                </TouchableOpacity>
+                <Text style={styles.monthText}>{MONTHS[month]} {year}</Text>
 
                 <TouchableOpacity
                   style={styles.monthNavBtn}
                   onPress={() => setViewDate(new Date(year, month + 1, 1))}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="chevron-forward" size={18} color="#FAFAFA" />
+                  <Ionicons name="chevron-forward" size={17} color={COLORS.textPrimary} />
                 </TouchableOpacity>
               </View>
 
-              {/* Header Nama Hari */}
+              {/* Weekdays */}
               <View style={styles.weekDaysRow}>
                 {DAYS_OF_WEEK.map((d, index) => (
                   <View key={index} style={styles.cellWrapper}>
@@ -126,7 +110,7 @@ export default function CalendarModal({
                 ))}
               </View>
 
-              {/* Grid Tanggal */}
+              {/* Days Grid */}
               <View style={styles.daysGrid}>
                 {daysArray.map((day, idx) => {
                   if (day === null) {
@@ -134,7 +118,7 @@ export default function CalendarModal({
                   }
 
                   const selected = isSelected(day);
-                  const currentDay = isToday(day);
+                  const currentToday = isToday(day);
 
                   return (
                     <View key={idx} style={styles.cellWrapper}>
@@ -142,7 +126,7 @@ export default function CalendarModal({
                         style={[
                           styles.dayBox,
                           selected && styles.dayBoxSelected,
-                          currentDay && !selected && styles.dayBoxToday,
+                          currentToday && !selected && styles.dayBoxToday,
                         ]}
                         onPress={() => {
                           onSelectDate(new Date(year, month, day));
@@ -154,7 +138,7 @@ export default function CalendarModal({
                           style={[
                             styles.dayText,
                             selected && styles.dayTextSelected,
-                            currentDay && !selected && styles.dayTextToday,
+                            currentToday && !selected && styles.dayTextToday,
                           ]}
                         >
                           {day}
@@ -168,6 +152,14 @@ export default function CalendarModal({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
+  );
+}
+
+export default function CalendarModal({ visible, ...props }: HabitCalendarModalProps) {
+  if (!visible) return null;
+  return (
+    <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={props.onClose}>
+      <CalendarModalContent {...props} />
     </Modal>
   );
 }
@@ -175,41 +167,45 @@ export default function CalendarModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   container: {
     width: '100%',
-    backgroundColor: '#18181B',
-    borderRadius: 24,
+    maxWidth: 360,
+    alignSelf: 'center',
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.xl,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#27272A',
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
+    borderColor: COLORS.borderLight,
+    elevation: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 16,
+    paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#27272A',
+    borderBottomColor: COLORS.border,
     marginBottom: 16,
+    height: 48,
   },
   headerTitleWrap: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   headerTitle: {
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   headerActions: {
     flexDirection: 'row',
@@ -219,46 +215,49 @@ const styles = StyleSheet.create({
   todayPillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(142, 151, 253, 0.12)',
+    backgroundColor: COLORS.successSoft,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 10,
+    borderRadius: RADIUS.xs,
     borderWidth: 1,
-    borderColor: 'rgba(142, 151, 253, 0.3)',
+    borderColor: 'rgba(16, 185, 129, 0.25)',
   },
   todayPillText: {
-    color: '#8E97FD',
+    color: COLORS.success,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#27272A',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: COLORS.bgCardSub,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 16,
+    height: 36,
   },
   monthNavBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#27272A',
+    width: 34,
+    height: 34,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.bgCardSub,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  monthCenterBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   monthText: {
-    color: '#FAFAFA',
+    flex: 1,
+    textAlign: 'center',
+    color: COLORS.textPrimary,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -266,16 +265,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     width: '100%',
     marginBottom: 8,
+    height: 20,
+    alignItems: 'center',
   },
   cellWrapper: {
     width: '14.285%',
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 3,
   },
   weekDayText: {
-    color: '#71717A',
-    fontSize: 12,
+    color: COLORS.textMuted,
+    fontSize: 11,
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -284,32 +285,33 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
     width: '100%',
+    height: 240,
   },
   dayBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
   },
   dayBoxSelected: {
-    backgroundColor: '#8E97FD',
+    backgroundColor: COLORS.success,
   },
   dayBoxToday: {
-    borderWidth: 1.5,
-    borderColor: '#8E97FD',
+    borderWidth: 1,
+    borderColor: COLORS.success,
   },
   dayText: {
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
     fontSize: 13,
     fontWeight: '600',
   },
   dayTextSelected: {
-    color: '#09090B',
+    color: '#08090C',
     fontWeight: '800',
   },
   dayTextToday: {
-    color: '#8E97FD',
+    color: COLORS.success,
     fontWeight: '700',
   },
 });

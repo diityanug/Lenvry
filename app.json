@@ -1,28 +1,26 @@
 {
   "expo": {
-    "name": "testdev",
-    "slug": "testdev",
+    "name": "Lenvry",
+    "slug": "lenvry",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "testdev",
+    "icon": "./assets/andro ico.png",
+    "scheme": "lenvry",
     "userInterfaceStyle": "automatic",
-    "ios": {
-      "icon": "./assets/expo.icon"
-    },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/andro ico.png",
+        "backgroundImage": "./assets/andro ico.png",
+        "monochromeImage": "./assets/andro ico.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.adiityanug.testdev"
+      "package": "com.adiityanug.lenvry",
+      "softwareKeyboardLayoutMode": "adjustResize"
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/iconfix.ico"
     },
     "plugins": [
       "expo-router",
@@ -34,15 +32,25 @@
           "imageWidth": 76
         }
       ],
-      "@react-native-community/datetimepicker",
-      "expo-sharing"
+      "expo-audio",
+      [
+        "expo-notifications",
+        {
+          "sounds": [
+            "./assets/sounds/chime.wav",
+            "./assets/sounds/digital.wav",
+            "./assets/sounds/marimba.wav",
+            "./assets/sounds/zen.wav"
+          ]
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
     "extra": {
-      "router": {},
       "eas": {
         "projectId": "adafb93c-3c57-4fb0-b4af-88ca24d33d19"
       }

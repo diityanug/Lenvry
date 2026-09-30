@@ -6,40 +6,72 @@ export interface SubAccount {
 export interface Account {
   id: string;
   name: string;
-  type: 'Bank' | 'E-Wallet' | 'Cash' | 'Investment' | 'Credit Card';
+  description?: string;
+  type: 'Bank' | 'E-Wallet' | 'Cash' | 'Investment' | 'Credit Card' | 'E-Money';
   currency: 'IDR' | 'USD';
   subAccounts: SubAccount[];
 }
 
 export interface Transaction {
   id: string;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'transfer';
   amount: number;
   description: string;
   category: string;
   date: string;
   accountId: string;
   subAccountId: string;
+  toAccountId?: string;
+  toSubAccountId?: string;
 }
 
-export const ACCOUNT_TYPES = ['Bank', 'E-Wallet', 'Cash', 'Investment', 'Credit Card'] as const;
+export interface CategoryBudget {
+  category: string;
+  limit: number;
+}
+
+export interface CategoryCustomIcon {
+  category: string;
+  icon: string;
+  color?: string;
+  bg?: string;
+}
+
+export interface RecurringBill {
+  id: string;
+  name: string;
+  amount: number;
+  category: string;
+  dueDateDay: number;
+  currency: 'IDR' | 'USD';
+}
+
+export const ACCOUNT_TYPES = ['Bank', 'E-Wallet', 'Cash', 'Investment', 'Credit Card', 'E-Money'] as const;
 
 export const DEFAULT_EXPENSE_CATEGORIES = [
+  'Fuel',
+  'Parking',
+  'Vehicle Services',
+  'Public Services',
+  'Personal',
+  'Home Services',
+  'Furnisings',
   'Food & Beverages',
   'Snacks',
-  'Transportation',
   'Shopping',
   'Bills & Utilities',
-  'Entertainment',
+  'Social',
   'Health & Medical',
   'Education',
+  'Travel',
   'Others',
 ];
 
 export const DEFAULT_INCOME_CATEGORIES = [
   'Salary',
   'Allowance',
-  'Investment',
+  'Interest',
+  'Investments',
   'Bonus',
   'Gift',
   'Others',
@@ -66,6 +98,7 @@ export const getAccountIcon = (type: Account['type']): string => {
     case 'Cash': return 'money-bill-wave';
     case 'Investment': return 'chart-line';
     case 'Credit Card': return 'credit-card';
+    case 'E-Money': return 'mobile-alt';
     default: return 'wallet';
   }
 };

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS, RADIUS } from '../../constants/theme';
 
 interface DateNavigatorProps {
   selectedDate: Date;
@@ -24,7 +25,7 @@ export default function DateNavigator({
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.arrowBtn} onPress={onPrevDay} activeOpacity={0.7}>
-        <Ionicons name="chevron-back" size={20} color="#FAFAFA" />
+        <Ionicons name="chevron-back" size={18} color={COLORS.textPrimary} />
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -32,12 +33,17 @@ export default function DateNavigator({
         onPress={onOpenCalendar}
         activeOpacity={0.7}
       >
-        <Ionicons name="calendar-outline" size={16} color="#8E97FD" style={{ marginRight: 6 }} />
+        <Ionicons
+          name="calendar-outline"
+          size={14}
+          color={COLORS.success}
+          style={{ marginRight: 6 }}
+        />
         <Text style={styles.dateText}>{dateStr}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.arrowBtn} onPress={onNextDay} activeOpacity={0.7}>
-        <Ionicons name="chevron-forward" size={20} color="#FAFAFA" />
+        <Ionicons name="chevron-forward" size={18} color={COLORS.textPrimary} />
       </TouchableOpacity>
     </View>
   );
@@ -48,34 +54,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#18181B',
-    borderRadius: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.lg,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
     marginBottom: 16,
   },
   arrowBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#27272A',
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.bgCardSub,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   dateSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 6,
     paddingHorizontal: 12,
-    backgroundColor: '#09090B',
-    borderRadius: 12,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
   },
   dateText: {
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
     fontSize: 13,
     fontWeight: '700',
   },

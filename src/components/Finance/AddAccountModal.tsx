@@ -14,11 +14,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Account, ACCOUNT_TYPES } from '../../types/finance';
+import { COLORS, RADIUS } from '../../constants/theme';
 
 interface AddAccountModalProps {
   visible: boolean;
   accFormType: 'main' | 'sub';
   newAccName: string;
+  newAccDesc?: string;
   newAccType: Account['type'];
   newAccCurrency: 'IDR' | 'USD';
   parentAccId: string;
@@ -27,6 +29,7 @@ interface AddAccountModalProps {
   onSave: () => void;
   setAccFormType: (type: 'main' | 'sub') => void;
   setNewAccName: (val: string) => void;
+  setNewAccDesc?: (val: string) => void;
   setNewAccType: (t: Account['type']) => void;
   setNewAccCurrency: (c: 'IDR' | 'USD') => void;
   setParentAccId: (id: string) => void;
@@ -36,6 +39,7 @@ export const AddAccountModal = ({
   visible,
   accFormType,
   newAccName,
+  newAccDesc = '',
   newAccType,
   newAccCurrency,
   parentAccId,
@@ -44,6 +48,7 @@ export const AddAccountModal = ({
   onSave,
   setAccFormType,
   setNewAccName,
+  setNewAccDesc,
   setNewAccType,
   setNewAccCurrency,
   setParentAccId,
@@ -77,7 +82,7 @@ export const AddAccountModal = ({
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-              <Ionicons name="close-circle" size={26} color="#52525B" />
+              <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
             </TouchableOpacity>
           </View>
 
@@ -92,7 +97,7 @@ export const AddAccountModal = ({
                 <Ionicons
                   name="wallet-outline"
                   size={16}
-                  color={isMain ? '#09090B' : '#71717A'}
+                  color={isMain ? '#08090C' : COLORS.textMuted}
                   style={{ marginRight: 6 }}
                 />
                 <Text style={[modalStyles.typeTabText, isMain && modalStyles.typeTabTextActive]}>
@@ -113,7 +118,7 @@ export const AddAccountModal = ({
                 <Ionicons
                   name="layers-outline"
                   size={16}
-                  color={!isMain ? '#09090B' : '#71717A'}
+                  color={!isMain ? '#08090C' : COLORS.textMuted}
                   style={{ marginRight: 6 }}
                 />
                 <Text style={[modalStyles.typeTabText, !isMain && modalStyles.typeTabTextActive]}>
@@ -145,7 +150,7 @@ export const AddAccountModal = ({
                         <Ionicons
                           name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
                           size={15}
-                          color={isSelected ? '#09090B' : '#52525B'}
+                          color={isSelected ? '#08090C' : COLORS.textMuted}
                           style={{ marginRight: 6 }}
                         />
                         <Text style={[modalStyles.parentChipText, isSelected && modalStyles.parentChipTextActive]}>
@@ -268,10 +273,23 @@ export const AddAccountModal = ({
               <TextInput
                 style={modalStyles.nameInput}
                 placeholder={isMain ? 'e.g. Bank BCA, Main Wallet, Investment' : 'e.g. Daily Needs, Emergency Fund'}
-                placeholderTextColor="#52525B"
+                placeholderTextColor={COLORS.textMuted}
                 value={newAccName}
                 onChangeText={setNewAccName}
               />
+
+              {isMain && setNewAccDesc && (
+                <View style={{ marginTop: 12 }}>
+                  <Text style={modalStyles.sectionLabel}>ACCOUNT DESCRIPTION / NOTE (OPTIONAL)</Text>
+                  <TextInput
+                    style={modalStyles.nameInput}
+                    placeholder="e.g. No. Rek: 1234567890 a.n. John Doe"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={newAccDesc}
+                    onChangeText={setNewAccDesc}
+                  />
+                </View>
+              )}
             </View>
 
             {/* Actions */}
@@ -297,21 +315,22 @@ const modalStyles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    backgroundColor: '#18181B',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: COLORS.bgCard,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 36 : 24,
     maxHeight: '92%',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
   },
   handle: {
-    width: 40,
+    width: 36,
     height: 4,
-    backgroundColor: '#3F3F46',
-    borderRadius: 2,
+    backgroundColor: COLORS.textMuted,
+    opacity: 0.5,
+    borderRadius: RADIUS.full,
     alignSelf: 'center',
     marginBottom: 16,
   },
@@ -322,26 +341,27 @@ const modalStyles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#27272A',
+    borderBottomColor: COLORS.border,
   },
   headerTitle: {
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
     fontSize: 18,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   headerSubtitle: {
-    color: '#71717A',
+    color: COLORS.textSecondary,
     fontSize: 12,
     marginTop: 2,
   },
   typeSwitcher: {
     flexDirection: 'row',
-    backgroundColor: '#09090B',
-    borderRadius: 14,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.lg,
     padding: 4,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
   },
   typeTab: {
     flex: 1,
@@ -349,72 +369,73 @@ const modalStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: RADIUS.md,
   },
   typeTabActive: {
-    backgroundColor: '#38BDF8',
+    backgroundColor: COLORS.finance,
   },
   typeTabText: {
-    color: '#71717A',
+    color: COLORS.textMuted,
     fontSize: 13,
     fontWeight: '700',
   },
   typeTabTextActive: {
-    color: '#09090B',
+    color: '#08090C',
     fontWeight: '800',
   },
   sectionCard: {
-    backgroundColor: '#09090B',
-    borderRadius: 16,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.lg,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
     marginBottom: 12,
   },
   sectionLabel: {
-    color: '#71717A',
+    color: COLORS.textMuted,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.2,
     marginBottom: 8,
+    textTransform: 'uppercase',
   },
   helperText: {
-    color: '#52525B',
+    color: COLORS.textSecondary,
     fontSize: 11,
     marginBottom: 10,
   },
   parentChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#18181B',
+    backgroundColor: COLORS.bgCard,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
     paddingVertical: 9,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    borderRadius: RADIUS.md,
     marginRight: 8,
   },
   parentChipActive: {
-    backgroundColor: '#38BDF8',
-    borderColor: '#38BDF8',
+    backgroundColor: COLORS.finance,
+    borderColor: COLORS.finance,
   },
   parentChipText: {
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
     fontSize: 13,
     fontWeight: '600',
   },
   parentChipTextActive: {
-    color: '#09090B',
+    color: '#08090C',
     fontWeight: '800',
   },
   parentChipCurrency: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#71717A',
+    color: COLORS.textMuted,
     marginLeft: 6,
   },
   parentChipCurrencyActive: {
-    color: '#09090B',
+    color: '#08090C',
   },
   currencyRow: {
     flexDirection: 'row',
@@ -424,80 +445,80 @@ const modalStyles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#18181B',
+    backgroundColor: COLORS.bgCard,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
   },
   currencyOptionActive: {
-    borderColor: '#38BDF8',
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    borderColor: COLORS.finance,
+    backgroundColor: COLORS.financeLight,
   },
   currencySymbol: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#71717A',
+    color: COLORS.textMuted,
     marginRight: 10,
   },
   currencySymbolActive: {
-    color: '#38BDF8',
+    color: COLORS.finance,
   },
   currencyTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
   },
   currencyTitleActive: {
-    color: '#38BDF8',
+    color: COLORS.finance,
   },
   currencySubtitle: {
     fontSize: 10,
-    color: '#52525B',
+    color: COLORS.textMuted,
   },
   categoryChip: {
-    backgroundColor: '#18181B',
+    backgroundColor: COLORS.bgCard,
     paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: 10,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
     marginRight: 8,
   },
   categoryChipActive: {
-    backgroundColor: '#38BDF8',
-    borderColor: '#38BDF8',
+    backgroundColor: COLORS.finance,
+    borderColor: COLORS.finance,
   },
   categoryChipText: {
-    color: '#71717A',
+    color: COLORS.textMuted,
     fontSize: 12,
     fontWeight: '600',
   },
   categoryChipTextActive: {
-    color: '#09090B',
+    color: '#08090C',
     fontWeight: '800',
   },
   nameInput: {
-    backgroundColor: '#18181B',
-    borderRadius: 12,
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
     fontSize: 14,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
   },
   saveBtn: {
-    backgroundColor: '#38BDF8',
-    borderRadius: 16,
+    backgroundColor: COLORS.finance,
+    borderRadius: RADIUS.lg,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 4,
     marginBottom: 16,
   },
   saveBtnText: {
-    color: '#09090B',
+    color: '#08090C',
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.5,

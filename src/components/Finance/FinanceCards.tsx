@@ -1,8 +1,76 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { Account, Transaction, formatMoney, getAccountIcon, MONTHS } from '../../types/finance';
 import { financeStyles as styles } from '../../styles/financeStyles';
+import { COLORS } from '../../constants/theme';
+
+// Helper: Rich category icon mapping for visually pleasant transactions
+const getCategoryIconInfo = (
+  category: string,
+  type: 'income' | 'expense' | 'transfer'
+): { name: any; color: string; bg: string } => {
+  if (type === 'transfer') {
+    return { name: 'swap-horizontal', color: COLORS.accentUSD, bg: 'rgba(56, 189, 248, 0.12)' };
+  }
+
+  if (type === 'income') {
+    switch (category) {
+      case 'Salary':
+        return { name: 'briefcase-outline', color: COLORS.success, bg: COLORS.successLight };
+      case 'Investment':
+        return { name: 'trending-up-outline', color: COLORS.success, bg: COLORS.successLight };
+      case 'Bonus':
+      case 'Gift':
+        return { name: 'gift-outline', color: COLORS.success, bg: COLORS.successLight };
+      default:
+        return { name: 'arrow-down', color: COLORS.success, bg: COLORS.successLight };
+    }
+  }
+
+  switch (category) {
+    case 'Food & Beverages':
+      return { name: 'restaurant-outline', color: '#F97316', bg: 'rgba(249, 115, 22, 0.12)' };
+    case 'Snacks':
+      return { name: 'cafe-outline', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.12)' };
+    case 'Transportation':
+      return { name: 'car-outline', color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.12)' };
+    case 'Shopping':
+      return { name: 'cart-outline', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.12)' };
+    case 'Bills & Utilities':
+      return { name: 'receipt-outline', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.12)' };
+    case 'Entertainment':
+      return { name: 'game-controller-outline', color: '#A855F7', bg: 'rgba(168, 85, 247, 0.12)' };
+    case 'Health & Medical':
+      return { name: 'medkit-outline', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.12)' };
+    case 'Education':
+      return { name: 'school-outline', color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.12)' };
+    default:
+      return { name: 'arrow-up', color: COLORS.danger, bg: COLORS.dangerLight };
+  }
+};
+
+// Helper: Human-friendly date formatting
+const formatTxDate = (dateIso: string): string => {
+  const d = new Date(dateIso);
+  const now = new Date();
+  const isToday =
+    d.getDate() === now.getDate() &&
+    d.getMonth() === now.getMonth() &&
+    d.getFullYear() === now.getFullYear();
+
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday =
+    d.getDate() === yesterday.getDate() &&
+    d.getMonth() === yesterday.getMonth() &&
+    d.getFullYear() === yesterday.getFullYear();
+
+  if (isToday) return 'Today';
+  if (isYesterday) return 'Yesterday';
+
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+};
 
 // --- TRANSACTION CARD ---
 interface TransactionCardProps {
@@ -10,38 +78,103 @@ interface TransactionCardProps {
   accounts: Account[];
   onClone: (tx: Transaction) => void;
   onDelete: (id: string) => void;
+  onEdit?: (tx: Transaction) => void;
 }
 
-export const TransactionCard = ({ item, accounts, onClone, onDelete }: TransactionCardProps) => {
+export const TransactionCard = ({ item, accounts, onClone, onDelete, onEdit }: TransactionCardProps) => {
   const account = accounts.find((a) => a.id === item.accountId);
+  const toAccount = item.toAccountId ? accounts.find((a) => a.id === item.toAccountId) : null;
   const accName = account?.name || 'Unknown';
+  const toAccName = toAccount?.name || 'Account';
   const accCurrency = account?.currency || 'IDR';
   const subName = account?.subAccounts.find((s) => s.id === item.subAccountId)?.name || '';
-  const dateStr = new Date(item.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  const toSubName = toAccount?.subAccounts.find((s) => s.id === item.toSubAccountId)?.name || '';
+  const dateFormatted = formatTxDate(item.date);
+  const iconInfo = getCategoryIconInfo(item.category, item.type);
+  const isTransfer = item.type === 'transfer';
 
   return (
-    <View style={styles.txCard}>
-      <View style={[styles.iconContainer, item.type === 'income' ? styles.iconIncome : styles.iconExpense]}>
-        <Ionicons name={item.type === 'income' ? 'arrow-down' : 'arrow-up'} size={18} color={item.type === 'income' ? '#4ADE80' : '#FF453A'} />
+    <TouchableOpacity
+      style={styles.txCard}
+      activeOpacity={0.7}
+      onPress={() => onEdit?.(item)}
+      disabled={!onEdit}
+    >
+      {/* PRIMARY ROW: CATEGORY ICON + DETAILS + AMOUNT */}
+      <View style={styles.txTopRow}>
+        <View style={[styles.iconContainer, { backgroundColor: iconInfo.bg }]}>
+          <Ionicons name={iconInfo.name} size={20} color={iconInfo.color} />
+        </View>
+
+        <View style={styles.txMainInfo}>
+          <Text style={styles.txDesc} numberOfLines={1}>
+            {item.description}
+          </Text>
+          <View style={styles.txCategoryRow}>
+            <View style={styles.txCategoryBadge}>
+              <Text style={styles.txCategoryBadgeText}>{item.category}</Text>
+            </View>
+            <Text style={styles.txDateText}>{dateFormatted}</Text>
+          </View>
+        </View>
+
+        <View style={styles.txAmountWrap}>
+          <Text
+            style={[
+              styles.txAmount,
+              item.type === 'income'
+                ? styles.textIncome
+                : isTransfer
+                ? { color: COLORS.accentUSD }
+                : styles.textExpense,
+            ]}
+          >
+            {item.type === 'income' ? '+' : isTransfer ? '' : '-'} {formatMoney(item.amount, accCurrency)}
+          </Text>
+        </View>
       </View>
-      <View style={styles.txInfo}>
-        <Text style={styles.txDesc} numberOfLines={1}>{item.description}</Text>
-        <Text style={styles.txSub}>{dateStr} • {item.category} • {accName}{subName ? ` (${subName})` : ''}</Text>
-      </View>
-      <View style={styles.txRight}>
-        <Text style={[styles.txAmount, item.type === 'income' ? styles.textIncome : styles.textExpense]}>
-          {item.type === 'income' ? '+' : '-'}{formatMoney(item.amount, accCurrency)}
-        </Text>
+
+      {/* FOOTER ROW: ACCOUNT SOURCE PILL + ACTION BUTTONS */}
+      <View style={styles.txBottomRow}>
+        <View style={styles.txAccountPill}>
+          <Ionicons
+            name={item.type === 'income' ? 'arrow-down-circle-outline' : isTransfer ? 'swap-horizontal' : 'wallet-outline'}
+            size={13}
+            color={COLORS.textSecondary}
+          />
+          <Text style={styles.txAccountPillText} numberOfLines={1}>
+            {isTransfer
+              ? item.accountId === item.toAccountId
+                ? `${accName} (${subName || 'Main'} → ${toSubName || 'Main'})`
+                : `${accName}${subName ? ` • ${subName}` : ''} → ${toAccName}${toSubName ? ` • ${toSubName}` : ''}`
+              : `${accName}${subName ? ` • ${subName}` : ''}`}
+          </Text>
+        </View>
+
         <View style={styles.txActions}>
-          <TouchableOpacity onPress={() => onClone(item)} style={styles.actionBtn} activeOpacity={0.7}>
-            <Ionicons name="copy-outline" size={15} color="#A1A1AA" />
+
+          <TouchableOpacity
+            onPress={() => onClone(item)}
+            style={styles.txActionBtn}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="copy-outline" size={13} color={COLORS.textMuted} />
+            <Text style={styles.txActionBtnText}>Copy</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => onDelete(item.id)} style={styles.actionBtn} activeOpacity={0.7}>
-            <Ionicons name="trash-outline" size={15} color="#FF453A" />
+
+          <TouchableOpacity
+            onPress={() => onDelete(item.id)}
+            style={[styles.txActionBtn, styles.txActionBtnDelete]}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="trash-outline" size={13} color={COLORS.danger} />
+            <Text style={[styles.txActionBtnText, { color: COLORS.danger }]}>Delete</Text>
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -52,24 +185,72 @@ interface AccountCardProps {
   onPress: (acc: Account) => void;
 }
 
-export const AccountCard = ({ item, balance, onPress }: AccountCardProps) => (
-  <TouchableOpacity style={styles.accCard} activeOpacity={0.8} onPress={() => onPress(item)}>
-    <View style={[styles.accCardAccent, { backgroundColor: item.currency === 'USD' ? '#38BDF8' : '#0284C7' }]} />
-    <View style={styles.accHeaderRow}>
-      <Text style={styles.accName}>{item.name}</Text>
-      <FontAwesome5 name={getAccountIcon(item.type)} size={14} color="#38BDF8" />
-    </View>
-    <Text style={styles.accTotalBalance}>{formatMoney(balance, item.currency)}</Text>
-    <View style={styles.subAccPreview}>
-      <Text style={styles.subAccPreviewText}>
-        {item.subAccounts.length} {item.subAccounts.length === 1 ? 'Sub-Account' : 'Sub-Accounts'}
+export const AccountCard = ({ item, balance, onPress }: AccountCardProps) => {
+  const isUSD = item.currency === 'USD';
+  const typeIcon = getAccountIcon(item.type);
+
+  return (
+    <TouchableOpacity style={styles.accCard} activeOpacity={0.8} onPress={() => onPress(item)}>
+      <View
+        style={[
+          styles.accCardAccent,
+          { backgroundColor: isUSD ? COLORS.finance : COLORS.accent },
+        ]}
+      />
+
+      <View style={styles.accHeaderRow}>
+        <View style={styles.accTypeWrap}>
+          <View
+            style={[
+              styles.accIconBox,
+              { backgroundColor: isUSD ? 'rgba(56, 189, 248, 0.14)' : 'rgba(245, 158, 11, 0.14)' },
+            ]}
+          >
+            <FontAwesome5
+              name={typeIcon}
+              size={12}
+              color={isUSD ? COLORS.finance : COLORS.accent}
+            />
+          </View>
+          <Text style={styles.accTypeText}>{item.type}</Text>
+        </View>
+
+        <View style={styles.currencyBadge}>
+          <Text style={styles.currencyBadgeText}>{item.currency}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.accName} numberOfLines={1}>
+        {item.name}
       </Text>
-      <Ionicons name="chevron-forward" size={14} color="#71717A" />
+      {Boolean(item.description) && (
+        <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: -2, marginBottom: 4 }} numberOfLines={1}>
+          {item.description}
+        </Text>
+      )}
+      <Text style={styles.accTotalBalance}>{formatMoney(balance, item.currency)}</Text>
+
+      <View style={styles.subAccPreview}>
+        <Text style={styles.subAccPreviewText}>
+          {item.subAccounts.length} {item.subAccounts.length === 1 ? 'Sub-Account' : 'Sub-Accounts'}
+        </Text>
+        <Ionicons name="chevron-forward" size={13} color={COLORS.textMuted} />
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+// --- ADD ACCOUNT GHOST CARD ---
+export const AddAccountCard = ({ onPress }: { onPress: () => void }) => (
+  <TouchableOpacity style={styles.addAccCard} activeOpacity={0.75} onPress={onPress}>
+    <View style={styles.addAccCardIconWrap}>
+      <Ionicons name="add" size={24} color={COLORS.finance} />
     </View>
+    <Text style={styles.addAccCardTitle}>Add Account</Text>
   </TouchableOpacity>
 );
 
-// --- HERO SUMMARY CARD ---
+// --- HERO SUMMARY & CASHFLOW CARD ---
 interface HeroSummaryProps {
   totalIDR: number;
   totalUSD: number;
@@ -81,6 +262,9 @@ interface HeroSummaryProps {
   incUSD: number;
   expIDR: number;
   expUSD: number;
+  accountsCount?: number;
+  activeCurrency?: 'IDR' | 'USD';
+  onCurrencyChange?: (c: 'IDR' | 'USD') => void;
 }
 
 export const HeroSummaryCard = ({
@@ -94,8 +278,20 @@ export const HeroSummaryCard = ({
   incUSD,
   expIDR,
   expUSD,
+  accountsCount = 0,
+  activeCurrency,
+  onCurrencyChange,
 }: HeroSummaryProps) => {
-  const [selectedCurrency, setSelectedCurrency] = useState<'IDR' | 'USD'>('IDR');
+  const [internalCurrency, setInternalCurrency] = useState<'IDR' | 'USD'>('IDR');
+
+  const selectedCurrency = activeCurrency !== undefined ? activeCurrency : internalCurrency;
+  const setCurrency = (c: 'IDR' | 'USD') => {
+    if (onCurrencyChange) {
+      onCurrencyChange(c);
+    } else {
+      setInternalCurrency(c);
+    }
+  };
 
   const isIDR = selectedCurrency === 'IDR';
   const currentTotal = isIDR ? totalIDR : totalUSD;
@@ -103,127 +299,168 @@ export const HeroSummaryCard = ({
   const currentExpense = isIDR ? expIDR : expUSD;
   const currentNet = currentIncome - currentExpense;
 
-  return (
-    <View style={styles.heroCard}>
-      {/* Top Header: Label & Currency Switcher */}
-      <View style={heroStyles.topRow}>
-        <Text style={styles.balanceLabel}>TOTAL NET WORTH</Text>
+  const today = new Date();
+  const isCurrentMonth =
+    month.getMonth() === today.getMonth() && month.getFullYear() === today.getFullYear();
 
-        <View style={heroStyles.currencyToggle}>
-          <TouchableOpacity
-            style={[heroStyles.toggleBtn, isIDR && heroStyles.toggleBtnActive]}
-            onPress={() => setSelectedCurrency('IDR')}
-            activeOpacity={0.7}
-          >
-            <Text style={[heroStyles.toggleBtnText, isIDR && heroStyles.toggleBtnTextActive]}>IDR</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[heroStyles.toggleBtn, !isIDR && heroStyles.toggleBtnActive]}
-            onPress={() => setSelectedCurrency('USD')}
-            activeOpacity={0.7}
-          >
-            <Text style={[heroStyles.toggleBtnText, !isIDR && heroStyles.toggleBtnTextActive]}>USD</Text>
-          </TouchableOpacity>
+  return (
+    <View>
+      {/* 1. Executive Total Net Worth Card */}
+      <View style={styles.heroCard}>
+        <View style={styles.heroTopRow}>
+          <Text style={styles.balanceLabel}>TOTAL NET WORTH</Text>
+
+          <View style={styles.currencyToggle}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, isIDR && styles.toggleBtnActive]}
+              onPress={() => setCurrency('IDR')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.toggleBtnText, isIDR && styles.toggleBtnTextActive]}>IDR</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, !isIDR && styles.toggleBtnActive]}
+              onPress={() => setCurrency('USD')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.toggleBtnText, !isIDR && styles.toggleBtnTextActive]}>USD</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <Text
+          style={styles.balanceAmount}
+          numberOfLines={1}
+          adjustsFontSizeToFit={true}
+          minimumFontScale={0.7}
+        >
+          {formatMoney(currentTotal, selectedCurrency)}
+        </Text>
+
+        <View style={styles.heroSubRow}>
+          <View style={styles.heroSubBadge}>
+            <Text style={styles.heroSubBadgeText}>
+              {accountsCount} {accountsCount === 1 ? 'Account' : 'Accounts'} Active
+            </Text>
+          </View>
         </View>
       </View>
 
-      {/* Main Balance Display */}
-      <Text style={styles.balanceAmount}>{formatMoney(currentTotal, selectedCurrency)}</Text>
-
-      <View style={styles.heroDivider} />
-
-      {/* Month Navigation */}
-      <View style={styles.monthSelectorRow}>
-        <TouchableOpacity onPress={onPrevMonth} style={styles.monthNavBtn} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={18} color="#FAFAFA" />
+      {/* 2. Month Navigator Bar */}
+      <View style={styles.monthNavRow}>
+        <TouchableOpacity
+          onPress={onPrevMonth}
+          style={styles.monthNavBtn}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="chevron-back" size={17} color={COLORS.textPrimary} />
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={onOpenCalendar}
           activeOpacity={0.7}
-          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 8 }}
+          style={styles.monthCenterTouch}
         >
-          <Ionicons name="calendar-outline" size={16} color="#38BDF8" style={{ marginRight: 6 }} />
-          <Text style={styles.monthSelectorText}>
+          <Ionicons name="calendar-outline" size={15} color={COLORS.finance} />
+          <Text style={styles.monthNavText} numberOfLines={1}>
             {MONTHS[month.getMonth()]} {month.getFullYear()}
           </Text>
+          {isCurrentMonth && (
+            <View style={styles.currentMonthBadge}>
+              <Text style={styles.currentMonthBadgeText}>THIS MONTH</Text>
+            </View>
+          )}
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={onNextMonth} style={styles.monthNavBtn} activeOpacity={0.7}>
-          <Ionicons name="chevron-forward" size={18} color="#FAFAFA" />
+        <TouchableOpacity
+          onPress={onNextMonth}
+          style={styles.monthNavBtn}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="chevron-forward" size={17} color={COLORS.textPrimary} />
         </TouchableOpacity>
       </View>
 
-      {/* Summary Metrics */}
-      <View style={styles.summaryContainer}>
-        {/* Income & Expense */}
-        <View style={styles.summaryTwoCol}>
-          <View style={styles.summaryBox}>
-            <View style={styles.summaryLabelRow}>
-              <Ionicons name="arrow-down-circle" size={14} color="#4ADE80" />
-              <Text style={styles.summaryLabel}>Income ({selectedCurrency})</Text>
+      {/* 3. Monthly Cash Flow Bento Grid */}
+      <View style={styles.cashflowSection}>
+        <View style={styles.cashflowRow}>
+          {/* Income Card */}
+          <View style={styles.cashflowCard}>
+            <View style={styles.cashflowCardHeader}>
+              <View style={[styles.cashflowIconWrap, { backgroundColor: COLORS.successLight }]}>
+                <Ionicons name="arrow-down" size={13} color={COLORS.success} />
+              </View>
+              <Text style={styles.cashflowLabel} numberOfLines={1}>Income ({selectedCurrency})</Text>
             </View>
-            <Text style={styles.summaryIncome}>+{formatMoney(currentIncome, selectedCurrency)}</Text>
+            <Text
+              style={[styles.cashflowValue, { color: COLORS.success }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit={true}
+              minimumFontScale={0.75}
+            >
+              +{formatMoney(currentIncome, selectedCurrency)}
+            </Text>
           </View>
 
-          <View style={styles.summaryBox}>
-            <View style={styles.summaryLabelRow}>
-              <Ionicons name="arrow-up-circle" size={14} color="#FF453A" />
-              <Text style={styles.summaryLabel}>Expenses ({selectedCurrency})</Text>
+          {/* Expense Card */}
+          <View style={styles.cashflowCard}>
+            <View style={styles.cashflowCardHeader}>
+              <View style={[styles.cashflowIconWrap, { backgroundColor: COLORS.dangerLight }]}>
+                <Ionicons name="arrow-up" size={13} color={COLORS.danger} />
+              </View>
+              <Text style={styles.cashflowLabel} numberOfLines={1}>Expense ({selectedCurrency})</Text>
             </View>
-            <Text style={styles.summaryExpense}>-{formatMoney(currentExpense, selectedCurrency)}</Text>
+            <Text
+              style={[styles.cashflowValue, { color: COLORS.danger }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit={true}
+              minimumFontScale={0.75}
+            >
+              -{formatMoney(currentExpense, selectedCurrency)}
+            </Text>
           </View>
         </View>
 
-        {/* Net Cash Flow */}
-        <View style={styles.balanceBoxFull}>
-          <View style={styles.summaryLabelRow}>
-            <Ionicons
-              name={currentNet >= 0 ? 'wallet-outline' : 'alert-circle-outline'}
-              size={14}
-              color={currentNet >= 0 ? '#4ADE80' : '#FF453A'}
-            />
-            <Text style={styles.summaryLabel}>Net Cash Flow ({selectedCurrency})</Text>
+        {/* Net Flow Card */}
+        <View style={styles.netFlowCard}>
+          <View style={styles.netFlowLeft}>
+            <Text style={styles.netFlowLabel} numberOfLines={1}>Net Cash Flow ({selectedCurrency})</Text>
+            <Text
+              style={[
+                styles.netFlowValue,
+                { color: currentNet >= 0 ? COLORS.success : COLORS.danger },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit={true}
+              minimumFontScale={0.75}
+            >
+              {currentNet >= 0 ? '+' : '-'}
+              {formatMoney(Math.abs(currentNet), selectedCurrency)}
+            </Text>
           </View>
-          <Text style={currentNet >= 0 ? styles.summaryIncomeLarge : styles.summaryExpenseLarge}>
-            {currentNet >= 0 ? '+' : '-'}{formatMoney(Math.abs(currentNet), selectedCurrency)}
-          </Text>
+
+          <View
+            style={[
+              styles.netFlowBadge,
+              {
+                backgroundColor: currentNet >= 0 ? COLORS.successLight : COLORS.dangerLight,
+                borderColor: currentNet >= 0 ? 'rgba(52, 211, 153, 0.3)' : 'rgba(248, 113, 113, 0.3)',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.netFlowBadgeText,
+                { color: currentNet >= 0 ? COLORS.success : COLORS.danger },
+              ]}
+            >
+              {currentNet >= 0 ? 'SURPLUS' : 'DEFICIT'}
+            </Text>
+          </View>
         </View>
       </View>
     </View>
   );
 };
-
-const heroStyles = StyleSheet.create({
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  currencyToggle: {
-    flexDirection: 'row',
-    backgroundColor: '#09090B',
-    borderRadius: 8,
-    padding: 2,
-    borderWidth: 1,
-    borderColor: '#27272A',
-  },
-  toggleBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  toggleBtnActive: {
-    backgroundColor: '#38BDF8',
-  },
-  toggleBtnText: {
-    color: '#71717A',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  toggleBtnTextActive: {
-    color: '#09090B',
-    fontWeight: '800',
-  },
-});

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Account, formatMoney } from '../../types/finance';
+import { COLORS, RADIUS } from '../../constants/theme';
 
 interface AccountDetailModalProps {
   visible: boolean;
@@ -50,7 +51,7 @@ export const AccountDetailModal = ({
               <View style={modalStyles.headerRow}>
                 <Text style={modalStyles.headerTitle}>Account Settings</Text>
                 <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-                  <Ionicons name="close-circle" size={26} color="#52525B" />
+                  <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
                 </TouchableOpacity>
               </View>
 
@@ -61,6 +62,11 @@ export const AccountDetailModal = ({
                   <View style={modalStyles.mainCardHeader}>
                     <View style={{ flex: 1 }}>
                       <Text style={modalStyles.mainAccountName}>{account.name}</Text>
+                      {Boolean(account.description) && (
+                        <Text style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 2, marginBottom: 2 }}>
+                          {account.description}
+                        </Text>
+                      )}
                       <Text style={modalStyles.mainAccountBadge}>
                         {account.type} • {account.currency}
                       </Text>
@@ -76,7 +82,7 @@ export const AccountDetailModal = ({
                       onPress={() => onRenameAccount(account)}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="pencil" size={14} color="#38BDF8" style={{ marginRight: 6 }} />
+                      <Ionicons name="pencil" size={14} color={COLORS.finance} style={{ marginRight: 6 }} />
                       <Text style={modalStyles.outlineBtnText}>Rename Account</Text>
                     </TouchableOpacity>
 
@@ -85,7 +91,7 @@ export const AccountDetailModal = ({
                       onPress={() => onDeleteAccount(account.id)}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="trash-outline" size={14} color="#FF453A" style={{ marginRight: 6 }} />
+                      <Ionicons name="trash-outline" size={14} color={COLORS.danger} style={{ marginRight: 6 }} />
                       <Text style={modalStyles.dangerOutlineBtnText}>Delete</Text>
                     </TouchableOpacity>
                   </View>
@@ -117,7 +123,7 @@ export const AccountDetailModal = ({
                           onPress={() => onEditBalance(account.id, sub.id)}
                           activeOpacity={0.8}
                         >
-                          <Ionicons name="calculator-outline" size={14} color="#09090B" style={{ marginRight: 6 }} />
+                          <Ionicons name="calculator-outline" size={14} color="#08090C" style={{ marginRight: 6 }} />
                           <Text style={modalStyles.adjustBalanceText}>Adjust Balance</Text>
                         </TouchableOpacity>
 
@@ -126,7 +132,7 @@ export const AccountDetailModal = ({
                           onPress={() => onRenameSubAccount(account.id, sub.id, sub.name)}
                           activeOpacity={0.7}
                         >
-                          <Ionicons name="pencil" size={15} color="#38BDF8" />
+                          <Ionicons name="pencil" size={15} color={COLORS.finance} />
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -134,7 +140,7 @@ export const AccountDetailModal = ({
                           onPress={() => onDeleteSubAccount(account.id, sub.id)}
                           activeOpacity={0.7}
                         >
-                          <Ionicons name="trash-outline" size={15} color="#FF453A" />
+                          <Ionicons name="trash-outline" size={15} color={COLORS.danger} />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -156,20 +162,21 @@ const modalStyles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   content: {
-    backgroundColor: '#18181B',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: COLORS.bgCard,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
     paddingHorizontal: 20,
     paddingTop: 12,
     maxHeight: '90%',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
   },
   handle: {
-    width: 40,
+    width: 36,
     height: 4,
-    backgroundColor: '#3F3F46',
-    borderRadius: 2,
+    backgroundColor: COLORS.textMuted,
+    opacity: 0.5,
+    borderRadius: RADIUS.full,
     alignSelf: 'center',
     marginBottom: 16,
   },
@@ -179,36 +186,38 @@ const modalStyles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#27272A',
+    borderBottomColor: COLORS.border,
     marginBottom: 16,
   },
   headerTitle: {
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
     fontSize: 18,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   sectionLabel: {
-    color: '#71717A',
-    fontSize: 11,
+    color: COLORS.textMuted,
+    fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.2,
     marginBottom: 8,
+    textTransform: 'uppercase',
   },
   subSectionHeader: {
     marginTop: 20,
     marginBottom: 8,
   },
   subHelperText: {
-    color: '#52525B',
+    color: COLORS.textMuted,
     fontSize: 12,
     marginBottom: 8,
   },
   mainAccountCard: {
-    backgroundColor: '#09090B',
-    borderRadius: 18,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.xl,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
   },
   mainCardHeader: {
     flexDirection: 'row',
@@ -217,26 +226,27 @@ const modalStyles = StyleSheet.create({
     marginBottom: 14,
   },
   mainAccountName: {
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
     fontSize: 18,
     fontWeight: '700',
   },
   mainAccountBadge: {
-    color: '#38BDF8',
+    color: COLORS.finance,
     fontSize: 12,
     fontWeight: '600',
     marginTop: 2,
   },
   mainTotalBalance: {
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
     fontSize: 18,
     fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
   mainActionRow: {
     flexDirection: 'row',
     gap: 10,
     borderTopWidth: 1,
-    borderTopColor: '#18181B',
+    borderTopColor: COLORS.border,
     paddingTop: 12,
   },
   outlineBtn: {
@@ -245,13 +255,13 @@ const modalStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: 'rgba(56, 189, 248, 0.4)',
-    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    backgroundColor: COLORS.financeLight,
   },
   outlineBtnText: {
-    color: '#38BDF8',
+    color: COLORS.finance,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -261,22 +271,22 @@ const modalStyles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(255, 69, 58, 0.4)',
-    backgroundColor: 'rgba(255, 69, 58, 0.08)',
+    borderColor: 'rgba(244, 63, 94, 0.4)',
+    backgroundColor: COLORS.dangerLight,
   },
   dangerOutlineBtnText: {
-    color: '#FF453A',
+    color: COLORS.danger,
     fontSize: 12,
     fontWeight: '700',
   },
   subCard: {
-    backgroundColor: '#09090B',
-    borderRadius: 16,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.lg,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
     marginBottom: 10,
   },
   subCardTop: {
@@ -286,19 +296,20 @@ const modalStyles = StyleSheet.create({
     marginBottom: 12,
   },
   subAccountName: {
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
     fontSize: 15,
     fontWeight: '600',
   },
   subCardTypeLabel: {
-    color: '#52525B',
+    color: COLORS.textMuted,
     fontSize: 11,
     marginTop: 1,
   },
   subAccountBalance: {
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
     fontSize: 15,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   subActionRow: {
     flexDirection: 'row',
@@ -310,22 +321,22 @@ const modalStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#38BDF8',
+    backgroundColor: COLORS.finance,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: RADIUS.sm,
   },
   adjustBalanceText: {
-    color: '#09090B',
+    color: '#08090C',
     fontSize: 12,
     fontWeight: '800',
   },
   subIconActionBtn: {
     width: 36,
     height: 36,
-    borderRadius: 10,
-    backgroundColor: '#18181B',
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.bgCard,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
   },

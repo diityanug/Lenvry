@@ -13,31 +13,40 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Account, formatMoney } from '../../types/finance';
+import { Account, CategoryCustomIcon, formatMoney } from '../../types/finance';
 import { CalculatorModal } from './CalculatorModal';
+import { COLORS, RADIUS } from '../../constants/theme';
+import { getCategoryTheme } from './CategoryBreakdownCard';
 
 interface TransactionModalProps {
   visible: boolean;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'transfer';
   amount: string;
   description: string;
   txDate: Date;
   selectedCategory: string;
   selectedAccId: string;
   selectedSubAccId: string;
+  selectedToAccId?: string;
+  selectedToSubAccId?: string;
   accounts: Account[];
   expenseCategories: string[];
   incomeCategories: string[];
+  customCategoryIcons?: CategoryCustomIcon[];
+  isEditing?: boolean;
   onClose: () => void;
   onSave: () => void;
-  setType: (t: 'income' | 'expense') => void;
+  setType: (t: 'income' | 'expense' | 'transfer') => void;
   setAmount: (val: string) => void;
   setDescription: (val: string) => void;
   setSelectedCategory: (cat: string) => void;
   setSelectedAccId: (id: string) => void;
   setSelectedSubAccId: (id: string) => void;
+  setSelectedToAccId?: (id: string) => void;
+  setSelectedToSubAccId?: (id: string) => void;
   onOpenDatePicker: () => void;
   onOpenAddCategory: () => void;
+  hideTypeSwitcher?: boolean;
 }
 
 export const TransactionModal = ({
@@ -49,9 +58,14 @@ export const TransactionModal = ({
   selectedCategory,
   selectedAccId,
   selectedSubAccId,
+  selectedToAccId = '',
+  selectedToSubAccId = '',
   accounts,
   expenseCategories,
   incomeCategories,
+  customCategoryIcons,
+  isEditing = false,
+  hideTypeSwitcher = false,
   onClose,
   onSave,
   setType,
@@ -60,6 +74,8 @@ export const TransactionModal = ({
   setSelectedCategory,
   setSelectedAccId,
   setSelectedSubAccId,
+  setSelectedToAccId,
+  setSelectedToSubAccId,
   onOpenDatePicker,
   onOpenAddCategory,
 }: TransactionModalProps) => {
@@ -71,17 +87,46 @@ export const TransactionModal = ({
   };
 
   const selectedAccount = accounts.find((a) => a.id === selectedAccId);
+  const selectedToAccount = accounts.find((a) => a.id === selectedToAccId);
   const currency = selectedAccount?.currency || 'IDR';
   const currencySymbol = currency === 'USD' ? '$' : 'Rp';
   const isExpense = type === 'expense';
+  const isTransfer = type === 'transfer';
   const activeCategories = isExpense ? expenseCategories : incomeCategories;
 
   const handleSelectAccount = (acc: Account) => {
     setSelectedAccId(acc.id);
-    if (acc.subAccounts.length > 0) {
-      setSelectedSubAccId(acc.subAccounts[0].id);
-    } else {
-      setSelectedSubAccId('');
+    const newSubId = acc.subAccounts.length > 0 ? acc.subAccounts[0].id : '';
+    setSelectedSubAccId(newSubId);
+    // If destination was same account and same sub-account, pick another sub-account if possible
+    if (selectedToAccId === acc.id && selectedToSubAccId === newSubId && setSelectedToSubAccId) {
+      const otherSub = acc.subAccounts.find((s) => s.id !== newSubId);
+      if (otherSub) setSelectedToSubAccId(otherSub.id);
+    }
+  };
+
+  const handleSelectSubAccount = (subId: string) => {
+    setSelectedSubAccId(subId);
+    if (selectedToAccId === selectedAccId && selectedToSubAccId === subId && setSelectedToSubAccId && selectedAccount) {
+      const otherSub = selectedAccount.subAccounts.find((s) => s.id !== subId);
+      if (otherSub) {
+        setSelectedToSubAccId(otherSub.id);
+      }
+    }
+  };
+
+  const handleSelectToAccount = (acc: Account) => {
+    if (setSelectedToAccId) setSelectedToAccId(acc.id);
+    if (setSelectedToSubAccId) {
+      if (acc.id === selectedAccId) {
+        // If selecting same account, automatically pick a different sub-account
+        const otherSub = acc.subAccounts.find((s) => s.id !== selectedSubAccId);
+        setSelectedToSubAccId(otherSub ? otherSub.id : (acc.subAccounts[0]?.id || ''));
+      } else if (acc.subAccounts.length > 0) {
+        setSelectedToSubAccId(acc.subAccounts[0].id);
+      } else {
+        setSelectedToSubAccId('');
+      }
     }
   };
 
@@ -104,74 +149,95 @@ export const TransactionModal = ({
 
           {/* Header */}
           <View style={txStyles.headerRow}>
-            <Text style={txStyles.headerTitle}>New Transaction</Text>
+            <Text style={txStyles.headerTitle}>{isEditing ? 'Edit Transaction' : 'New Transaction'}</Text>
             <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-              <Ionicons name="close-circle" size={26} color="#52525B" />
+              <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
             </TouchableOpacity>
           </View>
 
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            {/* 1. Transaction Type Toggle */}
-            <View style={txStyles.typeSwitcher}>
-              <TouchableOpacity
-                style={[txStyles.typeTab, isExpense && txStyles.typeTabExpenseActive]}
-                onPress={() => {
-                  setType('expense');
-                  setSelectedCategory(expenseCategories[0]);
-                }}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name="arrow-up-circle"
-                  size={18}
-                  color={isExpense ? '#FF453A' : '#71717A'}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={[txStyles.typeTabText, isExpense && txStyles.typeTabTextExpense]}>
-                  Expense
-                </Text>
-              </TouchableOpacity>
+            {/* 1. Transaction Type Toggle (Expense, Income, Transfer) */}
+            {!hideTypeSwitcher ? (
+              <View style={txStyles.typeSwitcher}>
+                <TouchableOpacity
+                  style={[txStyles.typeTab, isExpense && txStyles.typeTabExpenseActive]}
+                  onPress={() => {
+                    setType('expense');
+                    setSelectedCategory(expenseCategories[0]);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="arrow-up-circle"
+                    size={15}
+                    color={isExpense ? COLORS.danger : COLORS.textMuted}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text style={[txStyles.typeTabText, isExpense && txStyles.typeTabTextExpense]}>
+                    Expense
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[txStyles.typeTab, !isExpense && txStyles.typeTabIncomeActive]}
-                onPress={() => {
-                  setType('income');
-                  setSelectedCategory(incomeCategories[0]);
-                }}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name="arrow-down-circle"
-                  size={18}
-                  color={!isExpense ? '#4ADE80' : '#71717A'}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={[txStyles.typeTabText, !isExpense && txStyles.typeTabTextIncome]}>
-                  Income
-                </Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity
+                  style={[txStyles.typeTab, type === 'income' && txStyles.typeTabIncomeActive]}
+                  onPress={() => {
+                    setType('income');
+                    setSelectedCategory(incomeCategories[0]);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="arrow-down-circle"
+                    size={15}
+                    color={type === 'income' ? COLORS.success : COLORS.textMuted}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text style={[txStyles.typeTabText, type === 'income' && txStyles.typeTabTextIncome]}>
+                    Income
+                  </Text>
+                </TouchableOpacity>
 
-            {/* 2. Amount Input Hero Card (Tap to open Calculator Keypad) */}
+                <TouchableOpacity
+                  style={[txStyles.typeTab, isTransfer && txStyles.typeTabTransferActive]}
+                  onPress={() => {
+                    setType('transfer');
+                    setSelectedCategory('Transfer');
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="swap-horizontal"
+                    size={15}
+                    color={isTransfer ? COLORS.accentUSD : COLORS.textMuted}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text style={[txStyles.typeTabText, isTransfer && txStyles.typeTabTextTransfer]}>
+                    Transfer
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {/* 2. Amount Input Hero Card */}
             <TouchableOpacity
               style={txStyles.amountCard}
               onPress={() => setCalcVisible(true)}
               activeOpacity={0.8}
             >
               <View style={txStyles.amountHeaderRow}>
-                <Text style={txStyles.amountLabel}>AMOUNT (TAP TO CALCULATE)</Text>
+                <Text style={txStyles.amountLabel}>AMOUNT</Text>
                 <View style={txStyles.calcBadge}>
-                  <Ionicons name="calculator-outline" size={13} color="#38BDF8" style={{ marginRight: 4 }} />
+                  <Ionicons name="calculator-outline" size={13} color={COLORS.finance} style={{ marginRight: 4 }} />
                   <Text style={txStyles.calcBadgeText}>Keypad</Text>
                 </View>
               </View>
 
               <View style={txStyles.amountValueRow}>
-                <Text style={[txStyles.currencyBadge, isExpense ? txStyles.textExpense : txStyles.textIncome]}>
+                <Text style={[txStyles.currencyBadge, isExpense ? txStyles.textExpense : isTransfer ? txStyles.textTransfer : txStyles.textIncome]}>
                   {currencySymbol}
                 </Text>
                 <Text
-                  style={[txStyles.amountText, isExpense ? txStyles.textExpense : txStyles.textIncome]}
+                  style={[txStyles.amountText, isExpense ? txStyles.textExpense : isTransfer ? txStyles.textTransfer : txStyles.textIncome]}
                   numberOfLines={1}
                 >
                   {formattedDisplayAmount}
@@ -179,9 +245,11 @@ export const TransactionModal = ({
               </View>
             </TouchableOpacity>
 
-            {/* 3. Payment Account & Pocket */}
+            {/* 3. Account Selection */}
             <View style={txStyles.sectionCard}>
-              <Text style={txStyles.sectionLabel}>PAYMENT ACCOUNT</Text>
+              <Text style={txStyles.sectionLabel}>
+                {type === 'income' ? 'DEPOSIT TO' : isTransfer ? 'FROM ACCOUNT' : 'PAID FROM'}
+              </Text>
 
               <ScrollView
                 horizontal
@@ -198,32 +266,26 @@ export const TransactionModal = ({
                       onPress={() => handleSelectAccount(acc)}
                       activeOpacity={0.7}
                     >
-                      <Ionicons
-                        name={isSelected ? 'radio-button-on' : 'radio-button-off'}
-                        size={14}
-                        color={isSelected ? '#38BDF8' : '#71717A'}
-                        style={{ marginRight: 6 }}
-                      />
                       <Text style={[txStyles.accountChipText, isSelected && txStyles.accountChipTextActive]}>
-                        {acc.name}
+                        {acc.name} ({acc.currency})
                       </Text>
-                      <Text style={txStyles.currencyTag}>{acc.currency}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </ScrollView>
 
+              {/* Sub Account selection */}
               {selectedAccount && selectedAccount.subAccounts.length > 0 && (
-                <View style={txStyles.subAccountArea}>
-                  <Text style={txStyles.subSectionLabel}>Select Pocket / Sub-Account:</Text>
-                  <View style={txStyles.subChipsWrap}>
+                <View style={{ marginTop: 10 }}>
+                  <Text style={txStyles.subLabel}>POCKET</Text>
+                  <View style={txStyles.subAccountRow}>
                     {selectedAccount.subAccounts.map((sub) => {
                       const isSubSelected = selectedSubAccId === sub.id;
                       return (
                         <TouchableOpacity
                           key={sub.id}
                           style={[txStyles.subChip, isSubSelected && txStyles.subChipActive]}
-                          onPress={() => setSelectedSubAccId(sub.id)}
+                          onPress={() => handleSelectSubAccount(sub.id)}
                           activeOpacity={0.7}
                         >
                           <Text style={[txStyles.subChipText, isSubSelected && txStyles.subChipTextActive]}>
@@ -237,86 +299,229 @@ export const TransactionModal = ({
               )}
             </View>
 
-            {/* 4. Details (Date & Description) */}
-            <View style={txStyles.sectionCard}>
-              <Text style={txStyles.sectionLabel}>TRANSACTION DETAILS</Text>
-
-              <TouchableOpacity
-                style={txStyles.dateSelectorRow}
-                onPress={onOpenDatePicker}
-                activeOpacity={0.7}
-              >
-                <View style={txStyles.dateLeftWrap}>
-                  <Ionicons name="calendar-outline" size={16} color="#38BDF8" style={{ marginRight: 8 }} />
-                  <Text style={txStyles.dateLabelText}>Date</Text>
+            {/* 4. Target Account selection for Transfer */}
+            {isTransfer && (
+              <View style={txStyles.sectionCard}>
+                <View style={txStyles.transferHeaderRow}>
+                  <Text style={txStyles.sectionLabel}>TO ACCOUNT</Text>
+                  {selectedAccount && selectedAccount.subAccounts.length > 1 && (
+                    <TouchableOpacity
+                      onPress={() => handleSelectToAccount(selectedAccount)}
+                      activeOpacity={0.7}
+                      style={[
+                        txStyles.sameAccPill,
+                        selectedToAccId === selectedAccId && txStyles.sameAccPillActive,
+                      ]}
+                    >
+                      <Ionicons
+                        name="repeat"
+                        size={11}
+                        color={selectedToAccId === selectedAccId ? '#08090C' : COLORS.finance}
+                        style={{ marginRight: 3 }}
+                      />
+                      <Text
+                        style={[
+                          txStyles.sameAccPillText,
+                          selectedToAccId === selectedAccId && txStyles.sameAccPillTextActive,
+                        ]}
+                      >
+                        Sub-Account Transfer
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-                <Text style={txStyles.dateValueText}>
-                  {txDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </Text>
-              </TouchableOpacity>
 
+                {/* Account Selection */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingRight: 16 }}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {accounts.map((acc) => {
+                    const isSelected = selectedToAccId === acc.id;
+                    const isSameAccount = acc.id === selectedAccId;
+                    return (
+                      <TouchableOpacity
+                        key={`to_${acc.id}`}
+                        style={[
+                          txStyles.accountChip,
+                          isSelected && txStyles.accountChipActive,
+                          isSameAccount && !isSelected && txStyles.accountChipSame,
+                        ]}
+                        onPress={() => handleSelectToAccount(acc)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[txStyles.accountChipText, isSelected && txStyles.accountChipTextActive]}>
+                          {acc.name} ({acc.currency})
+                          {isSameAccount ? ' • Same Account' : ''}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
+                {/* Sub Account Selection for Destination */}
+                {selectedToAccount && selectedToAccount.subAccounts.length > 0 && (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={txStyles.subLabel}>DESTINATION</Text>
+                    <View style={txStyles.subAccountRow}>
+                      {selectedToAccount.subAccounts.map((sub) => {
+                        const isSubSelected = selectedToSubAccId === sub.id;
+                        const isSameAsSourceSub = selectedToAccId === selectedAccId && sub.id === selectedSubAccId;
+
+                        return (
+                          <TouchableOpacity
+                            key={`to_sub_${sub.id}`}
+                            style={[
+                              txStyles.subChip,
+                              isSubSelected && txStyles.subChipActive,
+                              isSameAsSourceSub && txStyles.subChipDisabled,
+                            ]}
+                            onPress={() => {
+                              if (!isSameAsSourceSub && setSelectedToSubAccId) {
+                                setSelectedToSubAccId(sub.id);
+                              }
+                            }}
+                            disabled={isSameAsSourceSub}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              style={[
+                                txStyles.subChipText,
+                                isSubSelected && txStyles.subChipTextActive,
+                                isSameAsSourceSub && txStyles.subChipTextDisabled,
+                              ]}
+                            >
+                              {sub.name} {isSameAsSourceSub ? '(Source)' : ''}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+
+                {/* Transfer route preview */}
+                {selectedAccount && selectedToAccount && (
+                  <View style={txStyles.transferRoutePreview}>
+                    <Ionicons name="swap-horizontal" size={14} color={COLORS.accentUSD} style={{ marginRight: 6 }} />
+                    <Text style={txStyles.transferRouteText} numberOfLines={1}>
+                      {selectedAccount.name} ({selectedAccount.subAccounts.find((s) => s.id === selectedSubAccId)?.name || 'Main'})
+                      {'  ➔  '}
+                      {selectedToAccount.name} ({selectedToAccount.subAccounts.find((s) => s.id === selectedToSubAccId)?.name || 'Main'})
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* 5. Description & Date */}
+            <View style={txStyles.sectionCard}>
+              <Text style={txStyles.sectionLabel}>DESCRIPTION & NOTE</Text>
               <TextInput
-                style={txStyles.descriptionInput}
-                placeholder="Description (e.g. Groceries, Coffee, Salary)"
-                placeholderTextColor="#52525B"
+                style={txStyles.input}
+                placeholder="e.g. Lunch, Grocery, Transfer to Savings..."
+                placeholderTextColor={COLORS.textMuted}
                 value={description}
                 onChangeText={setDescription}
               />
-            </View>
 
-            {/* 5. Categories */}
-            <View style={txStyles.sectionCard}>
-              <Text style={txStyles.sectionLabel}>CATEGORY</Text>
-              <View style={txStyles.categoriesWrap}>
-                {activeCategories.map((cat) => {
-                  const isCatSelected = selectedCategory === cat;
-                  return (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[txStyles.categoryChip, isCatSelected && txStyles.categoryChipActive]}
-                      onPress={() => setSelectedCategory(cat)}
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={[
-                          txStyles.categoryChipText,
-                          isCatSelected && txStyles.categoryChipTextActive,
-                        ]}
-                      >
-                        {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+              <View style={{ marginTop: 12 }}>
+                <Text style={txStyles.sectionLabel}>TRANSACTION DATE</Text>
+                <TouchableOpacity style={txStyles.datePickerBtn} onPress={onOpenDatePicker} activeOpacity={0.7}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+                    <Ionicons name="calendar-outline" size={16} color={COLORS.finance} style={{ marginRight: 8 }} />
+                    <Text style={txStyles.datePickerText} numberOfLines={1}>
+                      {(() => {
+                        const today = new Date();
+                        const isToday =
+                          txDate.getDate() === today.getDate() &&
+                          txDate.getMonth() === today.getMonth() &&
+                          txDate.getFullYear() === today.getFullYear();
 
-                <TouchableOpacity
-                  style={txStyles.addCategoryChip}
-                  onPress={onOpenAddCategory}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="add" size={15} color="#38BDF8" />
-                  <Text style={txStyles.addCategoryText}>Add</Text>
+                        const yesterday = new Date(today);
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        const isYesterday =
+                          txDate.getDate() === yesterday.getDate() &&
+                          txDate.getMonth() === yesterday.getMonth() &&
+                          txDate.getFullYear() === yesterday.getFullYear();
+
+                        const formattedStr = txDate.toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        });
+
+                        if (isToday) return `Today • ${formattedStr}`;
+                        if (isYesterday) return `Yesterday • ${formattedStr}`;
+                        return formattedStr;
+                      })()}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* 6. Save Button */}
-            <TouchableOpacity style={txStyles.saveButton} onPress={onSave} activeOpacity={0.85}>
-              <Text style={txStyles.saveButtonText}>SAVE TRANSACTION</Text>
+            {/* 6. Categories (Only for Income / Expense) */}
+            {!isTransfer && (
+              <View style={txStyles.sectionCard}>
+                <View style={txStyles.catHeaderRow}>
+                  <Text style={txStyles.sectionLabel}>CATEGORY</Text>
+                  <TouchableOpacity onPress={onOpenAddCategory} activeOpacity={0.7}>
+                    <Text style={txStyles.addCatText}>+ Add Category</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={txStyles.categoriesWrap}>
+                  {activeCategories.map((cat) => {
+                    const isSelected = selectedCategory === cat;
+                    const catTheme = getCategoryTheme(cat, type === 'income' ? 'income' : 'expense', customCategoryIcons);
+                    return (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[txStyles.catChip, isSelected && txStyles.catChipActive]}
+                        onPress={() => setSelectedCategory(cat)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name={catTheme.icon}
+                          size={15}
+                          color={isSelected ? '#08090C' : catTheme.color}
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text style={[txStyles.catChipText, isSelected && txStyles.catChipTextActive]}>
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* Save Button */}
+            <TouchableOpacity style={txStyles.saveBtn} onPress={onSave} activeOpacity={0.85}>
+              <Text style={txStyles.saveBtnText}>
+                {isEditing ? 'UPDATE TRANSACTION' : 'SAVE TRANSACTION'}
+              </Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
 
-      {/* Embedded Keypad Calculator Modal */}
-      <CalculatorModal
-        visible={calcVisible}
-        initialValue={amount}
-        currency={currency}
-        title="Transaction Amount"
-        onClose={() => setCalcVisible(false)}
-        onConfirm={(val) => setAmount(val)}
-      />
+        <CalculatorModal
+          visible={calcVisible}
+          initialValue={amount}
+          currency={currency}
+          onClose={() => setCalcVisible(false)}
+          onConfirm={(val) => {
+            setAmount(val);
+            setCalcVisible(false);
+          }}
+        />
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -324,26 +529,27 @@ export const TransactionModal = ({
 const txStyles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   dismissArea: {
     flex: 1,
   },
   content: {
-    backgroundColor: '#18181B',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: COLORS.bgCard,
+    borderTopLeftRadius: RADIUS.modal,
+    borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
     paddingTop: 12,
+    paddingBottom: 24,
     maxHeight: '92%',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.borderLight,
   },
   handle: {
-    width: 40,
+    width: 36,
     height: 4,
-    backgroundColor: '#3F3F46',
+    backgroundColor: COLORS.borderLight,
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 16,
@@ -352,283 +558,315 @@ const txStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 14,
+    marginBottom: 14,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#27272A',
+    borderBottomColor: COLORS.border,
   },
   headerTitle: {
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
     fontSize: 18,
     fontWeight: '800',
   },
   typeSwitcher: {
     flexDirection: 'row',
-    backgroundColor: '#09090B',
-    borderRadius: 14,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.md,
     padding: 4,
-    marginBottom: 14,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
   },
   typeTab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 8,
+    borderRadius: RADIUS.sm,
   },
   typeTabExpenseActive: {
-    backgroundColor: 'rgba(255, 69, 58, 0.15)',
-    borderWidth: 1,
-    borderColor: '#FF453A',
+    backgroundColor: 'rgba(244, 63, 94, 0.15)',
   },
   typeTabIncomeActive: {
-    backgroundColor: 'rgba(74, 222, 128, 0.15)',
-    borderWidth: 1,
-    borderColor: '#4ADE80',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+  },
+  typeTabTransferActive: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
   },
   typeTabText: {
-    color: '#71717A',
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textMuted,
   },
   typeTabTextExpense: {
-    color: '#FF453A',
+    color: COLORS.danger,
+    fontWeight: '800',
   },
   typeTabTextIncome: {
-    color: '#4ADE80',
+    color: COLORS.success,
+    fontWeight: '800',
+  },
+  typeTabTextTransfer: {
+    color: COLORS.accentUSD,
+    fontWeight: '800',
   },
   amountCard: {
-    backgroundColor: '#09090B',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: '#27272A',
-    marginBottom: 14,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.lg,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 12,
   },
   amountHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   amountLabel: {
-    color: '#71717A',
-    fontSize: 10,
+    color: COLORS.textMuted,
+    fontSize: 9,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
   calcBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
   },
   calcBadgeText: {
-    color: '#38BDF8',
-    fontSize: 11,
-    fontWeight: '800',
+    color: COLORS.finance,
+    fontSize: 10,
+    fontWeight: '700',
   },
   amountValueRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
   currencyBadge: {
-    fontSize: 26,
-    fontWeight: '900',
-    marginRight: 8,
+    fontSize: 20,
+    fontWeight: '800',
+    marginRight: 6,
   },
   amountText: {
-    fontSize: 34,
+    fontSize: 28,
     fontWeight: '900',
-    letterSpacing: -0.5,
   },
   textExpense: {
-    color: '#FF453A',
+    color: COLORS.danger,
   },
   textIncome: {
-    color: '#4ADE80',
+    color: COLORS.success,
+  },
+  textTransfer: {
+    color: COLORS.accentUSD,
   },
   sectionCard: {
-    backgroundColor: '#09090B',
-    borderRadius: 18,
-    padding: 16,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.lg,
+    padding: 14,
     borderWidth: 1,
-    borderColor: '#27272A',
-    marginBottom: 14,
-  },
-  sectionLabel: {
-    color: '#71717A',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.2,
+    borderColor: COLORS.border,
     marginBottom: 12,
   },
-  accountChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#18181B',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#27272A',
-    marginRight: 10,
-  },
-  accountChipActive: {
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
-    borderColor: '#38BDF8',
-  },
-  accountChipText: {
-    color: '#71717A',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  accountChipTextActive: {
-    color: '#FAFAFA',
-    fontWeight: '700',
-  },
-  currencyTag: {
+  sectionLabel: {
+    color: COLORS.textSecondary,
     fontSize: 10,
     fontWeight: '800',
-    color: '#52525B',
-    marginLeft: 6,
-  },
-  subAccountArea: {
-    marginTop: 14,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#18181B',
-  },
-  subSectionLabel: {
-    color: '#A1A1AA',
-    fontSize: 11,
-    fontWeight: '600',
+    letterSpacing: 0.8,
     marginBottom: 8,
   },
-  subChipsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  subLabel: {
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontWeight: '700',
+    marginBottom: 6,
   },
-  subChip: {
-    backgroundColor: '#18181B',
-    paddingVertical: 6,
+  accountChip: {
+    backgroundColor: COLORS.bgCard,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: 7,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
+    marginRight: 8,
   },
-  subChipActive: {
-    backgroundColor: '#38BDF8',
-    borderColor: '#38BDF8',
+  accountChipActive: {
+    backgroundColor: COLORS.finance,
+    borderColor: COLORS.finance,
   },
-  subChipText: {
-    color: '#71717A',
+  accountChipText: {
+    color: COLORS.textSecondary,
     fontSize: 12,
     fontWeight: '600',
   },
-  subChipTextActive: {
-    color: '#09090B',
+  accountChipTextActive: {
+    color: '#08090C',
     fontWeight: '800',
   },
-  dateSelectorRow: {
+  subAccountRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  subChip: {
+    backgroundColor: COLORS.bgCard,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  subChipActive: {
+    backgroundColor: COLORS.finance,
+    borderColor: COLORS.finance,
+  },
+  subChipText: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  subChipTextActive: {
+    color: '#08090C',
+    fontWeight: '800',
+  },
+  input: {
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: COLORS.textPrimary,
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    fontWeight: '600',
+  },
+  datePickerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#18181B',
-    paddingVertical: 12,
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.md,
     paddingHorizontal: 14,
-    borderRadius: 12,
+    paddingVertical: 10,
     borderWidth: 1,
-    borderColor: '#27272A',
-    marginBottom: 10,
+    borderColor: COLORS.border,
   },
-  dateLeftWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dateLabelText: {
-    color: '#A1A1AA',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  dateValueText: {
-    color: '#FAFAFA',
+  datePickerText: {
+    color: COLORS.textPrimary,
     fontSize: 13,
     fontWeight: '700',
   },
-  descriptionInput: {
-    backgroundColor: '#18181B',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: '#FAFAFA',
-    fontSize: 13,
-    borderWidth: 1,
-    borderColor: '#27272A',
+  catHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  addCatText: {
+    color: COLORS.finance,
+    fontSize: 12,
+    fontWeight: '700',
   },
   categoriesWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  categoryChip: {
-    backgroundColor: '#18181B',
-    paddingVertical: 8,
+  catChip: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.bgCard,
     paddingHorizontal: 14,
-    borderRadius: 10,
+    paddingVertical: 10,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
+    minHeight: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  categoryChipActive: {
-    backgroundColor: '#FAFAFA',
-    borderColor: '#FAFAFA',
+  catChipActive: {
+    backgroundColor: COLORS.finance,
+    borderColor: COLORS.finance,
   },
-  categoryChipText: {
-    color: '#71717A',
-    fontSize: 12,
+  catChipText: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
     fontWeight: '600',
   },
-  categoryChipTextActive: {
-    color: '#09090B',
+  catChipTextActive: {
+    color: '#08090C',
     fontWeight: '800',
   },
-  addCategoryChip: {
-    flexDirection: 'row',
+  saveBtn: {
+    backgroundColor: COLORS.finance,
+    borderRadius: RADIUS.md,
+    paddingVertical: 14,
     alignItems: 'center',
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
-    borderStyle: 'dashed',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    marginTop: 4,
+    marginBottom: 16,
   },
-  addCategoryText: {
-    color: '#38BDF8',
-    fontSize: 12,
-    fontWeight: '700',
-    marginLeft: 4,
-  },
-  saveButton: {
-    backgroundColor: '#38BDF8',
-    borderRadius: 16,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 6,
-    marginBottom: 32,
-  },
-  saveButtonText: {
-    color: '#09090B',
+  saveBtnText: {
+    color: '#08090C',
     fontSize: 13,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
+  },
+  transferHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sameAccPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.bgCard,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+  },
+  sameAccPillActive: {
+    backgroundColor: COLORS.finance,
+    borderColor: COLORS.finance,
+  },
+  sameAccPillText: {
+    color: COLORS.finance,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  sameAccPillTextActive: {
+    color: '#08090C',
+    fontWeight: '800',
+  },
+  accountChipSame: {
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+  },
+  subChipDisabled: {
+    opacity: 0.35,
+    borderStyle: 'dashed',
+  },
+  subChipTextDisabled: {
+    color: COLORS.textMuted,
+  },
+  transferRoutePreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  transferRouteText: {
+    color: COLORS.textPrimary,
+    fontSize: 11,
+    fontWeight: '700',
+    flex: 1,
   },
 });

@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Transaction, Account, MONTHS } from '../../types/finance';
 import { TransactionCard } from './FinanceCards';
+import { COLORS, RADIUS } from '../../constants/theme';
 
 interface HistoryModalProps {
   visible: boolean;
@@ -27,6 +28,7 @@ interface HistoryModalProps {
   setCatFilter: (cat: string) => void;
   onClone: (tx: Transaction) => void;
   onDelete: (id: string) => void;
+  onEdit?: (tx: Transaction) => void;
 }
 
 export const HistoryModal = ({
@@ -41,6 +43,7 @@ export const HistoryModal = ({
   setCatFilter,
   onClone,
   onDelete,
+  onEdit,
 }: HistoryModalProps) => {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -109,24 +112,24 @@ export const HistoryModal = ({
                 </View>
               </View>
               <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-                <Ionicons name="close-circle" size={26} color="#52525B" />
+                <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
 
             {/* Search Input */}
             <View style={modalStyles.searchContainer}>
-              <Ionicons name="search" size={16} color="#71717A" style={{ marginRight: 8 }} />
+              <Ionicons name="search" size={16} color={COLORS.textMuted} style={{ marginRight: 8 }} />
               <TextInput
                 style={modalStyles.searchInput}
                 placeholder="Search name, category, date, year..."
-                placeholderTextColor="#52525B"
+                placeholderTextColor={COLORS.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 autoCapitalize="none"
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
-                  <Ionicons name="close-circle" size={18} color="#71717A" />
+                  <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -206,7 +209,7 @@ export const HistoryModal = ({
             contentContainerStyle={modalStyles.listContent}
             ListEmptyComponent={
               <View style={modalStyles.emptyState}>
-                <Ionicons name="search-outline" size={38} color="#3F3F46" />
+                <Ionicons name="search-outline" size={38} color={COLORS.textMuted} />
                 <Text style={modalStyles.emptyPrimaryText}>No Transactions Found</Text>
                 <Text style={modalStyles.emptySubText}>
                   No records match your keyword or active filters.
@@ -219,6 +222,7 @@ export const HistoryModal = ({
                 accounts={accounts}
                 onClone={onClone}
                 onDelete={onDelete}
+                onEdit={onEdit}
               />
             )}
           />
@@ -231,30 +235,31 @@ export const HistoryModal = ({
 const modalStyles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   content: {
-    backgroundColor: '#18181B',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: COLORS.bgCard,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
     paddingTop: 12,
     height: '92%',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
   },
   handle: {
-    width: 38,
+    width: 36,
     height: 4,
-    backgroundColor: '#3F3F46',
-    borderRadius: 2,
+    backgroundColor: COLORS.textMuted,
+    opacity: 0.5,
+    borderRadius: RADIUS.full,
     alignSelf: 'center',
     marginBottom: 12,
   },
   fixedHeaderSection: {
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#27272A',
+    borderBottomColor: COLORS.border,
   },
   headerRow: {
     flexDirection: 'row',
@@ -265,85 +270,87 @@ const modalStyles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
+    letterSpacing: -0.3,
   },
   badge: {
-    backgroundColor: '#27272A',
+    backgroundColor: COLORS.bgCardSub,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: '#3F3F46',
+    borderColor: COLORS.border,
   },
   badgeText: {
-    color: '#38BDF8',
+    color: COLORS.finance,
     fontSize: 12,
     fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#09090B',
-    borderRadius: 12,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.md,
     paddingHorizontal: 12,
     paddingVertical: Platform.OS === 'ios' ? 10 : 6,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
     marginBottom: 12,
   },
   searchInput: {
     flex: 1,
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
     fontSize: 13,
     fontWeight: '600',
   },
   typeRow: {
     flexDirection: 'row',
-    backgroundColor: '#09090B',
-    borderRadius: 12,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.md,
     padding: 3,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
   },
   typeBtn: {
     flex: 1,
     paddingVertical: 7,
     alignItems: 'center',
-    borderRadius: 9,
+    borderRadius: RADIUS.sm,
   },
   typeBtnActive: {
-    backgroundColor: '#38BDF8',
+    backgroundColor: COLORS.finance,
   },
   typeBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#71717A',
+    color: COLORS.textMuted,
   },
   typeBtnTextActive: {
-    color: '#09090B',
+    color: '#08090C',
     fontWeight: '800',
   },
   chip: {
-    backgroundColor: '#09090B',
+    backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: COLORS.border,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 10,
+    borderRadius: RADIUS.md,
     marginRight: 6,
   },
   chipActive: {
-    backgroundColor: '#27272A',
-    borderColor: '#38BDF8',
+    backgroundColor: COLORS.bgCard,
+    borderColor: COLORS.finance,
   },
   chipText: {
-    color: '#71717A',
+    color: COLORS.textMuted,
     fontSize: 11,
     fontWeight: '600',
   },
   chipTextActive: {
-    color: '#38BDF8',
+    color: COLORS.finance,
     fontWeight: '800',
   },
   flatList: {
@@ -360,13 +367,13 @@ const modalStyles = StyleSheet.create({
     paddingVertical: 48,
   },
   emptyPrimaryText: {
-    color: '#FAFAFA',
+    color: COLORS.textPrimary,
     fontSize: 14,
     fontWeight: '700',
     marginTop: 10,
   },
   emptySubText: {
-    color: '#71717A',
+    color: COLORS.textMuted,
     fontSize: 12,
     marginTop: 4,
     textAlign: 'center',

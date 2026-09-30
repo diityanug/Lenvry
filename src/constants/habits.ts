@@ -1,5 +1,6 @@
 export const DEFAULT_CATEGORIES = [
   'Health',
+  'Faith',
   'Productivity',
   'Learning',
   'Fitness',
@@ -22,21 +23,62 @@ export const formatDisplayDate = (date: Date): string => {
   });
 };
 
-export const getCategoryIcon = (category: string): string => {
-  switch (category.toLowerCase()) {
-    case 'health': return 'heartbeat';
-    case 'productivity': return 'briefcase';
-    case 'learning': return 'book-open';
-    case 'fitness': return 'dumbbell';
-    case 'mindfulness': return 'spa';
-    default: return 'check-circle';
+export const DAYS_OF_WEEK = [
+  { label: 'Sun', value: 0 },
+  { label: 'Mon', value: 1 },
+  { label: 'Tue', value: 2 },
+  { label: 'Wed', value: 3 },
+  { label: 'Thu', value: 4 },
+  { label: 'Fri', value: 5 },
+  { label: 'Sat', value: 6 },
+];
+
+export const isHabitActiveForDate = (habit: {
+  date: string;
+  frequency?: string;
+  repeatDays?: number[];
+}, selectedDate: Date): boolean => {
+  const currentDateKey = formatDateKey(selectedDate);
+  const freq = habit.frequency || 'once';
+
+  if (freq === 'once') {
+    return habit.date === currentDateKey;
   }
+
+  // If created after selected date, don't show yet
+  if (habit.date > currentDateKey) {
+    return false;
+  }
+
+  if (freq === 'daily') {
+    return true;
+  }
+
+  if (freq === 'weekdays') {
+    const day = selectedDate.getDay();
+    return day >= 1 && day <= 5;
+  }
+
+  if (freq === 'custom_days') {
+    const day = selectedDate.getDay();
+    return habit.repeatDays ? habit.repeatDays.includes(day) : false;
+  }
+
+  return habit.date === currentDateKey;
 };
 
-export const MASONRY_STYLES = [
-  { bg: '#1E1B4B', text: '#C7D2FE', height: 170 },
-  { bg: '#142E1F', text: '#A7F3D0', height: 210 },
-  { bg: '#31102A', text: '#FBCFE8', height: 190 },
-  { bg: '#2D1B00', text: '#FED7AA', height: 160 },
-  { bg: '#1E293B', text: '#E2E8F0', height: 180 },
-];
+export const isHabitCompletedForDate = (habit: {
+  completed: boolean;
+  date: string;
+  frequency?: string;
+  completedDates?: string[];
+}, dateKey: string): boolean => {
+  if (Array.isArray(habit.completedDates) && habit.completedDates.includes(dateKey)) {
+    return true;
+  }
+  const freq = habit.frequency || 'once';
+  if (freq === 'once' || !habit.completedDates || habit.completedDates.length === 0) {
+    return habit.date === dateKey ? Boolean(habit.completed) : false;
+  }
+  return false;
+};

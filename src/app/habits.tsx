@@ -1,15 +1,16 @@
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Keyboard,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 
 import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
 import AddCategoryModal from '../components/Habits/AddCategoryModal';
@@ -19,10 +20,22 @@ import CategoryFilter from '../components/Habits/CategoryFilter';
 import DateNavigator from '../components/Habits/DateNavigator';
 import HabitCard from '../components/Habits/HabitCard';
 import ProgressCard from '../components/Habits/ProgressCard';
-import { DEFAULT_CATEGORIES, formatDateKey } from '../constants/habits';
+import NotificationSoundModal from '../components/Habits/NotificationSoundModal';
+import {
+  initializeNotifications,
+  scheduleHabitReminder,
+  cancelHabitReminder,
+} from '../services/habitNotificationService';
+import {
+  DEFAULT_CATEGORIES,
+  formatDateKey,
+  isHabitActiveForDate,
+  isHabitCompletedForDate,
+} from '../constants/habits';
 import { TAB_BAR_HEIGHT } from '../constants/tabBar';
+import { COLORS } from '../constants/theme';
 import { habitStyles as styles } from '../styles/habitStyles';
-import { Habit } from '../types/habits';
+import { FrequencyType, Habit, PriorityLevel, SubTask, TimeSlot } from '../types/habits';
 
 export default function HabitTrackerScreen() {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -31,8 +44,14 @@ export default function HabitTrackerScreen() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [categoryInputVisible, setCategoryInputVisible] = useState(false);
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
+  const [soundSettingsVisible, setSoundSettingsVisible] = useState(false);
+
+  useEffect(() => {
+    initializeNotifications();
+  }, []);
 
   const [alertConfig, setAlertConfig] = useState<AppAlertConfig>({
     visible: false,
@@ -40,25 +59,60 @@ export default function HabitTrackerScreen() {
     message: '',
   });
 
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
-  const [newCategoryText, setNewCategoryText] = useState('');
-
   const todayDateKey = formatDateKey(new Date());
   const currentDateKey = formatDateKey(selectedDate);
   const isTodayActive = currentDateKey === todayDateKey;
 
-  const currentDayHabits = habits.filter((h) => h.date === currentDateKey);
-  const filteredHabits = activeFilter === 'All' 
-    ? currentDayHabits 
-    : currentDayHabits.filter((h) => h.category === activeFilter);
+  // Filter habits active for selectedDate
+  const currentDayHabits = habits.filter((h) => isHabitActiveForDate(h, selectedDate));
 
-  const completedCount = filteredHabits.filter((h) => h.completed).length;
-  const progressPercent = filteredHabits.length > 0 ? (completedCount / filteredHabits.length) * 100 : 0;
+  const filteredHabits =
+    activeFilter === 'All'
+      ? currentDayHabits
+      : currentDayHabits.filter((h) => h.category === activeFilter);
 
-  useEffect(() => {
-    loadData();
+  // Completed count for progress
+  const completedCount = filteredHabits.filter((h) =>
+    isHabitCompletedForDate(h, currentDateKey)
+  ).length;
+
+  const progressPercent =
+    filteredHabits.length > 0 ? (completedCount / filteredHabits.length) * 100 : 0;
+
+  const loadData = useCallback(async () => {
+    try {
+      const [storedHabits, storedCategories] = await AsyncStorage.multiGet([
+        '@lenvry_habits',
+        '@lenvry_habit_categories',
+      ]).then((pairs) => pairs.map((p) => p[1]));
+
+      if (storedHabits !== null) {
+        const parsed: Habit[] = JSON.parse(storedHabits).map((h: any) => ({
+          ...h,
+          date: h.date || formatDateKey(new Date()),
+          completed: typeof h.completed === 'boolean' ? h.completed : false,
+          frequency: h.frequency || 'once',
+          priority: h.priority || 'medium',
+          timeSlot: h.timeSlot || 'Anytime',
+          completedDates: Array.isArray(h.completedDates) ? h.completedDates : [],
+          subtasks: Array.isArray(h.subtasks) ? h.subtasks : [],
+        }));
+        setHabits(parsed);
+      }
+      if (storedCategories !== null) {
+        const parsedCategories = JSON.parse(storedCategories);
+        setCategories(parsedCategories);
+      }
+    } catch (e) {
+      console.error('Failed to load habit data', e);
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const showAlert = (
     type: AppAlertConfig['type'],
@@ -83,29 +137,6 @@ export default function HabitTrackerScreen() {
     setAlertConfig((prev) => ({ ...prev, visible: false }));
   };
 
-  const loadData = async () => {
-    try {
-      const storedHabits = await AsyncStorage.getItem('@lenvry_habits');
-      const storedCategories = await AsyncStorage.getItem('@lenvry_habit_categories');
-      
-      if (storedHabits !== null) {
-        const parsed = JSON.parse(storedHabits).map((h: any) => ({
-          ...h,
-          date: h.date || formatDateKey(new Date()),
-          completed: typeof h.completed === 'boolean' ? h.completed : false,
-        }));
-        setHabits(parsed);
-      }
-      if (storedCategories !== null) {
-        const parsedCategories = JSON.parse(storedCategories);
-        setCategories(parsedCategories);
-        if (parsedCategories.length > 0) setCategory(parsedCategories[0]);
-      }
-    } catch (e) {
-      console.error('Failed to load habit data', e);
-    }
-  };
-
   const handlePrevDay = () => {
     const prev = new Date(selectedDate);
     prev.setDate(prev.getDate() - 1);
@@ -122,36 +153,145 @@ export default function HabitTrackerScreen() {
     setSelectedDate(new Date());
   };
 
-  const saveHabit = async () => {
-    if (!title.trim() || !category) {
+  const handleOpenAdd = () => {
+    setEditingHabit(null);
+    setModalVisible(true);
+  };
+
+  const handleOpenEdit = (habitToEdit: Habit) => {
+    setEditingHabit(habitToEdit);
+    setModalVisible(true);
+  };
+
+  const saveHabit = async (habitData: {
+    id?: string;
+    title: string;
+    category: string;
+    description?: string;
+    priority?: PriorityLevel;
+    timeSlot?: TimeSlot;
+    reminderTime?: string;
+    reminderSound?: string;
+    frequency?: FrequencyType;
+    repeatDays?: number[];
+    subtasks?: SubTask[];
+  }) => {
+    if (!habitData.title.trim() || !habitData.category) {
       showAlert('warning', 'Missing Data', 'Habit name and category cannot be empty.');
       return;
     }
 
-    const newHabit: Habit = {
-      id: Date.now().toString(),
-      title: title.trim(),
-      category,
-      completed: false,
-      date: currentDateKey,
-    };
+    let updatedHabits: Habit[];
 
-    const updatedHabits = [...habits, newHabit];
+    if (habitData.id) {
+      // Edit existing habit
+      const existing = habits.find((h) => h.id === habitData.id);
+      let targetHabit: Habit = {
+        ...existing!,
+        title: habitData.title.trim(),
+        category: habitData.category,
+        description: habitData.description?.trim() || undefined,
+        priority: habitData.priority || 'medium',
+        timeSlot: habitData.timeSlot || 'Anytime',
+        reminderTime: habitData.reminderTime || undefined,
+        reminderSound: habitData.reminderSound,
+        frequency: habitData.frequency || 'once',
+        repeatDays: habitData.repeatDays,
+        subtasks: habitData.subtasks || [],
+      };
+
+      if (targetHabit.reminderTime) {
+        targetHabit.notificationId = await scheduleHabitReminder(targetHabit);
+      } else if (existing?.notificationId) {
+        await cancelHabitReminder(existing.notificationId);
+        targetHabit.notificationId = undefined;
+      }
+
+      updatedHabits = habits.map((h) => (h.id === habitData.id ? targetHabit : h));
+    } else {
+      // Create new habit
+      let newHabit: Habit = {
+        id: new Date().getTime().toString(),
+        title: habitData.title.trim(),
+        category: habitData.category,
+        completed: false,
+        date: currentDateKey,
+        description: habitData.description?.trim() || undefined,
+        priority: habitData.priority || 'medium',
+        timeSlot: habitData.timeSlot || 'Anytime',
+        reminderTime: habitData.reminderTime || undefined,
+        reminderSound: habitData.reminderSound,
+        frequency: habitData.frequency || 'once',
+        repeatDays: habitData.repeatDays,
+        completedDates: [],
+        subtasks: habitData.subtasks || [],
+      };
+
+      if (newHabit.reminderTime) {
+        newHabit.notificationId = await scheduleHabitReminder(newHabit);
+      }
+
+      updatedHabits = [...habits, newHabit];
+    }
+
     setHabits(updatedHabits);
     await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updatedHabits));
-      
-    setTitle(''); 
-    Keyboard.dismiss(); 
+
+    Keyboard.dismiss();
     setModalVisible(false);
+    setEditingHabit(null);
   };
 
   const toggleHabitForDate = async (id: string) => {
     const updatedHabits = habits.map((habit) => {
       if (habit.id === id) {
-        return { ...habit, completed: !habit.completed };
+        const isFreqOnce = !habit.frequency || habit.frequency === 'once';
+
+        if (isFreqOnce) {
+          const nextCompleted = !habit.completed;
+          const currentDates = Array.isArray(habit.completedDates) ? habit.completedDates : [];
+          const nextDates = nextCompleted
+            ? Array.from(new Set([...currentDates, currentDateKey]))
+            : currentDates.filter((d) => d !== currentDateKey);
+
+          return {
+            ...habit,
+            completed: nextCompleted,
+            completedDates: nextDates,
+          };
+        } else {
+          // Recurring habit: toggle date in completedDates
+          const dates = Array.isArray(habit.completedDates) ? habit.completedDates : [];
+          const exists = dates.includes(currentDateKey);
+          const nextDates = exists
+            ? dates.filter((d) => d !== currentDateKey)
+            : [...dates, currentDateKey];
+
+          return {
+            ...habit,
+            completed: nextDates.includes(todayDateKey),
+            completedDates: nextDates,
+          };
+        }
       }
       return habit;
     });
+
+    setHabits(updatedHabits);
+    await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updatedHabits));
+  };
+
+  const toggleSubtask = async (habitId: string, subtaskId: string) => {
+    const updatedHabits = habits.map((habit) => {
+      if (habit.id === habitId && habit.subtasks) {
+        const updatedSubtasks = habit.subtasks.map((st) =>
+          st.id === subtaskId ? { ...st, completed: !st.completed } : st
+        );
+        return { ...habit, subtasks: updatedSubtasks };
+      }
+      return habit;
+    });
+
     setHabits(updatedHabits);
     await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updatedHabits));
   };
@@ -159,11 +299,15 @@ export default function HabitTrackerScreen() {
   const deleteHabit = (id: string) => {
     showAlert(
       'danger',
-      'Delete Habit?',
-      'Are you sure you want to remove this habit for this date?',
+      'Delete Habit / Task?',
+      'Are you sure you want to remove this habit?',
       'DELETE',
       'CANCEL',
       async () => {
+        const target = habits.find((h) => h.id === id);
+        if (target?.notificationId) {
+          await cancelHabitReminder(target.notificationId);
+        }
         const updatedHabits = habits.filter((h) => h.id !== id);
         setHabits(updatedHabits);
         await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updatedHabits));
@@ -171,17 +315,20 @@ export default function HabitTrackerScreen() {
     );
   };
 
-  const addCategory = async () => {
-    if (!newCategoryText.trim()) return;
-    if (categories.includes(newCategoryText.trim())) {
-      showAlert('warning', 'Category Exists', 'This category already exists. Choose a different name.'); 
+  const addCategory = async (newCategoryName: string) => {
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) return;
+    if (categories.includes(trimmed)) {
+      showAlert(
+        'warning',
+        'Category Exists',
+        'This category already exists. Choose a different name.'
+      );
       return;
     }
-    const updatedCategories = [...categories, newCategoryText.trim()];
-    setCategories(updatedCategories); 
-    setCategory(newCategoryText.trim());
+    const updatedCategories = [...categories, trimmed];
+    setCategories(updatedCategories);
     await AsyncStorage.setItem('@lenvry_habit_categories', JSON.stringify(updatedCategories));
-    setNewCategoryText(''); 
     setCategoryInputVisible(false);
   };
 
@@ -195,71 +342,101 @@ export default function HabitTrackerScreen() {
       async () => {
         const updatedCategories = categories.filter((c) => c !== catToDelete);
         setCategories(updatedCategories);
-        if (category === catToDelete) setCategory(updatedCategories.length > 0 ? updatedCategories[0] : '');
         if (activeFilter === catToDelete) setActiveFilter('All');
-        await AsyncStorage.setItem('@lenvry_habit_categories', JSON.stringify(updatedCategories));
+        await AsyncStorage.setItem(
+          '@lenvry_habit_categories',
+          JSON.stringify(updatedCategories)
+        );
       }
     );
   };
 
   const getTotalCompletedCount = (habitTitle: string) => {
-    return habits.filter((h) => h.title.toLowerCase() === habitTitle.toLowerCase() && h.completed).length;
+    return habits.filter((h) => {
+      if (h.title.toLowerCase() !== habitTitle.toLowerCase()) return false;
+      return isHabitCompletedForDate(h, currentDateKey);
+    }).length;
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#09090B" translucent={true} />
-      
-      {/* Header dengan Tombol Add Terintegrasi */}
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
+
+      {/* Header with Notification Settings and Add Button */}
       <View style={styles.headerRow}>
         <View style={{ flex: 1, marginRight: 12 }}>
-          <Text style={styles.headerTitleBold}>Habits</Text>
+          <Text style={styles.headerTitleBold}>Daily Activities</Text>
           <Text style={styles.headerSubtitleLight}>Build Consistency, Shape Your Future</Text>
         </View>
 
-        <TouchableOpacity 
-          style={styles.headerAddBtn} 
-          onPress={() => setModalVisible(true)} 
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={16} color="#09090B" />
-          <Text style={styles.headerAddBtnText}>Add</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: COLORS.bgCard,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onPress={() => setSoundSettingsVisible(true)}
+            activeOpacity={0.75}
+            accessibilityLabel="Notification Sound Settings"
+          >
+            <Ionicons name="notifications-outline" size={17} color={COLORS.textPrimary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.headerAddBtn}
+            onPress={handleOpenAdd}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={16} color="#08090C" />
+            <Text style={styles.headerAddBtnText}>Add</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 36 }}
       >
-        {/* Navigasi Tanggal */}
-        <DateNavigator 
+        {/* Date Navigator */}
+        <DateNavigator
           selectedDate={selectedDate}
           onPrevDay={handlePrevDay}
           onNextDay={handleNextDay}
           onOpenCalendar={() => setCalendarModalVisible(true)}
         />
 
-        {/* Shortcut Kembali ke Hari Ini */}
+        {/* Shortcut Back to Today */}
         {!isTodayActive && (
-          <TouchableOpacity 
-            style={styles.todayBanner} 
+          <TouchableOpacity
+            style={styles.todayBanner}
             onPress={handleGoToToday}
             activeOpacity={0.8}
           >
-            <Ionicons name="return-up-back" size={15} color="#8E97FD" style={{ marginRight: 6 }} />
+            <Ionicons
+              name="return-up-back"
+              size={14}
+              color={COLORS.success}
+              style={{ marginRight: 6 }}
+            />
             <Text style={styles.todayBannerText}>Tap to jump back to Today</Text>
           </TouchableOpacity>
         )}
 
-        {/* Filter Kategori */}
-        <CategoryFilter 
+        {/* Category Filter */}
+        <CategoryFilter
           categories={categories}
           activeFilter={activeFilter}
           onSelectFilter={setActiveFilter}
         />
 
-        {/* Kartu Ringkasan Progres */}
-        <ProgressCard 
+        {/* Progress Card */}
+        <ProgressCard
           completedCount={completedCount}
           totalCount={filteredHabits.length}
           progressPercent={progressPercent}
@@ -273,29 +450,35 @@ export default function HabitTrackerScreen() {
           <Text style={styles.sectionHint}>Tap checkmark to complete</Text>
         </View>
 
-        {/* Daftar Habit Grid Kotak */}
+        {/* Habit Grid */}
         {filteredHabits.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="leaf-outline" size={56} color="#27272A" />
+            <Ionicons name="leaf-outline" size={48} color={COLORS.borderLight} />
             <Text style={styles.emptyText}>No habits scheduled for this date.</Text>
             <Text style={styles.emptySubText}>Tap Add in the top right to start a habit.</Text>
           </View>
         ) : (
           <View style={styles.habitGridWrap}>
-            {filteredHabits.map((item) => (
-              <HabitCard
-                key={item.id}
-                item={item}
-                totalCompletedCount={getTotalCompletedCount(item.title)}
-                onToggle={toggleHabitForDate}
-                onDelete={deleteHabit}
-              />
-            ))}
+            {filteredHabits.map((item) => {
+              const isCompleted = isHabitCompletedForDate(item, currentDateKey);
+              return (
+                <HabitCard
+                  key={item.id}
+                  item={item}
+                  isCompleted={isCompleted}
+                  totalCompletedCount={getTotalCompletedCount(item.title)}
+                  onToggle={toggleHabitForDate}
+                  onDelete={deleteHabit}
+                  onEdit={handleOpenEdit}
+                  onToggleSubtask={toggleSubtask}
+                />
+              );
+            })}
           </View>
         )}
       </ScrollView>
 
-      {/* Modal Kalender */}
+      {/* Calendar Modal */}
       <CalendarModal
         visible={calendarModalVisible}
         selectedDate={selectedDate}
@@ -306,28 +489,34 @@ export default function HabitTrackerScreen() {
         }}
       />
 
-      {/* Modal Tambah Habit */}
-      <AddHabitModal 
+      {/* Add / Edit Habit Modal */}
+      <AddHabitModal
         visible={modalVisible}
         selectedDate={selectedDate}
-        title={title}
-        category={category}
         categories={categories}
-        onChangeTitle={setTitle}
-        onChangeCategory={setCategory}
+        initialHabit={editingHabit}
         onSave={saveHabit}
-        onClose={() => setModalVisible(false)}
+        onClose={() => {
+          setModalVisible(false);
+          setEditingHabit(null);
+        }}
         onOpenAddCategory={() => setCategoryInputVisible(true)}
         onDeleteCategory={deleteCategory}
       />
 
-      {/* Modal Tambah Kategori */}
-      <AddCategoryModal 
+      {/* Add Category Modal */}
+      <AddCategoryModal
         visible={categoryInputVisible}
-        value={newCategoryText}
-        onChangeText={setNewCategoryText}
         onSave={addCategory}
         onClose={() => setCategoryInputVisible(false)}
+      />
+
+      {/* Notification & Sound Settings Modal */}
+      <NotificationSoundModal
+        visible={soundSettingsVisible}
+        selectedSoundId="chime"
+        onSelectSound={() => {}}
+        onClose={() => setSoundSettingsVisible(false)}
       />
 
       <AppAlertModal config={alertConfig} onClose={closeAlert} />

@@ -3,6 +3,7 @@ import { Text, View, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GYM_CATEGORIES, getCategoryIcon } from '../../constants/fitness';
 import { fitnessStyles as styles } from '../../styles/fitnessStyles';
+import { COLORS } from '../../constants/theme';
 
 interface CategoryFilterProps {
   activeFilter: string;
@@ -14,7 +15,11 @@ export default function CategoryFilter({ activeFilter, onSelectCategory }: Categ
 
   return (
     <View style={styles.filterContainer}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterScroll}
+      >
         {categories.map((cat, index) => {
           const isLast = index === categories.length - 1;
           const isActive = activeFilter === cat;
@@ -33,7 +38,7 @@ export default function CategoryFilter({ activeFilter, onSelectCategory }: Categ
               <Ionicons
                 name={getCategoryIcon(cat) as any}
                 size={14}
-                color={isActive ? '#09090B' : '#A1A1AA'}
+                color={isActive ? COLORS.textInverse : COLORS.textSecondary}
                 style={styles.filterIcon}
               />
               <Text style={[styles.filterText, isActive && styles.filterTextActive]}>{cat}</Text>

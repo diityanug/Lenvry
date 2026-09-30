@@ -3,6 +3,7 @@ import { Text, View, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fitnessStyles as styles } from '../../styles/fitnessStyles';
 import { MONTHS, DAYS_SHORT } from '../../constants/fitness';
+import { COLORS } from '../../constants/theme';
 
 interface DateStripProps {
   selectedDate: Date;
@@ -15,7 +16,7 @@ export default function DateStrip({ selectedDate, onSelectDate, onOpenCalendar }
   const currentDateKey = getFormattedDateKey(selectedDate);
   const todayKey = getFormattedDateKey(new Date());
 
-  // Tampilkan rentang 7 hari dalam 1 baris
+  // Show 7 days range
   const getWeekDates = () => {
     const dates = [];
     for (let i = -3; i <= 3; i++) {
@@ -29,13 +30,21 @@ export default function DateStrip({ selectedDate, onSelectDate, onOpenCalendar }
   return (
     <View style={styles.dateStripContainer}>
       <View style={styles.monthHeaderRow}>
-        <TouchableOpacity style={styles.monthLabelRow} onPress={onOpenCalendar} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.monthLabelRow}
+          onPress={onOpenCalendar}
+          activeOpacity={0.7}
+        >
           <Text style={styles.monthLabelText}>
             {MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear()}
           </Text>
-          <Ionicons name="calendar-outline" size={15} color="#FF6B00" style={{ marginLeft: 6 }} />
+          <Ionicons name="calendar-outline" size={14} color={COLORS.warning} style={{ marginLeft: 6 }} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.todayBadge} onPress={() => onSelectDate(new Date())} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.todayBadge}
+          onPress={() => onSelectDate(new Date())}
+          activeOpacity={0.7}
+        >
           <Text style={styles.todayBadgeText}>TODAY</Text>
         </TouchableOpacity>
       </View>
@@ -63,7 +72,11 @@ export default function DateStrip({ selectedDate, onSelectDate, onOpenCalendar }
               <Text style={[styles.dayTextNumber, isSelected && styles.dayTextNumberActive]}>
                 {d.getDate()}
               </Text>
-              {isFuture && <View style={[styles.futureDot, isSelected && { backgroundColor: '#09090B' }]} />}
+              {isFuture && (
+                <View
+                  style={[styles.futureDot, isSelected && { backgroundColor: COLORS.bgCanvas }]}
+                />
+              )}
             </TouchableOpacity>
           );
         })}
