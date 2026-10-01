@@ -16,8 +16,8 @@ export const formatDateKey = (date: Date): string => {
 
 export const formatDisplayDate = (date: Date): string => {
   return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
+    weekday: 'long',
+    month: 'long',
     day: 'numeric',
     year: 'numeric',
   });

@@ -49,6 +49,16 @@ export interface RecurringBill {
 export const ACCOUNT_TYPES = ['Bank', 'E-Wallet', 'Cash', 'Investment', 'Credit Card', 'E-Money'] as const;
 
 export const DEFAULT_EXPENSE_CATEGORIES = [
+  'Bills & Utilities',
+  'Subscriptions',
+  'Housing / Rent',
+  'Internet & Phone',
+  'Insurance',
+  'Fitness & Gym',
+  'Cloud & Storage',
+  'Food & Beverages',
+  'Snacks',
+  'Shopping',
   'Fuel',
   'Parking',
   'Vehicle Services',
@@ -56,10 +66,6 @@ export const DEFAULT_EXPENSE_CATEGORIES = [
   'Personal',
   'Home Services',
   'Furnisings',
-  'Food & Beverages',
-  'Snacks',
-  'Shopping',
-  'Bills & Utilities',
   'Social',
   'Health & Medical',
   'Education',

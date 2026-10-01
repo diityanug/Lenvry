@@ -4,32 +4,38 @@
     "slug": "lenvry",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/andro ico.png",
+    "icon": "./assets/lenvry.png",
     "scheme": "lenvry",
     "userInterfaceStyle": "automatic",
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/andro ico.png",
-        "backgroundImage": "./assets/andro ico.png",
-        "monochromeImage": "./assets/andro ico.png"
+        "backgroundColor": "#08090C",
+        "foregroundImage": "./assets/lenvry.png",
+        "backgroundImage": "./assets/lenvry.png",
+        "monochromeImage": "./assets/lenvry.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.adiityanug.lenvry",
-      "softwareKeyboardLayoutMode": "adjustResize"
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/iconfix.ico"
+      "favicon": "./assets/lenvry.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#08090C",
+          "image": "./assets/lenvry.png",
+          "imageWidth": 120
         }
       ],
       "expo-audio",
@@ -51,9 +57,11 @@
       "reactCompiler": true
     },
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "adafb93c-3c57-4fb0-b4af-88ca24d33d19"
+        "projectId": "9b8e3e15-7ec5-40c4-9d41-a9a3303f22e3"
       }
-    }
+    },
+    "owner": "adiityanug"
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
@@ -41,6 +40,22 @@ export const CategoryBudgetModal = ({
     const existing = budgets.find((b) => b.category === (categories[0] || 'Food & Beverages'));
     return existing && existing.limit > 0 ? existing.limit.toString() : '';
   });
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const currentBudget = budgets.find((b) => b.category === selectedCat);
   const theme = getCategoryTheme(selectedCat, 'expense', customCategoryIcons);
@@ -71,17 +86,13 @@ export const CategoryBudgetModal = ({
 
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}
-      >
+      <View style={styles.overlay}>
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={styles.dismissArea} />
         </TouchableWithoutFeedback>
 
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.content}>
-            <View style={styles.handle} />
+        <View style={styles.content}>
+          <View style={styles.handle} />
 
             {/* Header */}
             <View style={styles.headerRow}>
@@ -89,9 +100,9 @@ export const CategoryBudgetModal = ({
                 <View style={[styles.headerIconWrap, { backgroundColor: theme.bg }]}>
                   <Ionicons name={theme.icon} size={18} color={theme.color} />
                 </View>
-                <View>
-                  <Text style={styles.title}>Set Category Budget</Text>
-                  <Text style={styles.subtitle}>Monthly spending target & guardrail</Text>
+                <View style={{ flex: 1, flexShrink: 1 }}>
+                  <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">Set Category Budget</Text>
+                  <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">Monthly spending target & guardrail</Text>
                 </View>
               </View>
 
@@ -102,7 +113,8 @@ export const CategoryBudgetModal = ({
 
             <ScrollView
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 20 }}
+              automaticallyAdjustKeyboardInsets={true}
+              contentContainerStyle={{ paddingBottom: Math.max(16, keyboardHeight + 16) }}
               keyboardShouldPersistTaps="handled"
             >
               {/* Category Horizontal Chips */}
@@ -197,8 +209,7 @@ export const CategoryBudgetModal = ({
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };
@@ -218,6 +229,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
     paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
     maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,

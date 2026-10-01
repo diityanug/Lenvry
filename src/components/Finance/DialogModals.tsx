@@ -48,7 +48,11 @@ export const EditBalanceModal = ({
 
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 20 : 0}
+        style={{ flex: 1 }}
+      >
         <TouchableWithoutFeedback onPress={handleDismiss}>
           <View style={dialogStyles.overlayCenter}>
             <TouchableWithoutFeedback onPress={() => {}}>
@@ -136,7 +140,11 @@ export const RenameModal = ({
 
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 20 : 0}
+        style={{ flex: 1 }}
+      >
         <TouchableWithoutFeedback onPress={handleDismiss}>
           <View style={dialogStyles.overlayCenter}>
             <TouchableWithoutFeedback onPress={() => {}}>
@@ -273,11 +281,15 @@ export const AddCategoryModal = ({
 
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 20 : 0}
+        style={{ flex: 1 }}
+      >
         <TouchableWithoutFeedback onPress={handleDismiss}>
           <View style={dialogStyles.overlayCenter}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={[dialogStyles.cardSmall, { maxHeight: '82%' }]}>
+              <View style={[dialogStyles.cardSmall, { maxHeight: '90%' }]}>
                 {/* Header Icon Preview */}
                 <View style={{ alignItems: 'center', marginBottom: 12 }}>
                   <View style={[dialogStyles.iconPreviewBox, { backgroundColor: activeIconItem.bg }]}>
@@ -354,12 +366,12 @@ const dialogStyles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: 16,
   },
   cardSmall: {
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.xl,
-    padding: 22,
+    padding: 18,
     width: '100%',
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -504,22 +516,23 @@ const dialogStyles = StyleSheet.create({
     marginBottom: 6,
   },
   iconScrollArea: {
-    maxHeight: 140,
+    height: 220,
     backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: 8,
+    padding: 12,
   },
   iconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'flex-start',
+    gap: 12,
+    justifyContent: 'space-between',
+    paddingBottom: 16,
   },
   iconPickBtn: {
-    width: 44,
-    height: 44,
+    width: 52,
+    height: 52,
     borderRadius: RADIUS.md,
     backgroundColor: COLORS.bgCard,
     borderWidth: 1,
@@ -530,5 +543,6 @@ const dialogStyles = StyleSheet.create({
   iconPickBtnActive: {
     backgroundColor: COLORS.finance,
     borderColor: COLORS.finance,
+    transform: [{ scale: 1.05 }],
   },
 });

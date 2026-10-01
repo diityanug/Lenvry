@@ -5,8 +5,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
   Keyboard,
   Pressable,
   ScrollView,
@@ -77,12 +75,8 @@ function TargetModalContent({
     <View style={styles.modalOverlay}>
       <Pressable style={styles.dismissArea} onPress={handleDismiss} />
 
-      <KeyboardAvoidingView
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-      >
-        <View style={styles.modalContent}>
-          <View style={styles.modalHandle} />
+      <View style={styles.modalContent}>
+        <View style={styles.modalHandle} />
 
           <View style={styles.modalHeaderRow}>
             <View>
@@ -100,7 +94,7 @@ function TargetModalContent({
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={{ paddingBottom: 16 }}
           >
             {/* Quick Presets */}
             <Text style={styles.formLabel}>QUICK PRESETS</Text>
@@ -209,7 +203,6 @@ function TargetModalContent({
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
-    </View>
-  );
-}
+      </View>
+    );
+  }

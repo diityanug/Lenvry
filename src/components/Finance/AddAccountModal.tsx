@@ -1,11 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Text,
   View,
   Modal,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Platform,
   Keyboard,
   ScrollView,
@@ -53,6 +52,23 @@ export const AddAccountModal = ({
   setNewAccCurrency,
   setParentAccId,
 }: AddAccountModalProps) => {
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   const handleDismiss = () => {
     Keyboard.dismiss();
     onClose();
@@ -62,10 +78,7 @@ export const AddAccountModal = ({
 
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={modalStyles.overlay}
-      >
+      <View style={modalStyles.overlay}>
         <TouchableWithoutFeedback onPress={handleDismiss}>
           <View style={modalStyles.dismissArea} />
         </TouchableWithoutFeedback>
@@ -73,20 +86,25 @@ export const AddAccountModal = ({
         <View style={modalStyles.content}>
           <View style={modalStyles.handle} />
 
-          {/* Header */}
-          <View style={modalStyles.headerRow}>
-            <View>
-              <Text style={modalStyles.headerTitle}>Add New Account</Text>
-              <Text style={modalStyles.headerSubtitle}>
-                {isMain ? 'Create a master balance ledger' : 'Add a sub-pocket to an existing account'}
-              </Text>
+            {/* Header */}
+            <View style={modalStyles.headerRow}>
+              <View>
+                <Text style={modalStyles.headerTitle}>Add New Account</Text>
+                <Text style={modalStyles.headerSubtitle}>
+                  {isMain ? 'Create a master balance ledger' : 'Add a sub-pocket to an existing account'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+                <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-              <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          </View>
 
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets={true}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: Math.max(16, keyboardHeight + 16) }}
+            >
             {/* Account Type Selector Tabs */}
             <View style={modalStyles.typeSwitcher}>
               <TouchableOpacity
@@ -300,7 +318,7 @@ export const AddAccountModal = ({
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };
@@ -320,8 +338,8 @@ const modalStyles = StyleSheet.create({
     borderTopRightRadius: RADIUS.xl,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
-    maxHeight: '92%',
+    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.border,
   },

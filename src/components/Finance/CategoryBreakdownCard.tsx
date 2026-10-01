@@ -64,7 +64,19 @@ export const getCategoryTheme = (
     case 'Shopping':
       return { icon: 'cart-outline', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.16)' };
     case 'Bills & Utilities':
-      return { icon: 'receipt-outline', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.16)' };
+      return { icon: 'flash-outline', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.16)' };
+    case 'Subscriptions':
+      return { icon: 'apps-outline', color: '#A855F7', bg: 'rgba(168, 85, 247, 0.16)' };
+    case 'Housing / Rent':
+      return { icon: 'home-outline', color: '#EAB308', bg: 'rgba(234, 179, 8, 0.16)' };
+    case 'Internet & Phone':
+      return { icon: 'wifi-outline', color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.16)' };
+    case 'Insurance':
+      return { icon: 'shield-checkmark-outline', color: '#10B981', bg: 'rgba(16, 185, 129, 0.16)' };
+    case 'Fitness & Gym':
+      return { icon: 'barbell-outline', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.16)' };
+    case 'Cloud & Storage':
+      return { icon: 'cloud-outline', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.16)' };
     case 'Entertainment':
       return { icon: 'game-controller-outline', color: '#A855F7', bg: 'rgba(168, 85, 247, 0.16)' };
     case 'Health & Medical':
@@ -143,7 +155,6 @@ export const CategoryBreakdownCard = ({
             activeOpacity={0.7}
           >
             <Ionicons name="options-outline" size={13} color={COLORS.finance} />
-            <Text style={[cardStyles.headerActionBtnText, { color: COLORS.textPrimary }]}>Set Budget</Text>
           </TouchableOpacity>
         </View>
       </View>

@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Text,
   View,
   Modal,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Platform,
   Keyboard,
   ScrollView,
@@ -114,6 +113,22 @@ function AddHabitContent({
   const [localSubtasks, setLocalSubtasks] = useState<SubTask[]>(initialHabit?.subtasks || []);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleSelectPreset = (preset: { title: string; category: string }) => {
     setLocalTitle(preset.title);
@@ -181,15 +196,12 @@ function AddHabitContent({
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={habitModalStyles.overlay}
-    >
-      <TouchableWithoutFeedback onPress={handleDismissArea}>
-        <View style={habitModalStyles.dismissArea} />
-      </TouchableWithoutFeedback>
+    <>
+      <View style={habitModalStyles.overlay}>
+        <TouchableWithoutFeedback onPress={handleDismissArea}>
+          <View style={habitModalStyles.dismissArea} />
+        </TouchableWithoutFeedback>
 
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={habitModalStyles.content}>
           <View style={habitModalStyles.handle} />
 
@@ -209,8 +221,9 @@ function AddHabitContent({
 
           <ScrollView
             keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={{ paddingBottom: Math.max(16, keyboardHeight + 16) }}
           >
             {/* Target Date Pill */}
             <View style={habitModalStyles.schedulePill}>
@@ -626,7 +639,7 @@ function AddHabitContent({
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </TouchableWithoutFeedback>
+      </View>
 
       <TimePickerModal
         visible={timePickerVisible}
@@ -652,7 +665,7 @@ function AddHabitContent({
           setSoundModalVisible(false);
         }}
       />
-    </KeyboardAvoidingView>
+    </>
   );
 }
 
@@ -671,7 +684,8 @@ const habitModalStyles = StyleSheet.create({
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
     paddingTop: 12,
-    maxHeight: '92%',
+    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
@@ -681,7 +695,7 @@ const habitModalStyles = StyleSheet.create({
     backgroundColor: COLORS.borderLight,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   headerRow: {
     flexDirection: 'row',
@@ -907,7 +921,7 @@ const habitModalStyles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 4,
-    marginBottom: 24,
+    marginBottom: 4,
   },
   saveButtonText: {
     color: '#08090C',

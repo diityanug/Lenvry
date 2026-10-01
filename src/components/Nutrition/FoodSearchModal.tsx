@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ScrollView,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Keyboard,
   Pressable,
@@ -163,12 +162,8 @@ function FoodSearchContent({
     <View style={styles.modalOverlay}>
       <Pressable style={styles.dismissArea} onPress={handleDismiss} />
 
-      <KeyboardAvoidingView
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-      >
-        <View style={[styles.modalContent, { maxHeight: windowHeight * 0.88 }]}>
-          <View style={styles.modalHandle} />
+      <View style={styles.modalContent}>
+        <View style={styles.modalHandle} />
 
           {/* VIEW MODE 1: SEARCH & SELECTION */}
           {!selectedFood ? (
@@ -304,7 +299,7 @@ function FoodSearchContent({
                 style={{
                   maxHeight: isKeyboardVisible ? windowHeight * 0.35 : windowHeight * 0.52,
                 }}
-                contentContainerStyle={{ paddingBottom: 24 }}
+                contentContainerStyle={{ paddingBottom: 16 }}
                 ListEmptyComponent={
                   <View style={{ alignItems: 'center', paddingVertical: 36 }}>
                     <Ionicons name="restaurant-outline" size={36} color={COLORS.textMuted} />
@@ -365,7 +360,7 @@ function FoodSearchContent({
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               bounces={false}
-              contentContainerStyle={{ paddingBottom: 24 }}
+              contentContainerStyle={{ paddingBottom: 16 }}
             >
               {/* Back to list button */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -557,7 +552,6 @@ function FoodSearchContent({
             </ScrollView>
           )}
         </View>
-      </KeyboardAvoidingView>
-    </View>
-  );
-}
+      </View>
+    );
+  }

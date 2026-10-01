@@ -167,7 +167,7 @@ export default function WorkoutHistoryModal({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
-            contentContainerStyle={{ paddingBottom: 60 }}
+            contentContainerStyle={{ paddingBottom: 16 }}
             renderItem={({ item }) => {
               const isCardio = item.category === 'Cardio' || item.category === 'Kardio';
               return (

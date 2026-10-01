@@ -17,9 +17,10 @@ export default function DateNavigator({
   onOpenCalendar,
 }: DateNavigatorProps) {
   const dateStr = selectedDate.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
+    weekday: 'long',
+    month: 'long',
     day: 'numeric',
+    year: 'numeric',
   });
 
   return (

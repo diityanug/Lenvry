@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StatusBar, FlatList, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,7 @@ import { CategoryBreakdownCard } from '../components/Finance/CategoryBreakdownCa
 import { CategoryBreakdownModal } from '../components/Finance/CategoryBreakdownModal';
 import { CategoryBudgetModal } from '../components/Finance/CategoryBudgetModal';
 import { RecurringBillsCard } from '../components/Finance/RecurringBillsCard';
+import { ManageAccountsModal } from '../components/Finance/ManageAccountsModal';
 import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
 import { TAB_BAR_HEIGHT } from '../constants/tabBar';
 import { financeStyles as styles } from '../styles/financeStyles';
@@ -46,6 +47,7 @@ export default function FinanceTracker() {
   const [renameModalVisible, setRenameModalVisible] = useState(false);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [categoryBreakdownModalVisible, setCategoryBreakdownModalVisible] = useState(false);
+  const [manageAccModalVisible, setManageAccModalVisible] = useState(false);
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
   const [isPayingBill, setIsPayingBill] = useState(false);
 
@@ -596,7 +598,6 @@ export default function FinanceTracker() {
             activeOpacity={0.7}
           >
             <Ionicons name="pie-chart-outline" size={15} color={COLORS.finance} />
-            <Text style={[styles.headerHistoryBtnText, { color: COLORS.textPrimary }]}>Breakdown</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -643,35 +644,37 @@ export default function FinanceTracker() {
               <Text style={styles.countBadgeText}>{accounts.length}</Text>
             </View>
           </View>
+
+          <TouchableOpacity
+            style={styles.seeAllBtn}
+            onPress={() => setManageAccModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="swap-vertical" size={14} color={COLORS.finance} style={{ marginRight: 4 }} />
+            <Text style={styles.seeAllText}>Manage</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={{ marginBottom: 20 }}>
-          <FlatList
-            data={accounts}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <AccountCard
-                item={item}
-                balance={getAccBalance(item.id)}
-                onPress={(acc) => {
-                  setSelectedAccountForDetail(acc);
-                  setAccDetailModalVisible(true);
-                }}
-              />
-            )}
-            ListFooterComponent={<AddAccountCard onPress={() => setAccModalVisible(true)} />}
-            contentContainerStyle={{ paddingRight: 20 }}
-            snapToInterval={232}
-            decelerationRate="fast"
-          />
+          {accounts.map((item) => (
+            <AccountCard
+              key={item.id}
+              item={item}
+              balance={getAccBalance(item.id)}
+              onPress={(acc) => {
+                setSelectedAccountForDetail(acc);
+                setAccDetailModalVisible(true);
+              }}
+            />
+          ))}
+          <AddAccountCard onPress={() => setAccModalVisible(true)} />
         </View>
 
         {/* RECURRING BILLS CARD */}
         <RecurringBillsCard
           bills={recurringBills}
           monthlyTransactions={filteredMonthlyTransactions}
+          categories={expenseCategories}
           currency={activeCurrency}
           onAddBill={(bill) => {
             const newBill = { ...bill, id: Date.now().toString() };
@@ -967,6 +970,22 @@ export default function FinanceTracker() {
         customCategoryIcons={customCategoryIcons}
         onClose={() => setCategoryBreakdownModalVisible(false)}
         onOpenSetBudget={() => setBudgetModalVisible(true)}
+      />
+
+      <ManageAccountsModal
+        visible={manageAccModalVisible}
+        accounts={accounts}
+        getAccBalance={getAccBalance}
+        onClose={() => setManageAccModalVisible(false)}
+        onReorderAccounts={async (newAccounts) => {
+          setAccounts(newAccounts);
+          await AsyncStorage.setItem('@finance_acc', JSON.stringify(newAccounts));
+        }}
+        onOpenAddAccount={() => setAccModalVisible(true)}
+        onSelectAccountDetail={(acc) => {
+          setSelectedAccountForDetail(acc);
+          setAccDetailModalVisible(true);
+        }}
       />
 
       <AppAlertModal config={alertConfig} onClose={closeAlert} />

@@ -8,8 +8,6 @@ import {
   Pressable,
   ScrollView,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -163,12 +161,8 @@ function HomeSettingsContent({
           onPress={handleDismissOverlay}
         />
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHandle} />
+        <View style={styles.modalContent}>
+          <View style={styles.modalHandle} />
 
             <View style={styles.modalHeader}>
               <View>
@@ -190,7 +184,7 @@ function HomeSettingsContent({
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               bounces={false}
-              contentContainerStyle={{ paddingBottom: 24 }}
+              contentContainerStyle={{ paddingBottom: 16 }}
             >
               {/* Profile Section */}
               <View style={styles.settingsGroup}>
@@ -270,8 +264,7 @@ function HomeSettingsContent({
               </View>
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
-      </View>
+        </View>
 
       <AppAlertModal config={alertConfig} onClose={closeAlert} />
     </>

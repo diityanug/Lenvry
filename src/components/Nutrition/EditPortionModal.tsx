@@ -5,7 +5,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Platform,
   Keyboard,
   Pressable,
@@ -84,12 +83,8 @@ function EditPortionContent({
     <View style={styles.overlay}>
       <Pressable style={styles.dismissArea} onPress={onClose} />
 
-      <KeyboardAvoidingView
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-      >
-        <View style={styles.content}>
-          <View style={styles.handle} />
+      <View style={styles.content}>
+        <View style={styles.handle} />
 
           <View style={styles.headerRow}>
             <View>
@@ -143,10 +138,9 @@ function EditPortionContent({
             <Text style={styles.saveBtnText}>UPDATE PORTION</Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
-    </View>
-  );
-}
+      </View>
+    );
+  }
 
 const styles = StyleSheet.create({
   overlay: {
@@ -163,7 +157,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 24,
+    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
@@ -173,7 +168,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.borderLight,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   headerRow: {
     flexDirection: 'row',
@@ -258,6 +253,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     paddingVertical: 14,
     alignItems: 'center',
+    marginBottom: 4,
   },
   saveBtnText: {
     color: '#08090C',

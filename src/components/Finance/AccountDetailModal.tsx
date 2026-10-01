@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Account, formatMoney } from '../../types/finance';
@@ -55,7 +56,7 @@ export const AccountDetailModal = ({
                 </TouchableOpacity>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
                 {/* SECTION: MAIN ACCOUNT */}
                 <Text style={modalStyles.sectionLabel}>MAIN ACCOUNT</Text>
                 <View style={modalStyles.mainAccountCard}>
@@ -163,11 +164,12 @@ const modalStyles = StyleSheet.create({
   },
   content: {
     backgroundColor: COLORS.bgCard,
-    borderTopLeftRadius: RADIUS.xl,
-    borderTopRightRadius: RADIUS.xl,
+    borderTopLeftRadius: RADIUS.modal,
+    borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
     paddingTop: 12,
-    maxHeight: '90%',
+    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -178,7 +180,7 @@ const modalStyles = StyleSheet.create({
     opacity: 0.5,
     borderRadius: RADIUS.full,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   headerRow: {
     flexDirection: 'row',

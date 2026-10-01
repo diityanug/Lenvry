@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { COLORS, RADIUS } from '../constants/theme';
 
 export const habitStyles = StyleSheet.create({
@@ -236,6 +236,7 @@ export const habitStyles = StyleSheet.create({
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
     paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
     maxHeight: '90%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,

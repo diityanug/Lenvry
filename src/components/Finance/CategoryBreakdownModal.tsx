@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CategoryBudget, Transaction, CategoryCustomIcon, formatMoney } from '../../types/finance';
@@ -85,9 +86,9 @@ export const CategoryBreakdownModal = ({
               <View style={modalStyles.headerIconWrap}>
                 <Ionicons name="pie-chart-outline" size={18} color={COLORS.finance} />
               </View>
-              <View>
-                <Text style={modalStyles.title}>Category & Budget</Text>
-                <Text style={modalStyles.subtitle}>
+              <View style={{ flex: 1, flexShrink: 1 }}>
+                <Text style={modalStyles.title} numberOfLines={1}>Category & Budget</Text>
+                <Text style={modalStyles.subtitle} numberOfLines={1} ellipsizeMode="tail">
                   Overview of spending & monthly limits
                 </Text>
               </View>
@@ -103,7 +104,6 @@ export const CategoryBreakdownModal = ({
                 activeOpacity={0.7}
               >
                 <Ionicons name="options-outline" size={13} color={COLORS.finance} />
-                <Text style={modalStyles.setBudgetBtnText}>Set Budget</Text>
               </TouchableOpacity>
 
               <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -150,7 +150,7 @@ export const CategoryBreakdownModal = ({
           {/* Scrollable Content */}
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 32 }}
+            contentContainerStyle={{ paddingBottom: 16 }}
           >
             {mainTab === 'categories' ? (
               <View>
@@ -552,7 +552,8 @@ const modalStyles = StyleSheet.create({
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
     paddingTop: 12,
-    maxHeight: '88%',
+    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
@@ -562,7 +563,7 @@ const modalStyles = StyleSheet.create({
     backgroundColor: COLORS.borderLight,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   headerRow: {
     flexDirection: 'row',

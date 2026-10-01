@@ -7,11 +7,9 @@ import {
   TextInput,
   ScrollView,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
   Keyboard,
   Pressable,
-  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RecurringBill, Transaction, formatMoney } from '../../types/finance';
@@ -22,6 +20,7 @@ interface RecurringBillsCardProps {
   bills: RecurringBill[];
   monthlyTransactions?: Transaction[];
   currency: 'IDR' | 'USD';
+  categories?: string[];
   onAddBill: (bill: Omit<RecurringBill, 'id'>) => void;
   onDeleteBill: (id: string) => void;
   onQuickLogBill: (bill: RecurringBill) => void;
@@ -38,16 +37,29 @@ const BILL_CATEGORIES = [
   'Other',
 ];
 
+const BILL_CATEGORY_THEMES: Record<string, { icon: any; color: string }> = {
+  'Bills & Utilities': { icon: 'flash-outline', color: '#F59E0B' },
+  'Subscriptions': { icon: 'apps-outline', color: '#A855F7' },
+  'Housing / Rent': { icon: 'home-outline', color: '#EAB308' },
+  'Internet & Phone': { icon: 'wifi-outline', color: '#38BDF8' },
+  'Insurance': { icon: 'shield-checkmark-outline', color: '#10B981' },
+  'Fitness & Gym': { icon: 'barbell-outline', color: '#EC4899' },
+  'Cloud & Storage': { icon: 'cloud-outline', color: '#6366F1' },
+  'Other': { icon: 'receipt-outline', color: COLORS.finance },
+};
+
 const PRESET_BILLS = [
-  { name: 'Netflix', category: 'Subscriptions', defaultAmount: '186000' },
-  { name: 'Spotify', category: 'Subscriptions', defaultAmount: '55000' },
-  { name: 'YouTube Premium', category: 'Subscriptions', defaultAmount: '59000' },
-  { name: 'Wi-Fi / Internet', category: 'Internet & Phone', defaultAmount: '350000' },
-  { name: 'Electricity / Power', category: 'Bills & Utilities', defaultAmount: '250000' },
-  { name: 'Water & Utilities', category: 'Bills & Utilities', defaultAmount: '80000' },
-  { name: 'House / Room Rent', category: 'Housing / Rent', defaultAmount: '1500000' },
-  { name: 'Gym Membership', category: 'Fitness & Gym', defaultAmount: '350000' },
-  { name: 'iCloud / Google One', category: 'Cloud & Storage', defaultAmount: '45000' },
+  { name: 'Netflix', category: 'Subscriptions', defaultAmount: '186000', defaultAmountUSD: '15', icon: 'tv-outline', color: '#EF4444' },
+  { name: 'Spotify', category: 'Subscriptions', defaultAmount: '55000', defaultAmountUSD: '11', icon: 'musical-notes-outline', color: '#10B981' },
+  { name: 'YouTube Premium', category: 'Subscriptions', defaultAmount: '59000', defaultAmountUSD: '14', icon: 'logo-youtube', color: '#EF4444' },
+  { name: 'Wi-Fi / Internet', category: 'Internet & Phone', defaultAmount: '350000', defaultAmountUSD: '50', icon: 'wifi-outline', color: '#38BDF8' },
+  { name: 'Electricity / Power', category: 'Bills & Utilities', defaultAmount: '250000', defaultAmountUSD: '60', icon: 'flash-outline', color: '#F59E0B' },
+  { name: 'Water & Utilities', category: 'Bills & Utilities', defaultAmount: '80000', defaultAmountUSD: '30', icon: 'water-outline', color: '#06B6D4' },
+  { name: 'House / Room Rent', category: 'Housing / Rent', defaultAmount: '1500000', defaultAmountUSD: '500', icon: 'home-outline', color: '#EAB308' },
+  { name: 'Gym Membership', category: 'Fitness & Gym', defaultAmount: '350000', defaultAmountUSD: '45', icon: 'barbell-outline', color: '#EC4899' },
+  { name: 'iCloud / Google One', category: 'Cloud & Storage', defaultAmount: '45000', defaultAmountUSD: '3', icon: 'cloud-outline', color: '#6366F1' },
+  { name: 'Pulsa / Paket Data', category: 'Internet & Phone', defaultAmount: '100000', defaultAmountUSD: '15', icon: 'phone-portrait-outline', color: '#EC4899' },
+  { name: 'BPJS / Insurance', category: 'Insurance', defaultAmount: '150000', defaultAmountUSD: '25', icon: 'shield-checkmark-outline', color: '#10B981' },
 ];
 
 const getOrdinal = (day: number): string => {
@@ -124,7 +136,6 @@ export const RecurringBillsCard = ({
   const [amount, setAmount] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(BILL_CATEGORIES[0]);
   const [dueDateDay, setDueDateDay] = useState('1');
-  const { height: windowHeight } = useWindowDimensions();
 
   const handleCloseModal = () => {
     Keyboard.dismiss();
@@ -240,11 +251,13 @@ export const RecurringBillsCard = ({
     setModalVisible(false);
   };
 
-  const handleSelectPreset = (preset: { name: string; category: string; defaultAmount?: string }) => {
+  const handleSelectPreset = (preset: typeof PRESET_BILLS[number]) => {
     setName(preset.name);
     setSelectedCategory(preset.category);
-    if (preset.defaultAmount && currency === 'IDR') {
+    if (currency === 'IDR' && preset.defaultAmount) {
       setAmount(preset.defaultAmount);
+    } else if (currency === 'USD' && preset.defaultAmountUSD) {
+      setAmount(preset.defaultAmountUSD);
     }
   };
 
@@ -532,12 +545,8 @@ export const RecurringBillsCard = ({
         <View style={cardStyles.modalOverlay}>
           <Pressable style={cardStyles.modalDismissArea} onPress={handleCloseModal} />
 
-          <KeyboardAvoidingView
-            behavior="padding"
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-          >
-            <View style={[cardStyles.modalContent, { maxHeight: windowHeight * 0.88 }]}>
-              <View style={cardStyles.modalHandle} />
+          <View style={cardStyles.modalContent}>
+            <View style={cardStyles.modalHandle} />
 
               <View style={cardStyles.modalHeaderRow}>
                 <View>
@@ -557,15 +566,19 @@ export const RecurringBillsCard = ({
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="on-drag"
-                contentContainerStyle={{ paddingBottom: 28 }}
+                contentContainerStyle={{ paddingBottom: 16 }}
               >
                 {/* Popular Quick Templates */}
-                <Text style={cardStyles.formSectionLabel}>POPULAR TEMPLATES</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={cardStyles.formSectionLabel}>SUGGESTIONS & PRESETS</Text>
+                  <Text style={{ fontSize: 10, color: COLORS.textMuted }}>Tap to auto-fill</Text>
+                </View>
+
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={cardStyles.presetScrollContent}
-                  style={{ marginBottom: 18 }}
+                  style={{ marginBottom: 16 }}
                 >
                   {PRESET_BILLS.map((preset) => {
                     const isSelected = name === preset.name;
@@ -579,14 +592,42 @@ export const RecurringBillsCard = ({
                         onPress={() => handleSelectPreset(preset)}
                         activeOpacity={0.7}
                       >
-                        <Text
+                        <View
                           style={[
-                            cardStyles.presetChipText,
-                            isSelected && cardStyles.presetChipTextActive,
+                            cardStyles.presetIconWrap,
+                            isSelected && cardStyles.presetIconWrapActive,
+                            !isSelected && { backgroundColor: `${preset.color}20` },
                           ]}
                         >
-                          {preset.name}
-                        </Text>
+                          <Ionicons
+                            name={preset.icon as any}
+                            size={14}
+                            color={isSelected ? '#08090C' : preset.color}
+                          />
+                        </View>
+                        <View>
+                          <Text
+                            style={[
+                              cardStyles.presetChipText,
+                              isSelected && cardStyles.presetChipTextActive,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {preset.name}
+                          </Text>
+                          <Text
+                            style={[
+                              cardStyles.presetSubText,
+                              isSelected && cardStyles.presetSubTextActive,
+                            ]}
+                          >
+                            {currency === 'IDR' && preset.defaultAmount
+                              ? formatMoney(parseFloat(preset.defaultAmount), 'IDR')
+                              : currency === 'USD' && preset.defaultAmountUSD
+                              ? formatMoney(parseFloat(preset.defaultAmountUSD), 'USD')
+                              : preset.category}
+                          </Text>
+                        </View>
                       </TouchableOpacity>
                     );
                   })}
@@ -617,30 +658,36 @@ export const RecurringBillsCard = ({
                   />
                 </View>
 
-                {/* Form Group: Category */}
+                {/* Form Group: Category with Icons */}
                 <View style={cardStyles.formGroup}>
                   <Text style={cardStyles.inputLabel}>CATEGORY</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 8, paddingVertical: 2, paddingRight: 10 }}
-                  >
+                  <View style={cardStyles.categoriesWrap}>
                     {BILL_CATEGORIES.map((cat) => {
                       const isSelected = selectedCategory === cat;
+                      const catTheme = BILL_CATEGORY_THEMES[cat] || {
+                        icon: 'receipt-outline',
+                        color: COLORS.finance,
+                      };
                       return (
                         <TouchableOpacity
                           key={cat}
-                          style={[cardStyles.catBtn, isSelected && cardStyles.catBtnActive]}
+                          style={[cardStyles.catChip, isSelected && cardStyles.catChipActive]}
                           onPress={() => setSelectedCategory(cat)}
                           activeOpacity={0.7}
                         >
-                          <Text style={[cardStyles.catBtnText, isSelected && cardStyles.catBtnTextActive]}>
+                          <Ionicons
+                            name={catTheme.icon}
+                            size={15}
+                            color={isSelected ? '#08090C' : catTheme.color}
+                            style={{ marginRight: 6 }}
+                          />
+                          <Text style={[cardStyles.catChipText, isSelected && cardStyles.catChipTextActive]}>
                             {cat}
                           </Text>
                         </TouchableOpacity>
                       );
                     })}
-                  </ScrollView>
+                  </View>
                 </View>
 
                 {/* Form Group: Due Day */}
@@ -694,7 +741,6 @@ export const RecurringBillsCard = ({
                 </TouchableOpacity>
               </ScrollView>
             </View>
-          </KeyboardAvoidingView>
         </View>
       </Modal>
 
@@ -1066,8 +1112,9 @@ const cardStyles = StyleSheet.create({
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
@@ -1077,7 +1124,7 @@ const cardStyles = StyleSheet.create({
     backgroundColor: COLORS.borderLight,
     borderRadius: RADIUS.full,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   modalHeaderRow: {
     flexDirection: 'row',
@@ -1114,25 +1161,47 @@ const cardStyles = StyleSheet.create({
     paddingRight: 10,
   },
   presetChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.bgCardSub,
-    paddingHorizontal: 13,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
+    gap: 8,
   },
   presetChipActive: {
-    backgroundColor: COLORS.financeLight,
+    backgroundColor: COLORS.finance,
     borderColor: COLORS.finance,
   },
+  presetIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: RADIUS.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  presetIconWrapActive: {
+    backgroundColor: 'rgba(8, 9, 12, 0.15)',
+  },
   presetChipText: {
-    color: COLORS.textSecondary,
+    color: COLORS.textPrimary,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   presetChipTextActive: {
-    color: COLORS.finance,
+    color: '#08090C',
     fontWeight: '800',
+  },
+  presetSubText: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  presetSubTextActive: {
+    color: 'rgba(8, 9, 12, 0.7)',
+    fontWeight: '700',
   },
   formGroup: {
     marginBottom: 16,
@@ -1156,25 +1225,32 @@ const cardStyles = StyleSheet.create({
     borderColor: COLORS.border,
     fontWeight: '600',
   },
-  catBtn: {
+  categoriesWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  catChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.bgCardSub,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: RADIUS.sm,
+    paddingVertical: 9,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  catBtnActive: {
-    backgroundColor: COLORS.financeLight,
+  catChipActive: {
+    backgroundColor: COLORS.finance,
     borderColor: COLORS.finance,
   },
-  catBtnText: {
+  catChipText: {
     color: COLORS.textSecondary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
   },
-  catBtnTextActive: {
-    color: COLORS.finance,
+  catChipTextActive: {
+    color: '#08090C',
     fontWeight: '800',
   },
   quickDayRow: {
@@ -1211,6 +1287,7 @@ const cardStyles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 10,
+    marginBottom: 4,
   },
   saveCtaBtnText: {
     color: '#08090C',

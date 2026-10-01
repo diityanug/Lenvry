@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableWithoutFeedback,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ROUTINE_PRESETS, RoutinePreset, getCategoryIcon } from '../../constants/fitness';
@@ -25,12 +26,13 @@ export default function RoutinePresetsModal({
 }: RoutinePresetsModalProps) {
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={modalStyles.overlay} />
-      </TouchableWithoutFeedback>
+      <View style={modalStyles.overlay}>
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={modalStyles.dismissArea} />
+        </TouchableWithoutFeedback>
 
-      <View style={modalStyles.content}>
-        <View style={modalStyles.handle} />
+        <View style={modalStyles.content}>
+          <View style={modalStyles.handle} />
 
         <View style={modalStyles.headerRow}>
           <View>
@@ -42,7 +44,7 @@ export default function RoutinePresetsModal({
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
           {ROUTINE_PRESETS.map((routine) => (
             <TouchableOpacity
               key={routine.name}
@@ -75,6 +77,7 @@ export default function RoutinePresetsModal({
             </TouchableOpacity>
           ))}
         </ScrollView>
+        </View>
       </View>
     </Modal>
   );
@@ -84,6 +87,10 @@ const modalStyles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: COLORS.overlay,
+    justifyContent: 'flex-end',
+  },
+  dismissArea: {
+    flex: 1,
   },
   content: {
     backgroundColor: COLORS.bgCard,
@@ -91,7 +98,8 @@ const modalStyles = StyleSheet.create({
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
     paddingTop: 12,
-    maxHeight: '82%',
+    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
@@ -101,7 +109,7 @@ const modalStyles = StyleSheet.create({
     backgroundColor: COLORS.borderLight,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   headerRow: {
     flexDirection: 'row',

@@ -188,65 +188,101 @@ interface AccountCardProps {
 export const AccountCard = ({ item, balance, onPress }: AccountCardProps) => {
   const isUSD = item.currency === 'USD';
   const typeIcon = getAccountIcon(item.type);
+  const pocketsCount = item.subAccounts?.length || 0;
 
   return (
-    <TouchableOpacity style={styles.accCard} activeOpacity={0.8} onPress={() => onPress(item)}>
+    <TouchableOpacity
+      style={styles.accCompactCard}
+      activeOpacity={0.7}
+      onPress={() => onPress(item)}
+    >
+      {/* Leading Accent Strip */}
       <View
         style={[
-          styles.accCardAccent,
-          { backgroundColor: isUSD ? COLORS.finance : COLORS.accent },
+          styles.accCompactAccent,
+          { backgroundColor: isUSD ? COLORS.accentUSD : COLORS.finance },
         ]}
       />
 
-      <View style={styles.accHeaderRow}>
-        <View style={styles.accTypeWrap}>
+      {/* Account Type Icon */}
+      <View
+        style={[
+          styles.accCompactIconBox,
+          {
+            backgroundColor: isUSD
+              ? 'rgba(56, 189, 248, 0.12)'
+              : 'rgba(99, 102, 241, 0.12)',
+            borderColor: isUSD
+              ? 'rgba(56, 189, 248, 0.25)'
+              : 'rgba(99, 102, 241, 0.25)',
+          },
+        ]}
+      >
+        <FontAwesome5
+          name={typeIcon}
+          size={15}
+          color={isUSD ? COLORS.accentUSD : COLORS.finance}
+        />
+      </View>
+
+      {/* Account Info */}
+      <View style={styles.accCompactInfo}>
+        <View style={styles.accCompactTitleRow}>
+          <Text style={styles.accCompactName} numberOfLines={1}>
+            {item.name}
+          </Text>
           <View
             style={[
-              styles.accIconBox,
-              { backgroundColor: isUSD ? 'rgba(56, 189, 248, 0.14)' : 'rgba(245, 158, 11, 0.14)' },
+              styles.accCompactCurrencyBadge,
+              isUSD && { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' },
             ]}
           >
-            <FontAwesome5
-              name={typeIcon}
-              size={12}
-              color={isUSD ? COLORS.finance : COLORS.accent}
-            />
+            <Text
+              style={[
+                styles.accCompactCurrencyText,
+                isUSD && { color: COLORS.accentUSD },
+              ]}
+            >
+              {item.currency}
+            </Text>
           </View>
-          <Text style={styles.accTypeText}>{item.type}</Text>
         </View>
 
-        <View style={styles.currencyBadge}>
-          <Text style={styles.currencyBadgeText}>{item.currency}</Text>
+        <View style={styles.accCompactMetaRow}>
+          <Text style={styles.accCompactType}>{item.type}</Text>
+          <Text style={styles.accCompactDot}>•</Text>
+          <Text style={styles.accCompactPockets}>
+            {pocketsCount} {pocketsCount === 1 ? 'pocket' : 'pockets'}
+          </Text>
+          {Boolean(item.description) && (
+            <>
+              <Text style={styles.accCompactDot}>•</Text>
+              <Text style={styles.accCompactDesc} numberOfLines={1}>
+                {item.description}
+              </Text>
+            </>
+          )}
         </View>
       </View>
 
-      <Text style={styles.accName} numberOfLines={1}>
-        {item.name}
-      </Text>
-      {Boolean(item.description) && (
-        <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: -2, marginBottom: 4 }} numberOfLines={1}>
-          {item.description}
+      {/* Right Column: Balance & Chevron */}
+      <View style={styles.accCompactBalanceCol}>
+        <Text style={styles.accCompactBalance} numberOfLines={1}>
+          {formatMoney(balance, item.currency)}
         </Text>
-      )}
-      <Text style={styles.accTotalBalance}>{formatMoney(balance, item.currency)}</Text>
-
-      <View style={styles.subAccPreview}>
-        <Text style={styles.subAccPreviewText}>
-          {item.subAccounts.length} {item.subAccounts.length === 1 ? 'Sub-Account' : 'Sub-Accounts'}
-        </Text>
-        <Ionicons name="chevron-forward" size={13} color={COLORS.textMuted} />
+        <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} style={{ marginTop: 2 }} />
       </View>
     </TouchableOpacity>
   );
 };
 
-// --- ADD ACCOUNT GHOST CARD ---
+// --- ADD ACCOUNT COMPACT BUTTON ---
 export const AddAccountCard = ({ onPress }: { onPress: () => void }) => (
-  <TouchableOpacity style={styles.addAccCard} activeOpacity={0.75} onPress={onPress}>
-    <View style={styles.addAccCardIconWrap}>
-      <Ionicons name="add" size={24} color={COLORS.finance} />
+  <TouchableOpacity style={styles.addAccCompactBtn} activeOpacity={0.75} onPress={onPress}>
+    <View style={styles.addAccCompactIconWrap}>
+      <Ionicons name="add" size={16} color={COLORS.finance} />
     </View>
-    <Text style={styles.addAccCardTitle}>Add Account</Text>
+    <Text style={styles.addAccCompactText}>Add New Account</Text>
   </TouchableOpacity>
 );
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -6,10 +6,9 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
   Keyboard,
   Pressable,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FoodCategory, FoodItem } from '../../types/nutrition';
@@ -60,6 +59,22 @@ function CustomFoodContent({
   const [fat, setFat] = useState('');
   const [servingGrams, setServingGrams] = useState('100');
   const [servingText, setServingText] = useState('1 Serving');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleDismiss = () => {
     Keyboard.dismiss();
@@ -97,12 +112,8 @@ function CustomFoodContent({
     <View style={styles.modalOverlay}>
       <Pressable style={styles.dismissArea} onPress={handleDismiss} />
 
-      <KeyboardAvoidingView
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-      >
-        <View style={styles.modalContent}>
-          <View style={styles.modalHandle} />
+      <View style={styles.modalContent}>
+        <View style={styles.modalHandle} />
 
           <View style={styles.modalHeaderRow}>
             <View>
@@ -115,9 +126,10 @@ function CustomFoodContent({
 
           <ScrollView
             keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true}
             keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={{ paddingBottom: Math.max(16, keyboardHeight + 16) }}
           >
             {/* Food Name */}
             <View style={styles.formGroup}>
@@ -234,7 +246,6 @@ function CustomFoodContent({
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
-    </View>
-  );
-}
+      </View>
+    );
+  }

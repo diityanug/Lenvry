@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   TouchableWithoutFeedback,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatMoney } from '../../types/finance';
@@ -226,11 +227,11 @@ const calcStyles = StyleSheet.create({
   },
   container: {
     backgroundColor: COLORS.bgCard,
-    borderTopLeftRadius: RADIUS.xl,
-    borderTopRightRadius: RADIUS.xl,
+    borderTopLeftRadius: RADIUS.modal,
+    borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 28,
+    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -241,7 +242,7 @@ const calcStyles = StyleSheet.create({
     opacity: 0.5,
     borderRadius: RADIUS.full,
     alignSelf: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   header: {
     flexDirection: 'row',

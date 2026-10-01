@@ -1,15 +1,14 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   Text,
   View,
   Modal,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
   Keyboard,
   ScrollView,
   TouchableWithoutFeedback,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GYM_CATEGORIES, EXERCISE_SUGGESTIONS } from '../../constants/fitness';
@@ -95,6 +94,22 @@ function AddWorkoutContent({
   const [reps, setReps] = useState(initialData?.reps || '10');
   const [weight, setWeight] = useState(initialData?.weight || '20');
   const [errorMessage, setErrorMessage] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleSelectCategory = (cat: string) => {
     setSelectedCategory(cat);
@@ -201,41 +216,39 @@ function AddWorkoutContent({
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.modalOverlay}
-    >
+    <View style={styles.modalOverlay}>
       <TouchableWithoutFeedback onPress={handleDismissOverlay}>
         <View style={styles.modalDismissArea} />
       </TouchableWithoutFeedback>
 
       <View style={styles.modalContent}>
         <View style={styles.modalHandle} />
-        
-        {/* Header */}
-        <View style={styles.modalHeader}>
-          <View>
-            <Text style={styles.modalTitle}>
-              {initialData?.id ? 'Edit Workout' : 'Add Workout'}
-            </Text>
-            <Text style={styles.modalSubtitle}>Session Date: {formattedDate}</Text>
+          
+          {/* Header */}
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.modalTitle}>
+                {initialData?.id ? 'Edit Workout' : 'Add Workout'}
+              </Text>
+              <Text style={styles.modalSubtitle}>Session Date: {formattedDate}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={onClose}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            onPress={onClose}
-            activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
-          </TouchableOpacity>
-        </View>
 
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled={true}
-          contentContainerStyle={{ paddingBottom: 0 }}
-        >
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true}
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled={true}
+            contentContainerStyle={{ paddingBottom: Math.max(16, keyboardHeight + 16) }}
+          >
           {/* Category selector */}
           <Text style={styles.formLabel}>Focus Area</Text>
           <ScrollView
@@ -559,6 +572,6 @@ function AddWorkoutContent({
             </TouchableOpacity>
           </ScrollView>
         </View>
-    </KeyboardAvoidingView>
-  );
-}
+      </View>
+    );
+  }

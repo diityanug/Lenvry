@@ -59,7 +59,8 @@ function AddCategoryContent({
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+      keyboardVerticalOffset={Platform.OS === 'android' ? 20 : 0}
       style={{ flex: 1 }}
     >
       <TouchableWithoutFeedback onPress={handleDismissOverlay}>

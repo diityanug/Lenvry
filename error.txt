@@ -1,141 +1,29 @@
+PS C:\Users\LGSM138\testdev> eas build -p android --profile preview
+★ eas-cli@24.8.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
 
-Android Bundled 1128ms node_modules\expo-router\entry.js (1717 modules)
- WARN  Route "./_layout.tsx" is missing the required default export. Ensure a React component is exported as default.
- WARN  Route "./habits.tsx" is missing the required default export. Ensure a React component is exported as default.
- WARN  Route "./_layout.tsx" is missing the required default export. Ensure a React component is exported as default.
- WARN  Route "./habits.tsx" is missing the required default export. Ensure a React component is exported as default.
- ERROR  [Error: expo-notifications: Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use a development build instead of Expo Go. Learn more at https://docs.expo.dev/develop/development-builds/introduction/.]
+Resolved "preview" environment for the build. Learn more: https://docs.expo.dev/eas/environment-variables/#setting-the-environment-for-your-builds
+No environment variables with visibility "Plain text" and "Sensitive" found for the "preview" environment on EAS.
+Environment variables loaded from the "preview" build profile "env" configuration: NPM_CONFIG_LEGACY_PEER_DEPS.
 
-Code: _layout.tsx
-  2 | import { View } from 'react-native';
-  3 | import { Tabs } from 'expo-router';
-> 4 | import * as Notifications from 'expo-notifications';
-    | ^
-  5 | import AsyncStorage from '@react-native-async-storage/async-storage';
-  6 | import CurvedTabBar from '../components/Navigation/CurvedTabBar';
-  7 | import HabitAlarmModal, { HabitAlarmData } from '../components/Habits/HabitAlarmModal';
-Call Stack
-  <global> (src\app\_layout.tsx:4)
- ERROR  [Error: expo-notifications: Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use a development build instead of Expo Go. Learn more at https://docs.expo.dev/develop/development-builds/introduction/.]
+No remote versions are configured for this project, versionCode will be initialized based on the value from the local project.
+✔ Initialized versionCode with 1.
 
-Code: _layout.tsx
-  2 | import { View } from 'react-native';
-  3 | import { Tabs } from 'expo-router';
-> 4 | import * as Notifications from 'expo-notifications';
-    | ^
-  5 | import AsyncStorage from '@react-native-async-storage/async-storage';
-  6 | import CurvedTabBar from '../components/Navigation/CurvedTabBar';
-  7 | import HabitAlarmModal, { HabitAlarmData } from '../components/Habits/HabitAlarmModal';
-Call Stack
-  <global> (src\app\_layout.tsx:4)
- ERROR  [Error: expo-notifications: Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use a development build instead of Expo Go. Learn more at https://docs.expo.dev/develop/development-builds/introduction/.]
 
-Code: _layout.tsx
-  2 | import { View } from 'react-native';
-  3 | import { Tabs } from 'expo-router';
-> 4 | import * as Notifications from 'expo-notifications';
-    | ^
-  5 | import AsyncStorage from '@react-native-async-storage/async-storage';
-  6 | import CurvedTabBar from '../components/Navigation/CurvedTabBar';
-  7 | import HabitAlarmModal, { HabitAlarmData } from '../components/Habits/HabitAlarmModal';
-Call Stack
-  <global> (src\app\_layout.tsx:4)
- ERROR  [Error: expo-notifications: Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use a development build instead of Expo Go. Learn more at https://docs.expo.dev/develop/development-builds/introduction/.]
+✔ Using remote Android credentials (Expo server)
+✔ Using Keystore from configuration: Build Credentials JT8zdE6lmR (default)
 
-Code: _layout.tsx
-  2 | import { View } from 'react-native';
-  3 | import { Tabs } from 'expo-router';
-> 4 | import * as Notifications from 'expo-notifications';
-    | ^
-  5 | import AsyncStorage from '@react-native-async-storage/async-storage';
-  6 | import CurvedTabBar from '../components/Navigation/CurvedTabBar';
-  7 | import HabitAlarmModal, { HabitAlarmData } from '../components/Habits/HabitAlarmModal';
-Call Stack
-  <global> (src\app\_layout.tsx:4)
- ERROR  [Error: expo-notifications: Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use a development build instead of Expo Go. Learn more at https://docs.expo.dev/develop/development-builds/introduction/.]
+Compressing project files and uploading to EAS Build. Learn more: https://expo.fyi/eas-build-archive
+✔ Compressed project files 3s (3.2 MB)
+✔ Uploaded to EAS 2s
+✔ Computed project fingerprint
 
-Code: _layout.tsx
-  2 | import { View } from 'react-native';
-  3 | import { Tabs } from 'expo-router';
-> 4 | import * as Notifications from 'expo-notifications';
-    | ^
-  5 | import AsyncStorage from '@react-native-async-storage/async-storage';
-  6 | import CurvedTabBar from '../components/Navigation/CurvedTabBar';
-  7 | import HabitAlarmModal, { HabitAlarmData } from '../components/Habits/HabitAlarmModal';
-Call Stack
-  <global> (src\app\_layout.tsx:4)
- ERROR  [Error: expo-notifications: Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use a development build instead of Expo Go. Learn more at https://docs.expo.dev/develop/development-builds/introduction/.]
+See logs: https://expo.dev/accounts/adiityanug/projects/lenvry/builds/f7677cb8-5e7d-4f33-8d5a-3a029308c147
 
-Code: _layout.tsx
-  2 | import { View } from 'react-native';
-  3 | import { Tabs } from 'expo-router';
-> 4 | import * as Notifications from 'expo-notifications';
-    | ^
-  5 | import AsyncStorage from '@react-native-async-storage/async-storage';
-  6 | import CurvedTabBar from '../components/Navigation/CurvedTabBar';
-  7 | import HabitAlarmModal, { HabitAlarmData } from '../components/Habits/HabitAlarmModal';
-Call Stack
-  <global> (src\app\_layout.tsx:4)
- ERROR  [Error: expo-notifications: Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use a development build instead of Expo Go. Learn more at https://docs.expo.dev/develop/development-builds/introduction/.]
+Waiting for build to complete. You can press Ctrl+C to exit.
+✖ Build failed
 
-Code: _layout.tsx
-  2 | import { View } from 'react-native';
-  3 | import { Tabs } from 'expo-router';
-> 4 | import * as Notifications from 'expo-notifications';
-    | ^
-  5 | import AsyncStorage from '@react-native-async-storage/async-storage';
-  6 | import CurvedTabBar from '../components/Navigation/CurvedTabBar';
-  7 | import HabitAlarmModal, { HabitAlarmData } from '../components/Habits/HabitAlarmModal';
-Call Stack
-  <global> (src\app\_layout.tsx:4)
- ERROR  [Error: expo-notifications: Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use a development build instead of Expo Go. Learn more at https://docs.expo.dev/develop/development-builds/introduction/.]
-
-Code: _layout.tsx
-  2 | import { View } from 'react-native';
-  3 | import { Tabs } from 'expo-router';
-> 4 | import * as Notifications from 'expo-notifications';
-    | ^
-  5 | import AsyncStorage from '@react-native-async-storage/async-storage';
-  6 | import CurvedTabBar from '../components/Navigation/CurvedTabBar';
-  7 | import HabitAlarmModal, { HabitAlarmData } from '../components/Habits/HabitAlarmModal';
-Call Stack
-  <global> (src\app\_layout.tsx:4)
- ERROR  [TypeError: Cannot read property 'ErrorBoundary' of undefined]
-
-Code: useScreens.js
-  139 |     }), [sorted, protectedScreens]);
-  140 | }
-> 141 | function fromImport(value, { ErrorBoundary, SuspenseFallback, unstable_settings, ...component }) {
-      | ^
-  142 |     // If possible, add a more helpful display name for the component stack to improve debugging of React errors such as `Text strings must be rendered within a <Text> component.`.
-  143 |     if (component?.default && __DEV__) {
-  144 |         component.default.displayName ??= `${component.default.name ?? 'Route'}(${value.contextKey})`;
-Call Stack
-  fromImport (node_modules\expo-router\build\useScreens.js:141)
-  getQualifiedRouteComponent (node_modules\expo-router\build\useScreens.js:219:34)
-  useStore (node_modules\expo-router\build\global-state\useStore.js:55:68)
-  ContextNavigator (node_modules\expo-router\build\ExpoRoot.js:122:46)
-  callComponent.react_stack_bottom_frame (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js:17130:29)
-  renderWithHooks (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js:5648:40)
-  updateFunctionComponent (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js:8081:34)
-  beginWork (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js:9340:41)
-  run (<native>)
-  runWithFiberInDEV (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js:697:33)
-  performUnitOfWork (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js:14134:39)
-  workLoopSync (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js:13966:58)
-  renderRootSync (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js:13947:23)
-  performWorkOnRoot (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js:13160:43)
-  performWorkOnRootViaSchedulerTask (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js:3673:24)
-
-Code: ExpoRoot.js
-  83 |                     initialMetrics: INITIAL_METRICS, children: children }) }) }));
-  84 |     }, [ParentWrapper]);
-> 85 |     return (0, jsx_runtime_1.jsx)(ContextNavigator, { ...props, wrapper: wrapper });
-     |                                 ^
-  86 | }
-  87 | const initialUrl = react_native_1.Platform.OS === 'web' && typeof window !== 'undefined'
-  88 |     ? new URL(window.location.href)
-Call Stack
-  ExpoRoot (node_modules\expo-router\build\ExpoRoot.js:85:33)
-  App (node_modules\expo-router\build\qualified-entry.js:20:91)
-  WithDevTools (node_modules\expo\src\launch\withDevTools.tsx:21:12)
+🤖 Android build failed:
+Unknown error. See logs of the Install dependencies build phase for more information.

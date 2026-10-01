@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -36,13 +37,36 @@ export async function exportBackup(): Promise<{ success: boolean; message?: stri
       }
     });
 
+    const jsonString = JSON.stringify(backupData, null, 2);
+    const fileName = `wakemove_backup_${Date.now()}.json`;
+
+    // Modern Android: Use StorageAccessFramework to let user pick folder (e.g., Download) or save directly
+    if (Platform.OS === 'android' && FileSystem.StorageAccessFramework) {
+      try {
+        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (permissions.granted) {
+          const createdUri = await FileSystem.StorageAccessFramework.createFileAsync(
+            permissions.directoryUri,
+            fileName,
+            'application/json'
+          );
+          await FileSystem.writeAsStringAsync(createdUri, jsonString, {
+            encoding: FileSystem.EncodingType.UTF8,
+          });
+          return { success: true };
+        }
+      } catch (err) {
+        console.warn('SAF storage request failed, falling back to share sheet:', err);
+      }
+    }
+
     const baseDir = FileSystem.documentDirectory || FileSystem.cacheDirectory;
     if (!baseDir) {
       return { success: false, message: 'Storage directory is unavailable.' };
     }
 
-    const fileUri = `${baseDir}wakemove_backup_${Date.now()}.json`;
-    await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(backupData, null, 2));
+    const fileUri = `${baseDir}${fileName}`;
+    await FileSystem.writeAsStringAsync(fileUri, jsonString);
 
     if (await Sharing.isAvailableAsync()) {
       await Sharing.shareAsync(fileUri, {

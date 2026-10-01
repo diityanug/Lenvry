@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Text,
   View,
   Modal,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Platform,
   Keyboard,
   ScrollView,
@@ -80,6 +79,22 @@ export const TransactionModal = ({
   onOpenAddCategory,
 }: TransactionModalProps) => {
   const [calcVisible, setCalcVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleDismiss = () => {
     Keyboard.dismiss();
@@ -136,10 +151,7 @@ export const TransactionModal = ({
 
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={txStyles.overlay}
-      >
+      <View style={txStyles.overlay}>
         <TouchableWithoutFeedback onPress={handleDismiss}>
           <View style={txStyles.dismissArea} />
         </TouchableWithoutFeedback>
@@ -147,15 +159,20 @@ export const TransactionModal = ({
         <View style={txStyles.content}>
           <View style={txStyles.handle} />
 
-          {/* Header */}
-          <View style={txStyles.headerRow}>
-            <Text style={txStyles.headerTitle}>{isEditing ? 'Edit Transaction' : 'New Transaction'}</Text>
-            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-              <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          </View>
+            {/* Header */}
+            <View style={txStyles.headerRow}>
+              <Text style={txStyles.headerTitle}>{isEditing ? 'Edit Transaction' : 'New Transaction'}</Text>
+              <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+                <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets={true}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: Math.max(16, keyboardHeight + 16) }}
+            >
             {/* 1. Transaction Type Toggle (Expense, Income, Transfer) */}
             {!hideTypeSwitcher ? (
               <View style={txStyles.typeSwitcher}>
@@ -510,18 +527,18 @@ export const TransactionModal = ({
             </TouchableOpacity>
           </ScrollView>
         </View>
+      </View>
 
-        <CalculatorModal
-          visible={calcVisible}
-          initialValue={amount}
-          currency={currency}
-          onClose={() => setCalcVisible(false)}
-          onConfirm={(val) => {
-            setAmount(val);
-            setCalcVisible(false);
-          }}
-        />
-      </KeyboardAvoidingView>
+      <CalculatorModal
+        visible={calcVisible}
+        initialValue={amount}
+        currency={currency}
+        onClose={() => setCalcVisible(false)}
+        onConfirm={(val) => {
+          setAmount(val);
+          setCalcVisible(false);
+        }}
+      />
     </Modal>
   );
 };
@@ -541,8 +558,8 @@ const txStyles = StyleSheet.create({
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 24,
-    maxHeight: '92%',
+    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
@@ -805,7 +822,7 @@ const txStyles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 4,
-    marginBottom: 16,
+    marginBottom: 4,
   },
   saveBtnText: {
     color: '#08090C',

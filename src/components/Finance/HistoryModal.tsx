@@ -240,10 +240,12 @@ const modalStyles = StyleSheet.create({
   },
   content: {
     backgroundColor: COLORS.bgCard,
-    borderTopLeftRadius: RADIUS.xl,
-    borderTopRightRadius: RADIUS.xl,
+    borderTopLeftRadius: RADIUS.modal,
+    borderTopRightRadius: RADIUS.modal,
     paddingTop: 12,
-    height: '92%',
+    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
+    height: '85%',
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -359,7 +361,7 @@ const modalStyles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    paddingBottom: 16,
   },
   emptyState: {
     alignItems: 'center',
