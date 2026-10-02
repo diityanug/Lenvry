@@ -20,6 +20,8 @@ import {
   fetchTodaySystemSteps,
   subscribeLivePedometer,
   syncTodayStepsToStorage,
+  incrementTodayStepsInStorage,
+  getTodayDateKey,
 } from '../services/stepTrackerService';
 
 const USERNAME_KEY = '@wakemove_user_name';
@@ -155,9 +157,10 @@ export default function HomeScreen() {
 
       // Steps Tracker
       const storedStepsLogs = dataMap[STEPS_LOGS_KEY];
+      const todayStepKey = getTodayDateKey(todayDateObj);
       if (storedStepsLogs) {
         const stepsMap: Record<string, { steps: number; goal?: number }> = JSON.parse(storedStepsLogs);
-        const todayStepData = stepsMap[dateIsoKey];
+        const todayStepData = stepsMap[todayStepKey] || stepsMap[dateIsoKey];
         if (todayStepData) {
           setTodaySteps(todayStepData.steps || 0);
           if (todayStepData.goal) setStepsGoal(todayStepData.goal);
@@ -195,36 +198,49 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchDashboardData();
-
       let isMounted = true;
+      let unsubscribePedometer: (() => void) | null = null;
 
-      // Automatically sync steps from device OS sensor if available and higher
-      fetchTodaySystemSteps().then((systemSteps) => {
-        if (isMounted && typeof systemSteps === 'number' && systemSteps > 0) {
-          setTodaySteps((prev) => {
-            const finalSteps = Math.max(prev, systemSteps);
-            syncTodayStepsToStorage(finalSteps, stepsGoal);
-            return finalSteps;
-          });
-        }
-      });
+      const initPedometerFlow = async () => {
+        // Step 1: Wait for storage metrics to fully load first
+        await fetchDashboardData();
 
-      // Start live pedometer watcher while screen is active
-      const unsubscribe = subscribeLivePedometer((delta) => {
-        if (isMounted && delta > 0) {
-          setTodaySteps((prev) => {
-            const next = prev + delta;
-            syncTodayStepsToStorage(next, stepsGoal);
-            return next;
-          });
+        if (!isMounted) return;
+
+        // Step 2: Sync system steps if OS reports higher count
+        try {
+          const systemSteps = await fetchTodaySystemSteps();
+          if (isMounted && typeof systemSteps === 'number' && systemSteps > 0) {
+            setTodaySteps((prev) => {
+              const finalSteps = Math.max(prev, systemSteps);
+              syncTodayStepsToStorage(finalSteps, stepsGoal);
+              return finalSteps;
+            });
+          }
+        } catch {
+          // ignore
         }
-      });
+
+        if (!isMounted) return;
+
+        // Step 3: Start live pedometer watcher ONLY after baseline is established
+        unsubscribePedometer = subscribeLivePedometer((delta) => {
+          if (isMounted && delta > 0) {
+            incrementTodayStepsInStorage(delta, stepsGoal).then((newTotal) => {
+              if (isMounted && newTotal > 0) {
+                setTodaySteps(newTotal);
+              }
+            });
+          }
+        });
+      };
+
+      initPedometerFlow();
 
       return () => {
         isMounted = false;
-        if (unsubscribe) {
-          unsubscribe();
+        if (unsubscribePedometer) {
+          unsubscribePedometer();
         }
       };
     }, [stepsGoal])

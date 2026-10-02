@@ -104,23 +104,73 @@ export function subscribeLivePedometer(
 }
 
 /**
+ * Helper to get local date key YYYY-MM-DD
+ */
+export function getTodayDateKey(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Atomically increment today's steps in AsyncStorage and return updated total.
+ */
+export async function incrementTodayStepsInStorage(
+  delta: number,
+  goal?: number
+): Promise<number> {
+  if (delta <= 0) return 0;
+
+  try {
+    const todayKey = getTodayDateKey();
+    const stored = await AsyncStorage.getItem(STEPS_LOGS_KEY);
+    const stepsMap: Record<string, { steps: number; goal?: number }> = stored
+      ? JSON.parse(stored)
+      : {};
+
+    const existingData = stepsMap[todayKey];
+    const currentSteps = typeof existingData?.steps === 'number' ? existingData.steps : 0;
+    const existingGoal = existingData?.goal || goal || 6000;
+    const newTotal = currentSteps + delta;
+
+    stepsMap[todayKey] = {
+      steps: newTotal,
+      goal: existingGoal,
+    };
+
+    await AsyncStorage.setItem(STEPS_LOGS_KEY, JSON.stringify(stepsMap));
+    return newTotal;
+  } catch (err) {
+    console.error('Failed to increment today steps in storage:', err);
+    return 0;
+  }
+}
+
+/**
  * Helper to update and persist today's steps in AsyncStorage.
+ * Ensures steps never decrease due to stale state.
  */
 export async function syncTodayStepsToStorage(
   steps: number,
   goal?: number
 ): Promise<void> {
   try {
-    const todayIsoKey = new Date().toISOString().split('T')[0];
+    const todayKey = getTodayDateKey();
     const stored = await AsyncStorage.getItem(STEPS_LOGS_KEY);
     const stepsMap: Record<string, { steps: number; goal?: number }> = stored
       ? JSON.parse(stored)
       : {};
 
-    const existingGoal = stepsMap[todayIsoKey]?.goal || goal || 6000;
+    const existingData = stepsMap[todayKey];
+    const existingSteps = typeof existingData?.steps === 'number' ? existingData.steps : 0;
+    const existingGoal = existingData?.goal || goal || 6000;
 
-    stepsMap[todayIsoKey] = {
-      steps,
+    // Steps should only increase or stay same, never decrease due to stale memory state
+    const finalSteps = Math.max(existingSteps, steps);
+
+    stepsMap[todayKey] = {
+      steps: finalSteps,
       goal: existingGoal,
     };
 
