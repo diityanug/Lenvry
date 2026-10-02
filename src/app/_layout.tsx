@@ -36,6 +36,17 @@ export default function AppLayout() {
     const receivedSubscription = Notifications.addNotificationReceivedListener(async (notification: any) => {
       const data = notification?.request?.content?.data as any;
       if (data && data.habitTitle) {
+        if (data.targetDate) {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const todayKey = `${year}-${month}-${day}`;
+
+          if (data.frequency === 'once' && todayKey !== data.targetDate) return;
+          if (todayKey < data.targetDate) return;
+        }
+
         const settings = await getNotificationSettings();
         if (settings.fullScreenAlarm) {
           setAlarmData({
@@ -53,6 +64,17 @@ export default function AppLayout() {
     const responseSubscription = Notifications.addNotificationResponseReceivedListener?.(async (response: any) => {
       const data = response?.notification?.request?.content?.data as any;
       if (data && data.habitTitle) {
+        if (data.targetDate) {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const todayKey = `${year}-${month}-${day}`;
+
+          if (data.frequency === 'once' && todayKey !== data.targetDate) return;
+          if (todayKey < data.targetDate) return;
+        }
+
         const settings = await getNotificationSettings();
         setAlarmData({
           habitId: data.habitId || '',

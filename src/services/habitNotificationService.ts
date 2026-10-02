@@ -250,12 +250,42 @@ export async function initializeNotifications(): Promise<void> {
   // Set in-app foreground notification presentation behavior
   if (Notifications.setNotificationHandler) {
     Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-      }),
+      handleNotification: async (notification: any) => {
+        const data = notification?.request?.content?.data;
+        if (data && data.targetDate) {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const todayKey = `${year}-${month}-${day}`;
+
+          // If this is a one-time reminder and today is NOT the target date, do not ring!
+          if (data.frequency === 'once' && todayKey !== data.targetDate) {
+            return {
+              shouldShowBanner: false,
+              shouldShowList: false,
+              shouldPlaySound: false,
+              shouldSetBadge: false,
+            };
+          }
+          // If scheduled for a future date, do not ring today!
+          if (todayKey < data.targetDate) {
+            return {
+              shouldShowBanner: false,
+              shouldShowList: false,
+              shouldPlaySound: false,
+              shouldSetBadge: false,
+            };
+          }
+        }
+
+        return {
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        };
+      },
     });
   }
 
@@ -344,6 +374,8 @@ export async function scheduleHabitReminder(habit: Habit): Promise<string | unde
       reminderTime: habit.reminderTime,
       soundId,
       fullScreenAlarm: settings.fullScreenAlarm,
+      targetDate: habit.date,
+      frequency: habit.frequency || 'once',
     },
   };
 
@@ -351,8 +383,46 @@ export async function scheduleHabitReminder(habit: Habit): Promise<string | unde
 
   try {
     const freq = habit.frequency || 'once';
+    const now = new Date();
 
-    if (freq === 'daily') {
+    let targetYear = now.getFullYear();
+    let targetMonth = now.getMonth();
+    let targetDay = now.getDate();
+
+    if (habit.date) {
+      const parts = habit.date.split('-');
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+          targetYear = y;
+          targetMonth = m;
+          targetDay = d;
+        }
+      }
+    }
+
+    if (freq === 'once') {
+      // Exactly schedule on the specific habit.date at parsed.hour:minute
+      const target = new Date(targetYear, targetMonth, targetDay, parsed.hour, parsed.minute, 0, 0);
+
+      // Only schedule if the target time is in the future
+      if (target.getTime() > now.getTime()) {
+        const id = await Notifications.scheduleNotificationAsync({
+          content,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes?.DATE || 'date',
+            date: target,
+            channelId: soundOption.channelId,
+          },
+        });
+        scheduledIds.push(id);
+      } else {
+        // Time on this date has already passed
+        return undefined;
+      }
+    } else if (freq === 'daily') {
       // Repeat daily
       const id = await Notifications.scheduleNotificationAsync({
         content,
@@ -396,26 +466,6 @@ export async function scheduleHabitReminder(habit: Habit): Promise<string | unde
         });
         scheduledIds.push(id);
       }
-    } else {
-      // Once / Default: Schedule at next occurrence of this time
-      const now = new Date();
-      const target = new Date();
-      target.setHours(parsed.hour, parsed.minute, 0, 0);
-
-      // If time has already passed today, schedule for tomorrow
-      if (target.getTime() <= now.getTime()) {
-        target.setDate(target.getDate() + 1);
-      }
-
-      const id = await Notifications.scheduleNotificationAsync({
-        content,
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes?.DATE || 'date',
-          date: target,
-          channelId: soundOption.channelId,
-        },
-      });
-      scheduledIds.push(id);
     }
 
     return scheduledIds.join(',');
