@@ -656,52 +656,20 @@ export default function FinanceTracker() {
           </TouchableOpacity>
         </View>
 
-        {/* Scrollable Container for Accounts (Shows 2 items, scrolls if more) */}
-        <View style={styles.accountsContainerWrap}>
-          {accounts.length === 0 ? (
-            <AddAccountCard onPress={() => setAccModalVisible(true)} />
-          ) : accounts.length <= 2 ? (
-            <View style={{ gap: 10 }}>
-              {accounts.map((item) => (
-                <AccountCard
-                  key={item.id}
-                  item={item}
-                  balance={getAccBalance(item.id)}
-                  onPress={(acc) => {
-                    setSelectedAccountForDetail(acc);
-                    setAccDetailModalVisible(true);
-                  }}
-                />
-              ))}
-              <AddAccountCard onPress={() => setAccModalVisible(true)} />
-            </View>
-          ) : (
-            <View>
-              <ScrollView
-                nestedScrollEnabled={true}
-                showsVerticalScrollIndicator={true}
-                style={styles.accountsScrollBox}
-                contentContainerStyle={styles.accountsScrollContent}
-              >
-                {accounts.map((item) => (
-                  <AccountCard
-                    key={item.id}
-                    item={item}
-                    balance={getAccBalance(item.id)}
-                    onPress={(acc) => {
-                      setSelectedAccountForDetail(acc);
-                      setAccDetailModalVisible(true);
-                    }}
-                  />
-                ))}
-                <AddAccountCard onPress={() => setAccModalVisible(true)} />
-              </ScrollView>
-              <View style={styles.scrollIndicatorHint}>
-                <Ionicons name="chevron-down-outline" size={13} color={COLORS.textMuted} />
-                <Text style={styles.scrollIndicatorText}>Scroll to see all {accounts.length} accounts</Text>
-              </View>
-            </View>
-          )}
+        {/* Natural vertical flow for accounts (no nested scrollview or restrictive container) */}
+        <View style={{ gap: 10, marginBottom: 20 }}>
+          {accounts.map((item) => (
+            <AccountCard
+              key={item.id}
+              item={item}
+              balance={getAccBalance(item.id)}
+              onPress={(acc) => {
+                setSelectedAccountForDetail(acc);
+                setAccDetailModalVisible(true);
+              }}
+            />
+          ))}
+          <AddAccountCard onPress={() => setAccModalVisible(true)} />
         </View>
 
         {/* RECURRING BILLS CARD */}
