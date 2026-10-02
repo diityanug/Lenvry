@@ -410,7 +410,7 @@ function StickyNoteModalContent({
                   <Text style={styles.inputLabel}>NOTE TITLE</Text>
                   <TextInput
                     style={[styles.titleInput, Boolean(error) && { borderColor: COLORS.danger }]}
-                    placeholder="e.g. Monthly Grocery, Weekend Plans, Ideas..."
+                    placeholder="e.g. Monthly Grocery etc."
                     placeholderTextColor={COLORS.textMuted}
                     value={title}
                     onChangeText={(val) => {
@@ -438,7 +438,7 @@ function StickyNoteModalContent({
                       ]}
                       placeholder={
                         type === 'checklist'
-                          ? 'Additional context like store name, budget...'
+                          ? 'e.g. store name, budget, or any notes...'
                           : 'Write your thoughts, plans, or notes here...'
                       }
                       placeholderTextColor={COLORS.textMuted}
@@ -511,7 +511,7 @@ function StickyNoteModalContent({
 
                           {totalItems === 0 && (
                             <Text style={styles.emptyItemsNotice}>
-                              No items yet. Type an item below and tap +.
+                              No items yet.
                             </Text>
                           )}
                         </View>
@@ -520,7 +520,7 @@ function StickyNoteModalContent({
                         <View style={styles.addItemRow}>
                           <TextInput
                             style={styles.addItemInput}
-                            placeholder="Add new item..."
+                            placeholder="Add item"
                             placeholderTextColor={COLORS.textMuted}
                             value={newItemText}
                             onChangeText={setNewItemText}
