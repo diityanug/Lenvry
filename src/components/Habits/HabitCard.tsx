@@ -22,6 +22,7 @@ interface HabitCardProps {
   onEdit: (item: Habit) => void;
   onToggleSubtask: (habitId: string, subtaskId: string) => void;
   onUpdateNotes: (habitId: string, notes: string[]) => void;
+  customCategoryIcons?: Record<string, { icon: string; color: string; bg: string }>;
 }
 
 const CATEGORY_THEMES: Record<
@@ -33,6 +34,12 @@ const CATEGORY_THEMES: Record<
     border: 'rgba(16, 185, 129, 0.22)',
     accent: COLORS.success,
     icon: 'fitness-outline',
+  },
+  Faith: {
+    bg: 'rgba(56, 189, 248, 0.08)',
+    border: 'rgba(56, 189, 248, 0.22)',
+    accent: COLORS.accentUSD,
+    icon: 'moon-outline',
   },
   Fitness: {
     bg: 'rgba(245, 158, 11, 0.08)',
@@ -58,9 +65,33 @@ const CATEGORY_THEMES: Record<
     accent: '#A855F7',
     icon: 'leaf-outline',
   },
+  Productivity: {
+    bg: 'rgba(234, 179, 8, 0.08)',
+    border: 'rgba(234, 179, 8, 0.22)',
+    accent: '#EAB308',
+    icon: 'flash-outline',
+  },
+  Learning: {
+    bg: 'rgba(99, 102, 241, 0.08)',
+    border: 'rgba(99, 102, 241, 0.22)',
+    accent: COLORS.accent,
+    icon: 'book-outline',
+  },
 };
 
-const getCategoryTheme = (category: string) => {
+const getCategoryTheme = (
+  category: string,
+  customIcons?: Record<string, { icon: string; color: string; bg: string }>
+) => {
+  if (customIcons && customIcons[category]) {
+    const item = customIcons[category];
+    return {
+      bg: item.bg || 'rgba(56, 189, 248, 0.08)',
+      border: item.bg ? item.bg.replace('0.16', '0.25') : 'rgba(56, 189, 248, 0.22)',
+      accent: item.color || COLORS.accent,
+      icon: (item.icon as keyof typeof Ionicons.glyphMap) || 'sparkles-outline',
+    };
+  }
   if (CATEGORY_THEMES[category]) return CATEGORY_THEMES[category];
 
   const PALETTE = [
@@ -104,6 +135,7 @@ export default function HabitCard({
   onEdit,
   onToggleSubtask,
   onUpdateNotes,
+  customCategoryIcons,
 }: HabitCardProps) {
   const [detailVisible, setDetailVisible] = useState(false);
   // notes = [item.description (from AddHabitModal), ...extra notes added inline]
@@ -120,7 +152,7 @@ export default function HabitCard({
   const [editDraft, setEditDraft] = useState('');
   const [isEditingNote, setIsEditingNote] = useState(false);
 
-  const theme = getCategoryTheme(item.category);
+  const theme = getCategoryTheme(item.category, customCategoryIcons);
 
   const priorityColor =
     item.priority === 'high'

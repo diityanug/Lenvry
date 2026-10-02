@@ -191,6 +191,7 @@ export const AccountCard = ({ item, balance, onPress }: AccountCardProps) => {
   const pocketsCount = item.subAccounts?.length || 0;
   const accentColor = isUSD ? COLORS.accentUSD : COLORS.finance;
   const accentBg = isUSD ? 'rgba(56, 189, 248, 0.12)' : 'rgba(56, 189, 248, 0.10)';
+  const accentBorder = isUSD ? 'rgba(56, 189, 248, 0.28)' : 'rgba(56, 189, 248, 0.22)';
 
   return (
     <TouchableOpacity
@@ -198,63 +199,55 @@ export const AccountCard = ({ item, balance, onPress }: AccountCardProps) => {
       activeOpacity={0.75}
       onPress={() => onPress(item)}
     >
-      {/* Accent corner/pill indicator */}
+      {/* Top Accent Strip */}
       <View style={[styles.accTopBar, { backgroundColor: accentColor }]} />
 
-      {/* TOP ROW: Icon + Name & Tags + Action Icon */}
+      {/* TOP ROW: Icon + Name & Type on left, Currency & Chevron on right */}
       <View style={styles.accHeaderRow}>
         <View style={styles.accHeaderLeft}>
-          <View style={[styles.accIconBox, { backgroundColor: accentBg }]}>
+          <View style={[styles.accIconBox, { backgroundColor: accentBg, borderColor: accentBorder }]}>
             <FontAwesome5
               name={typeIcon}
-              size={16}
+              size={15}
               color={accentColor}
             />
           </View>
           <View style={styles.accTitleGroup}>
-            <View style={styles.accNameRow}>
-              <Text style={styles.accName} numberOfLines={1}>
-                {item.name}
-              </Text>
-              <View style={[styles.accCurrencyPill, isUSD && styles.accCurrencyPillUSD]}>
-                <Text style={[styles.accCurrencyPillText, isUSD && { color: COLORS.accentUSD }]}>
-                  {item.currency}
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.accTypeLabel}>{item.type}</Text>
+            <Text style={styles.accName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <Text style={styles.accTypeLabel} numberOfLines={1}>
+              {item.type}
+              {Boolean(item.description) ? ` • ${item.description}` : ''}
+            </Text>
           </View>
         </View>
 
-        <View style={styles.accActionChevron}>
-          <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+        <View style={styles.accHeaderRight}>
+          <View style={[styles.accCurrencyPill, isUSD && styles.accCurrencyPillUSD]}>
+            <Text style={[styles.accCurrencyPillText, isUSD && { color: COLORS.accentUSD }]}>
+              {item.currency}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
         </View>
       </View>
 
-      {/* MIDDLE: Balance section with ample breathing room */}
-      <View style={styles.accBalanceSection}>
-        <Text style={styles.accBalanceLabel}>Current Balance</Text>
-        <Text style={styles.accBalanceAmount} numberOfLines={1}>
-          {formatMoney(balance, item.currency)}
-        </Text>
-      </View>
-
-      {/* BOTTOM ROW: Pocket count + optional description pills */}
-      <View style={styles.accFooterRow}>
+      {/* BOTTOM ROW: Pocket count on left, Balance on right */}
+      <View style={styles.accBottomRow}>
         <View style={styles.accPocketBadge}>
-          <Ionicons name="folder-outline" size={13} color={COLORS.textSecondary} />
+          <Ionicons name="folder-outline" size={12} color={COLORS.textMuted} />
           <Text style={styles.accPocketBadgeText}>
             {pocketsCount} {pocketsCount === 1 ? 'Pocket' : 'Pockets'}
           </Text>
         </View>
 
-        {Boolean(item.description) && (
-          <View style={styles.accDescBadge}>
-            <Text style={styles.accDescBadgeText} numberOfLines={1}>
-              {item.description}
-            </Text>
-          </View>
-        )}
+        <View style={styles.accBalanceWrap}>
+          <Text style={styles.accBalanceLabel}>Balance</Text>
+          <Text style={styles.accBalanceAmount} numberOfLines={1}>
+            {formatMoney(balance, item.currency)}
+          </Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -266,10 +259,11 @@ export const AddAccountCard = ({ onPress }: { onPress: () => void }) => (
     <View style={styles.addAccIconWrap}>
       <Ionicons name="add" size={18} color={COLORS.finance} />
     </View>
-    <View>
+    <View style={{ flex: 1 }}>
       <Text style={styles.addAccTitle}>Add New Account</Text>
       <Text style={styles.addAccSubtitle}>Bank, e-wallet, cash, or credit</Text>
     </View>
+    <Ionicons name="chevron-forward" size={14} color={COLORS.finance} style={{ opacity: 0.6 }} />
   </TouchableOpacity>
 );
 

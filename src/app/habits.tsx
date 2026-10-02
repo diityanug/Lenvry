@@ -28,6 +28,8 @@ import {
 } from '../services/habitNotificationService';
 import {
   DEFAULT_CATEGORIES,
+  HABIT_DEFAULT_CATEGORY_CONFIG,
+  HabitCategoryIconItem,
   formatDateKey,
   isHabitActiveForDate,
   isHabitCompletedForDate,
@@ -40,6 +42,9 @@ import { FrequencyType, Habit, PriorityLevel, SubTask, TimeSlot } from '../types
 export default function HabitTrackerScreen() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
+  const [customCategoryIcons, setCustomCategoryIcons] = useState<
+    Record<string, { icon: string; color: string; bg: string }>
+  >(HABIT_DEFAULT_CATEGORY_CONFIG);
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
@@ -81,9 +86,10 @@ export default function HabitTrackerScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [storedHabits, storedCategories] = await AsyncStorage.multiGet([
+      const [storedHabits, storedCategories, storedIcons] = await AsyncStorage.multiGet([
         '@lenvry_habits',
         '@lenvry_habit_categories',
+        '@lenvry_habit_category_icons',
       ]).then((pairs) => pairs.map((p) => p[1]));
 
       if (storedHabits !== null) {
@@ -103,6 +109,12 @@ export default function HabitTrackerScreen() {
       if (storedCategories !== null) {
         const parsedCategories = JSON.parse(storedCategories);
         setCategories(parsedCategories);
+      }
+      if (storedIcons !== null) {
+        try {
+          const parsedIcons = JSON.parse(storedIcons);
+          setCustomCategoryIcons({ ...HABIT_DEFAULT_CATEGORY_CONFIG, ...parsedIcons });
+        } catch {}
       }
     } catch (e) {
       console.error('Failed to load habit data', e);
@@ -324,7 +336,7 @@ export default function HabitTrackerScreen() {
     );
   };
 
-  const addCategory = async (newCategoryName: string) => {
+  const addCategory = async (newCategoryName: string, iconConfig?: HabitCategoryIconItem) => {
     const trimmed = newCategoryName.trim();
     if (!trimmed) return;
     if (categories.includes(trimmed)) {
@@ -338,6 +350,20 @@ export default function HabitTrackerScreen() {
     const updatedCategories = [...categories, trimmed];
     setCategories(updatedCategories);
     await AsyncStorage.setItem('@lenvry_habit_categories', JSON.stringify(updatedCategories));
+
+    if (iconConfig) {
+      const updatedIcons = {
+        ...customCategoryIcons,
+        [trimmed]: {
+          icon: iconConfig.icon,
+          color: iconConfig.color,
+          bg: iconConfig.bg,
+        },
+      };
+      setCustomCategoryIcons(updatedIcons);
+      await AsyncStorage.setItem('@lenvry_habit_category_icons', JSON.stringify(updatedIcons));
+    }
+
     setCategoryInputVisible(false);
   };
 
@@ -356,6 +382,13 @@ export default function HabitTrackerScreen() {
           '@lenvry_habit_categories',
           JSON.stringify(updatedCategories)
         );
+
+        if (customCategoryIcons[catToDelete]) {
+          const nextIcons = { ...customCategoryIcons };
+          delete nextIcons[catToDelete];
+          setCustomCategoryIcons(nextIcons);
+          await AsyncStorage.setItem('@lenvry_habit_category_icons', JSON.stringify(nextIcons));
+        }
       }
     );
   };
@@ -481,6 +514,7 @@ export default function HabitTrackerScreen() {
                   onEdit={handleOpenEdit}
                   onToggleSubtask={toggleSubtask}
                   onUpdateNotes={updateHabitNotes}
+                  customCategoryIcons={customCategoryIcons}
                 />
               );
             })}
@@ -504,6 +538,7 @@ export default function HabitTrackerScreen() {
         visible={modalVisible}
         selectedDate={selectedDate}
         categories={categories}
+        customCategoryIcons={customCategoryIcons}
         initialHabit={editingHabit}
         onSave={saveHabit}
         onClose={() => {

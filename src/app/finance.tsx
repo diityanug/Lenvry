@@ -645,27 +645,15 @@ export default function FinanceTracker() {
             </View>
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <TouchableOpacity
-              style={styles.addAccHeaderBtn}
-              onPress={() => setAccModalVisible(true)}
-              activeOpacity={0.75}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <Ionicons name="add" size={14} color={COLORS.finance} />
-              <Text style={styles.addAccHeaderText}>Add</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.seeAllBtn}
-              onPress={() => setManageAccModalVisible(true)}
-              activeOpacity={0.7}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <Ionicons name="swap-vertical" size={14} color={COLORS.finance} style={{ marginRight: 4 }} />
-              <Text style={styles.seeAllText}>Manage</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.seeAllBtn}
+            onPress={() => setManageAccModalVisible(true)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Ionicons name="swap-vertical" size={14} color={COLORS.finance} style={{ marginRight: 4 }} />
+            <Text style={styles.seeAllText}>Manage</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Scrollable Container for Accounts (Shows 2 items, scrolls if more) */}

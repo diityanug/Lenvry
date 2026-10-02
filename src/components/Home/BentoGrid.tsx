@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Href, router } from 'expo-router';
-import { Text, TouchableOpacity, View } from 'react-native';
-import { COLORS } from '../../constants/theme';
+import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { COLORS, RADIUS } from '../../constants/theme';
 import { homeStyles as styles } from '../../styles/homeStyles';
 
 interface BentoGridProps {
@@ -13,6 +13,8 @@ interface BentoGridProps {
   todayExpenses: number;
   todayCaloriesConsumed?: number;
   calorieTarget?: number;
+  todaySteps?: number;
+  stepsGoal?: number;
 }
 
 export default function BentoGrid({
@@ -24,6 +26,8 @@ export default function BentoGrid({
   todayExpenses,
   todayCaloriesConsumed = 0,
   calorieTarget = 2000,
+  todaySteps = 0,
+  stepsGoal = 6000,
 }: BentoGridProps) {
   const habitPercent =
     habitTotalCount > 0 ? Math.round((habitCompletedCount / habitTotalCount) * 100) : 0;
@@ -61,13 +65,9 @@ export default function BentoGrid({
                 },
               ]}
             >
-              <Ionicons name="checkbox-outline" size={18} color={COLORS.success} />
+              <Ionicons name="checkbox-outline" size={17} color={COLORS.success} />
             </View>
-            <View style={styles.pillarBadge}>
-              <Text style={styles.pillarBadgeText}>
-                {habitTotalCount > 0 ? `${habitPercent}%` : '0%'}
-              </Text>
-            </View>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
           </View>
           <Text style={styles.pillarLabel}>Activities</Text>
           <Text style={styles.pillarValue}>
@@ -104,13 +104,9 @@ export default function BentoGrid({
                 },
               ]}
             >
-              <Ionicons name="barbell-outline" size={18} color={COLORS.warning} />
+              <Ionicons name="barbell-outline" size={17} color={COLORS.warning} />
             </View>
-            <View style={styles.pillarBadge}>
-              <Text style={styles.pillarBadgeText}>
-                {todayWorkoutCount > 0 ? 'Active' : 'Rest'}
-              </Text>
-            </View>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
           </View>
           <Text style={styles.pillarLabel}>Workout</Text>
           <Text style={styles.pillarValue} numberOfLines={1}>
@@ -148,13 +144,9 @@ export default function BentoGrid({
                 },
               ]}
             >
-              <Ionicons name="restaurant-outline" size={18} color={COLORS.nutrition} />
+              <Ionicons name="restaurant-outline" size={17} color={COLORS.nutrition} />
             </View>
-            <View style={styles.pillarBadge}>
-              <Text style={styles.pillarBadgeText}>
-                {`${nutritionPercent}%`}
-              </Text>
-            </View>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
           </View>
           <Text style={styles.pillarLabel}>Nutrition</Text>
           <Text style={styles.pillarValue} numberOfLines={1}>
@@ -190,13 +182,9 @@ export default function BentoGrid({
                 },
               ]}
             >
-              <Ionicons name="wallet-outline" size={18} color={COLORS.accentUSD} />
+              <Ionicons name="wallet-outline" size={17} color={COLORS.accentUSD} />
             </View>
-            <View style={styles.pillarBadge}>
-              <Text style={styles.pillarBadgeText}>
-                Today
-              </Text>
-            </View>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
           </View>
           <Text style={styles.pillarLabel}>Spending</Text>
           <Text style={styles.pillarValue} numberOfLines={1}>
@@ -218,6 +206,88 @@ export default function BentoGrid({
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Steps Today Card */}
+      <View style={customStyles.stepsCard}>
+        <View style={customStyles.stepsHeader}>
+          <View style={customStyles.stepsIconWrap}>
+            <Ionicons name="footsteps" size={16} color="#10B981" />
+          </View>
+          <Text style={customStyles.stepsLabelRight}>STEPS</Text>
+        </View>
+
+        <View style={customStyles.stepsValueRow}>
+          <Text style={customStyles.stepsMainValue}>
+            {todaySteps.toLocaleString('id-ID')}
+          </Text>
+          <Text style={customStyles.stepsGoalValue}>
+            / {stepsGoal.toLocaleString('id-ID')} steps
+          </Text>
+        </View>
+
+        <View style={styles.pillarProgressTrack}>
+          <View
+            style={[
+              styles.pillarProgressFill,
+              {
+                width: `${Math.min(100, Math.round((todaySteps / Math.max(1, stepsGoal)) * 100))}%`,
+                backgroundColor: '#10B981',
+              },
+            ]}
+          />
+        </View>
+      </View>
     </View>
   );
 }
+
+const customStyles = StyleSheet.create({
+  stepsCard: {
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.xl,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginTop: 12,
+  },
+  stepsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  stepsLabelRight: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  stepsIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepsValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+    marginBottom: 10,
+  },
+  stepsMainValue: {
+    color: COLORS.textPrimary,
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
+  stepsGoalValue: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+});

@@ -27,6 +27,7 @@ interface AddHabitModalProps {
   visible: boolean;
   selectedDate: Date;
   categories: string[];
+  customCategoryIcons?: Record<string, { icon: string; color: string; bg: string }>;
   initialHabit?: Habit | null;
   onSave: (habitData: {
     id?: string;
@@ -57,18 +58,27 @@ const PRESET_HABITS = [
 
 const HABIT_CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Health: 'fitness-outline',
+  Faith: 'moon-outline',
   Fitness: 'barbell-outline',
   Work: 'briefcase-outline',
   Study: 'book-outline',
   Mindfulness: 'leaf-outline',
-  Spirituality: 'sunny-outline',
+  Spirituality: 'moon-outline',
+  Productivity: 'flash-outline',
+  Learning: 'book-outline',
   Finance: 'wallet-outline',
   Routine: 'time-outline',
   Personal: 'person-outline',
   Social: 'people-outline',
 };
 
-const getHabitCategoryIcon = (category: string): keyof typeof Ionicons.glyphMap => {
+const getHabitCategoryIcon = (
+  category: string,
+  customIcons?: Record<string, { icon: string; color: string; bg: string }>
+): keyof typeof Ionicons.glyphMap => {
+  if (customIcons && customIcons[category]?.icon) {
+    return customIcons[category].icon as keyof typeof Ionicons.glyphMap;
+  }
   if (HABIT_CATEGORY_ICONS[category]) return HABIT_CATEGORY_ICONS[category];
   const FALLBACKS: (keyof typeof Ionicons.glyphMap)[] = [
     'sparkles-outline',
@@ -87,6 +97,7 @@ export default function AddHabitModal({
   visible,
   selectedDate,
   categories,
+  customCategoryIcons,
   initialHabit,
   onSave,
   onClose,
@@ -100,6 +111,7 @@ export default function AddHabitModal({
           key={initialHabit ? initialHabit.id : 'new'}
           selectedDate={selectedDate}
           categories={categories}
+          customCategoryIcons={customCategoryIcons}
           initialHabit={initialHabit}
           onSave={onSave}
           onClose={onClose}
@@ -114,6 +126,7 @@ export default function AddHabitModal({
 function AddHabitContent({
   selectedDate,
   categories,
+  customCategoryIcons,
   initialHabit,
   onSave,
   onClose,
@@ -618,7 +631,7 @@ function AddHabitContent({
               <View style={habitModalStyles.categoriesWrap}>
                 {categories.map((cat) => {
                   const isSelected = localCategory === cat;
-                  const catIcon = getHabitCategoryIcon(cat);
+                  const catIcon = getHabitCategoryIcon(cat, customCategoryIcons);
                   return (
                     <TouchableOpacity
                       key={cat}

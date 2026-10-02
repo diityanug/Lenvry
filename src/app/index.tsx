@@ -11,16 +11,28 @@ import { COLORS } from '../constants/theme';
 import { homeStyles as styles } from '../styles/homeStyles';
 import BentoGrid from '../components/Home/BentoGrid';
 import HomeSettingsModal from '../components/Home/HomeSettingsModal';
+import StickyNotesSection from '../components/Home/StickyNotesSection';
+import StickyNoteModal from '../components/Home/StickyNoteModal';
 import { Habit } from '../types/habits';
 import { NutritionLog, NutritionTarget, DEFAULT_NUTRITION_TARGET } from '../types/nutrition';
+import { StickyNote } from '../types/notes';
+import {
+  fetchTodaySystemSteps,
+  subscribeLivePedometer,
+  syncTodayStepsToStorage,
+} from '../services/stepTrackerService';
 
 const USERNAME_KEY = '@wakemove_user_name';
 const NUTRITION_LOGS_KEY = '@wakemove_nutrition_logs';
 const NUTRITION_TARGETS_KEY = '@wakemove_nutrition_targets';
+const STEPS_LOGS_KEY = '@lenvry_steps_logs';
+const GENERAL_NOTES_KEY = '@lenvry_general_notes';
 
 export default function HomeScreen() {
   const [userName, setUserName] = useState('User');
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
+  const [isStickyModalVisible, setIsStickyModalVisible] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<StickyNote | null>(null);
 
   const [todayExpenses, setTodayExpenses] = useState(0);
   const [habitCompletedCount, setHabitCompletedCount] = useState(0);
@@ -32,6 +44,10 @@ export default function HomeScreen() {
 
   const [todayCaloriesConsumed, setTodayCaloriesConsumed] = useState(0);
   const [calorieTarget, setCalorieTarget] = useState(DEFAULT_NUTRITION_TARGET.calories);
+
+  const [todaySteps, setTodaySteps] = useState(0);
+  const [stepsGoal, setStepsGoal] = useState(6000);
+  const [notes, setNotes] = useState<StickyNote[]>([]);
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'short',
@@ -48,6 +64,8 @@ export default function HomeScreen() {
         '@fitness_workouts',
         NUTRITION_LOGS_KEY,
         NUTRITION_TARGETS_KEY,
+        STEPS_LOGS_KEY,
+        GENERAL_NOTES_KEY,
       ];
       const results = await AsyncStorage.multiGet(keys);
       const dataMap = Object.fromEntries(results);
@@ -134,6 +152,42 @@ export default function HomeScreen() {
           setCalorieTarget(target.calories);
         }
       }
+
+      // Steps Tracker
+      const storedStepsLogs = dataMap[STEPS_LOGS_KEY];
+      if (storedStepsLogs) {
+        const stepsMap: Record<string, { steps: number; goal?: number }> = JSON.parse(storedStepsLogs);
+        const todayStepData = stepsMap[dateIsoKey];
+        if (todayStepData) {
+          setTodaySteps(todayStepData.steps || 0);
+          if (todayStepData.goal) setStepsGoal(todayStepData.goal);
+        } else {
+          setTodaySteps(0);
+        }
+      } else {
+        setTodaySteps(0);
+      }
+
+      // General Sticky Notes & Plans
+      const storedNotes = dataMap[GENERAL_NOTES_KEY];
+      if (storedNotes) {
+        const rawNotes: any[] = JSON.parse(storedNotes);
+        const normalized: StickyNote[] = Array.isArray(rawNotes)
+          ? rawNotes.map((item, idx) => ({
+              id: item.id || `${Date.now()}-${idx}`,
+              title: item.title || 'Note',
+              type: item.type || (item.checklist && item.checklist.length > 0 ? 'checklist' : 'text'),
+              color: item.color || 'amber',
+              description: item.description ?? (item.content || ''),
+              checklist: Array.isArray(item.checklist) ? item.checklist : [],
+              createdAt: item.createdAt || new Date().toISOString(),
+              updatedAt: item.updatedAt || new Date().toISOString(),
+            }))
+          : [];
+        setNotes(normalized);
+      } else {
+        setNotes([]);
+      }
     } catch (e) {
       console.error('Failed to sync dashboard metrics:', e);
     }
@@ -142,8 +196,75 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchDashboardData();
-    }, [])
+
+      let isMounted = true;
+
+      // Automatically sync steps from device OS sensor if available and higher
+      fetchTodaySystemSteps().then((systemSteps) => {
+        if (isMounted && typeof systemSteps === 'number' && systemSteps > 0) {
+          setTodaySteps((prev) => {
+            const finalSteps = Math.max(prev, systemSteps);
+            syncTodayStepsToStorage(finalSteps, stepsGoal);
+            return finalSteps;
+          });
+        }
+      });
+
+      // Start live pedometer watcher while screen is active
+      const unsubscribe = subscribeLivePedometer((delta) => {
+        if (isMounted && delta > 0) {
+          setTodaySteps((prev) => {
+            const next = prev + delta;
+            syncTodayStepsToStorage(next, stepsGoal);
+            return next;
+          });
+        }
+      });
+
+      return () => {
+        isMounted = false;
+        if (unsubscribe) {
+          unsubscribe();
+        }
+      };
+    }, [stepsGoal])
   );
+
+  const handleOpenCreateNote = () => {
+    setSelectedNote(null);
+    setIsStickyModalVisible(true);
+  };
+
+  const handleSelectNote = (note: StickyNote) => {
+    setSelectedNote(note);
+    setIsStickyModalVisible(true);
+  };
+
+  const handleSaveStickyNote = async (savedNote: StickyNote) => {
+    try {
+      const exists = notes.some((n) => n.id === savedNote.id);
+      let updated: StickyNote[];
+      if (exists) {
+        updated = notes.map((n) => (n.id === savedNote.id ? savedNote : n));
+      } else {
+        updated = [savedNote, ...notes];
+      }
+      setNotes(updated);
+      await AsyncStorage.setItem(GENERAL_NOTES_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to save sticky note:', e);
+    }
+  };
+
+  const handleDeleteStickyNote = async (id: string) => {
+    try {
+      const updated = notes.filter((n) => n.id !== id);
+      setNotes(updated);
+      await AsyncStorage.setItem(GENERAL_NOTES_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to delete sticky note:', e);
+    }
+  };
 
   const toggleHabitOnHome = async (id: string) => {
     try {
@@ -193,13 +314,6 @@ export default function HomeScreen() {
   const todayDateObj = new Date();
   const habitKey = formatDateKey(todayDateObj);
 
-  const formatExpenseShort = (amount: number) => {
-    if (amount === 0) return 'Rp 0';
-    if (amount >= 1_000_000) return `Rp ${(amount / 1_000_000).toFixed(1)}M`;
-    if (amount >= 1_000) return `Rp ${Math.round(amount / 1_000)}k`;
-    return `Rp ${amount}`;
-  };
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
@@ -231,7 +345,7 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_HEIGHT + 36 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* 2x2 Pillar Overview */}
+        {/* 2x2 Pillar Overview & Steps Tracker Banner */}
         <BentoGrid
           habitCompletedCount={habitCompletedCount}
           habitTotalCount={habitTotalCount}
@@ -241,6 +355,15 @@ export default function HomeScreen() {
           todayExpenses={todayExpenses}
           todayCaloriesConsumed={todayCaloriesConsumed}
           calorieTarget={calorieTarget}
+          todaySteps={todaySteps}
+          stepsGoal={stepsGoal}
+        />
+
+        {/* Pinned Sticky Notes (Daftar Belanja, Ide, Wishlist) */}
+        <StickyNotesSection
+          notes={notes}
+          onSelectNote={handleSelectNote}
+          onCreateNote={handleOpenCreateNote}
         />
 
         {/* Today's Activities Section */}
@@ -307,43 +430,6 @@ export default function HomeScreen() {
             })}
           </View>
         )}
-
-        {/* Daily Summary Strip */}
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryHeader}>
-            <View style={styles.summaryHeaderLeft}>
-              <Ionicons name="pulse" size={16} color={COLORS.accentHover} />
-              <Text style={styles.summaryTitle}>DAILY METRICS SUMMARY</Text>
-            </View>
-          </View>
-          <View style={styles.summaryGrid}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryItemValue}>
-                {habitCompletedCount}/{habitTotalCount}
-              </Text>
-              <Text style={styles.summaryItemLabel}>Activities</Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryItemValue}>{todayWorkoutCount}</Text>
-              <Text style={styles.summaryItemLabel}>Workouts</Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryItemValue}>
-                {todayCaloriesConsumed > 0 ? `${todayCaloriesConsumed.toLocaleString('en-US')}` : '0'}
-              </Text>
-              <Text style={styles.summaryItemLabel}>Calories</Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryItemValue}>
-                {formatExpenseShort(todayExpenses)}
-              </Text>
-              <Text style={styles.summaryItemLabel}>Spending</Text>
-            </View>
-          </View>
-        </View>
       </ScrollView>
 
       {/* Settings Modal Hosted Full on Home */}
@@ -353,6 +439,15 @@ export default function HomeScreen() {
         currentUserName={userName}
         onUserNameUpdated={(newName) => setUserName(newName)}
         onDataResetOrRestored={fetchDashboardData}
+      />
+
+      {/* Pinned Sticky Note Detail & Editor Modal */}
+      <StickyNoteModal
+        visible={isStickyModalVisible}
+        note={selectedNote}
+        onClose={() => setIsStickyModalVisible(false)}
+        onSave={handleSaveStickyNote}
+        onDelete={handleDeleteStickyNote}
       />
     </SafeAreaView>
   );

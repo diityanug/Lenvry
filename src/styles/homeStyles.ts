@@ -17,8 +17,8 @@ export const homeStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 16,
+    marginTop: 16,
+    marginBottom: 20,
   },
   userProfile: {
     flexDirection: 'row',
@@ -74,7 +74,7 @@ export const homeStyles = StyleSheet.create({
 
   // Section Header & Overview
   overviewSection: {
-    marginBottom: 20,
+    marginBottom: 26,
   },
   sectionLabel: {
     color: COLORS.textMuted,
@@ -94,12 +94,12 @@ export const homeStyles = StyleSheet.create({
   pillarCard: {
     width: '48%',
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.xl,
-    padding: 16,
+    borderRadius: RADIUS.lg,
+    padding: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
     justifyContent: 'space-between',
-    minHeight: 162,
+    minHeight: 148,
   },
   pillarTop: {
     flexDirection: 'row',
@@ -108,9 +108,9 @@ export const homeStyles = StyleSheet.create({
     marginBottom: 10,
   },
   pillarIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 34,
+    height: 34,
+    borderRadius: RADIUS.sm,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -129,18 +129,18 @@ export const homeStyles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
   pillarLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: COLORS.textMuted,
-    letterSpacing: 0.2,
-    marginBottom: 4,
+    letterSpacing: 0.3,
+    marginBottom: 3,
   },
   pillarValue: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '800',
     color: COLORS.textPrimary,
     letterSpacing: -0.3,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   pillarUnit: {
     fontSize: 12,
@@ -148,15 +148,15 @@ export const homeStyles = StyleSheet.create({
     color: COLORS.textMuted,
   },
   pillarProgressTrack: {
-    height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: RADIUS.full,
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 2,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   pillarProgressFill: {
     height: '100%',
-    borderRadius: RADIUS.full,
+    borderRadius: 2,
   },
   pillarSub: {
     fontSize: 11,
@@ -186,18 +186,18 @@ export const homeStyles = StyleSheet.create({
   },
   habitsPreviewCard: {
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.xl,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
     paddingHorizontal: 16,
-    paddingVertical: 6,
-    marginBottom: 20,
+    paddingVertical: 4,
+    marginBottom: 26,
   },
   habitItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    minHeight: 52,
+    paddingVertical: 12,
+    minHeight: 48,
   },
   habitItemBorder: {
     borderBottomWidth: 1,
