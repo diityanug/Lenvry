@@ -337,130 +337,223 @@ export const financeStyles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
-
-  // Modern Compact Account Card (Opsi 1)
-  accCompactCard: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.lg,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+  addAccHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: COLORS.bgCardSub,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    gap: 4,
+  },
+  addAccHeaderText: {
+    color: COLORS.finance,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // Accounts Container & Scrollable Box (2 visible items, max ~290px)
+  accountsContainerWrap: {
+    marginBottom: 20,
+  },
+  accountsScrollBox: {
+    maxHeight: 285,
+    borderRadius: RADIUS.xl,
+  },
+  accountsScrollContent: {
+    gap: 10,
+    paddingBottom: 4,
+  },
+  scrollIndicatorHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingTop: 8,
+  },
+  scrollIndicatorText: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontWeight: '600',
+  },
+
+  // Compact Clean Account Card (fits 2 in view without taking up whole screen)
+  accCard: {
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.lg,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     position: 'relative',
     overflow: 'hidden',
   },
-  accCompactAccent: {
+  accTopBar: {
     position: 'absolute',
-    left: 0,
     top: 0,
-    bottom: 0,
-    width: 3.5,
+    left: 16,
+    right: 16,
+    height: 3,
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
   },
-  accCompactIconBox: {
-    width: 38,
-    height: 38,
+  accHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  accHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  accIconBox: {
+    width: 36,
+    height: 36,
     borderRadius: RADIUS.md,
-    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-  },
-  accCompactInfo: {
-    flex: 1,
     marginRight: 10,
   },
-  accCompactTitleRow: {
+  accTitleGroup: {
+    flex: 1,
+  },
+  accNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  accCompactName: {
+  accName: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.textPrimary,
     letterSpacing: -0.2,
-    flexShrink: 1,
   },
-  accCompactCurrencyBadge: {
-    backgroundColor: COLORS.bgCardSub,
-    paddingHorizontal: 5,
+  accCurrencyPill: {
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    paddingHorizontal: 6,
     paddingVertical: 1.5,
-    borderRadius: RADIUS.xs,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
   },
-  accCompactCurrencyText: {
+  accCurrencyPillUSD: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+  },
+  accCurrencyPillText: {
     fontSize: 9,
     fontWeight: '800',
     color: COLORS.finance,
   },
-  accCompactMetaRow: {
+  accTypeLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: COLORS.textMuted,
+  },
+  accActionChevron: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.bgCardSub,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accBalanceSection: {
+    marginBottom: 8,
+  },
+  accBalanceLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 2,
+  },
+  accBalanceAmount: {
+    fontSize: 19,
+    fontWeight: '900',
+    color: COLORS.textPrimary,
+    letterSpacing: -0.4,
+    fontVariant: ['tabular-nums'],
+  },
+  accFooterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.04)',
+    paddingTop: 8,
   },
-  accCompactType: {
+  accPocketBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.bgCardSub,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: RADIUS.sm,
+    gap: 5,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  accPocketBadgeText: {
     fontSize: 11,
     fontWeight: '600',
     color: COLORS.textSecondary,
   },
-  accCompactDot: {
-    fontSize: 10,
-    color: COLORS.textMuted,
+  accDescBadge: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: RADIUS.sm,
   },
-  accCompactPockets: {
+  accDescBadgeText: {
     fontSize: 11,
     color: COLORS.textMuted,
     fontWeight: '500',
-  },
-  accCompactDesc: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    fontWeight: '500',
-    maxWidth: 90,
-  },
-  accCompactBalanceCol: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  accCompactBalance: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: COLORS.textPrimary,
-    fontVariant: ['tabular-nums'],
-    letterSpacing: -0.2,
   },
 
-  // Add Account Compact Button
-  addAccCompactBtn: {
+  // Add Account Button
+  addAccountDashedCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(56, 189, 248, 0.05)',
+    backgroundColor: 'rgba(56, 189, 248, 0.04)',
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderColor: 'rgba(56, 189, 248, 0.25)',
     borderRadius: RADIUS.lg,
     paddingVertical: 12,
-    gap: 8,
+    paddingHorizontal: 14,
+    gap: 12,
     marginTop: 2,
   },
-  addAccCompactIconWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+  addAccIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: COLORS.financeLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  addAccCompactText: {
+  addAccTitle: {
     color: COLORS.finance,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
+  },
+  addAccSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 1,
   },
   addAccCardTitle: {
     fontSize: 14,

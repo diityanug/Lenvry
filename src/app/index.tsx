@@ -243,9 +243,9 @@ export default function HomeScreen() {
           calorieTarget={calorieTarget}
         />
 
-        {/* Today's Habits Section */}
+        {/* Today's Activities Section */}
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitleText}>{"TODAY'S Activities"}</Text>
+          <Text style={styles.sectionTitleText}>{"TODAY'S ACTIVITIES"}</Text>
           <TouchableOpacity
             onPress={() => router.push('/habits' as Href)}
             activeOpacity={0.7}
@@ -261,9 +261,11 @@ export default function HomeScreen() {
             onPress={() => router.push('/habits' as Href)}
             activeOpacity={0.8}
           >
-            <Ionicons name="checkmark-done-circle-outline" size={26} color={COLORS.textMuted} style={{ marginBottom: 6 }} />
-            <Text style={styles.emptyCardTitle}>No Activities scheduled for today</Text>
-            <Text style={styles.emptyCardSub}>Tap here to open Activities</Text>
+            <View style={styles.emptyCardIconWrap}>
+              <Ionicons name="sparkles-outline" size={24} color={COLORS.accent} />
+            </View>
+            <Text style={styles.emptyCardTitle}>No activities scheduled for today</Text>
+            <Text style={styles.emptyCardSub}>Tap here to manage your habits & daily tasks</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.habitsPreviewCard}>
@@ -279,24 +281,26 @@ export default function HomeScreen() {
                 >
                   <Ionicons
                     name={isDone ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={20}
+                    size={22}
                     color={isDone ? COLORS.success : COLORS.textMuted}
                     style={{ marginRight: 12 }}
                   />
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
                     <Text
                       style={[styles.habitItemTitle, isDone && styles.habitItemTitleDone]}
                       numberOfLines={1}
                     >
                       {habit.title}
                     </Text>
-                    <Text style={styles.habitItemMeta}>
+                    <Text style={styles.habitItemMeta} numberOfLines={1}>
                       {habit.category}
                       {habit.timeSlot && habit.timeSlot !== 'Anytime' ? ` • ${habit.timeSlot}` : ''}
                     </Text>
                   </View>
                   {habit.priority === 'high' && (
-                    <View style={styles.highPriorityDot} />
+                    <View style={styles.priorityBadge}>
+                      <Text style={styles.priorityBadgeText}>HIGH</Text>
+                    </View>
                   )}
                 </TouchableOpacity>
               );
@@ -307,8 +311,10 @@ export default function HomeScreen() {
         {/* Daily Summary Strip */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
-            <Ionicons name="pulse" size={14} color={COLORS.accentHover} />
-            <Text style={styles.summaryTitle}>DAILY METRICS SUMMARY</Text>
+            <View style={styles.summaryHeaderLeft}>
+              <Ionicons name="pulse" size={16} color={COLORS.accentHover} />
+              <Text style={styles.summaryTitle}>DAILY METRICS SUMMARY</Text>
+            </View>
           </View>
           <View style={styles.summaryGrid}>
             <View style={styles.summaryItem}>
@@ -325,7 +331,7 @@ export default function HomeScreen() {
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
               <Text style={styles.summaryItemValue}>
-                {todayCaloriesConsumed > 0 ? `${todayCaloriesConsumed}` : '0'}
+                {todayCaloriesConsumed > 0 ? `${todayCaloriesConsumed.toLocaleString('en-US')}` : '0'}
               </Text>
               <Text style={styles.summaryItemLabel}>Calories</Text>
             </View>
@@ -334,7 +340,7 @@ export default function HomeScreen() {
               <Text style={styles.summaryItemValue}>
                 {formatExpenseShort(todayExpenses)}
               </Text>
-              <Text style={styles.summaryItemLabel}>Expenses</Text>
+              <Text style={styles.summaryItemLabel}>Spending</Text>
             </View>
           </View>
         </View>

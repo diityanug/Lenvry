@@ -98,11 +98,10 @@ export const habitStyles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // 2-Column Grid Wrapper
+  // Habit Cards Stack Wrapper
   habitGridWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    gap: 14,
   },
 
   // Date Navigator

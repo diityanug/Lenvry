@@ -645,29 +645,75 @@ export default function FinanceTracker() {
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.seeAllBtn}
-            onPress={() => setManageAccModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="swap-vertical" size={14} color={COLORS.finance} style={{ marginRight: 4 }} />
-            <Text style={styles.seeAllText}>Manage</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity
+              style={styles.addAccHeaderBtn}
+              onPress={() => setAccModalVisible(true)}
+              activeOpacity={0.75}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Ionicons name="add" size={14} color={COLORS.finance} />
+              <Text style={styles.addAccHeaderText}>Add</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.seeAllBtn}
+              onPress={() => setManageAccModalVisible(true)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Ionicons name="swap-vertical" size={14} color={COLORS.finance} style={{ marginRight: 4 }} />
+              <Text style={styles.seeAllText}>Manage</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={{ marginBottom: 20 }}>
-          {accounts.map((item) => (
-            <AccountCard
-              key={item.id}
-              item={item}
-              balance={getAccBalance(item.id)}
-              onPress={(acc) => {
-                setSelectedAccountForDetail(acc);
-                setAccDetailModalVisible(true);
-              }}
-            />
-          ))}
-          <AddAccountCard onPress={() => setAccModalVisible(true)} />
+        {/* Scrollable Container for Accounts (Shows 2 items, scrolls if more) */}
+        <View style={styles.accountsContainerWrap}>
+          {accounts.length === 0 ? (
+            <AddAccountCard onPress={() => setAccModalVisible(true)} />
+          ) : accounts.length <= 2 ? (
+            <View style={{ gap: 10 }}>
+              {accounts.map((item) => (
+                <AccountCard
+                  key={item.id}
+                  item={item}
+                  balance={getAccBalance(item.id)}
+                  onPress={(acc) => {
+                    setSelectedAccountForDetail(acc);
+                    setAccDetailModalVisible(true);
+                  }}
+                />
+              ))}
+              <AddAccountCard onPress={() => setAccModalVisible(true)} />
+            </View>
+          ) : (
+            <View>
+              <ScrollView
+                nestedScrollEnabled={true}
+                showsVerticalScrollIndicator={true}
+                style={styles.accountsScrollBox}
+                contentContainerStyle={styles.accountsScrollContent}
+              >
+                {accounts.map((item) => (
+                  <AccountCard
+                    key={item.id}
+                    item={item}
+                    balance={getAccBalance(item.id)}
+                    onPress={(acc) => {
+                      setSelectedAccountForDetail(acc);
+                      setAccDetailModalVisible(true);
+                    }}
+                  />
+                ))}
+                <AddAccountCard onPress={() => setAccModalVisible(true)} />
+              </ScrollView>
+              <View style={styles.scrollIndicatorHint}>
+                <Ionicons name="chevron-down-outline" size={13} color={COLORS.textMuted} />
+                <Text style={styles.scrollIndicatorText}>Scroll to see all {accounts.length} accounts</Text>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* RECURRING BILLS CARD */}

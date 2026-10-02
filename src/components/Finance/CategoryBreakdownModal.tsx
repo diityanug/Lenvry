@@ -8,11 +8,15 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CategoryBudget, Transaction, CategoryCustomIcon, formatMoney } from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
 import { getCategoryTheme } from './CategoryBreakdownCard';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const FIXED_MODAL_HEIGHT = Math.round(SCREEN_HEIGHT * 0.85);
 
 interface CategoryBreakdownModalProps {
   visible: boolean;
@@ -94,20 +98,10 @@ export const CategoryBreakdownModal = ({
               </View>
             </View>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TouchableOpacity
-                style={modalStyles.setBudgetBtn}
-                onPress={() => {
-                  onClose();
-                  setTimeout(() => onOpenSetBudget(), 200);
-                }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="options-outline" size={13} color={COLORS.finance} />
-              </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
 
-              <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
+              <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Ionicons name="close-circle" size={26} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
           </View>
@@ -121,9 +115,9 @@ export const CategoryBreakdownModal = ({
             >
               <Ionicons
                 name="grid-outline"
-                size={14}
+                size={16}
                 color={mainTab === 'categories' ? COLORS.finance : COLORS.textMuted}
-                style={{ marginRight: 6 }}
+                style={{ marginRight: 8 }}
               />
               <Text style={[modalStyles.mainTabText, mainTab === 'categories' && modalStyles.mainTabTextActive]}>
                 Categories
@@ -137,9 +131,9 @@ export const CategoryBreakdownModal = ({
             >
               <Ionicons
                 name="shield-checkmark-outline"
-                size={14}
+                size={16}
                 color={mainTab === 'budget' ? COLORS.finance : COLORS.textMuted}
-                style={{ marginRight: 6 }}
+                style={{ marginRight: 8 }}
               />
               <Text style={[modalStyles.mainTabText, mainTab === 'budget' && modalStyles.mainTabTextActive]}>
                 Monthly Budget ({budgetedCategories.length})
@@ -149,8 +143,9 @@ export const CategoryBreakdownModal = ({
 
           {/* Scrollable Content */}
           <ScrollView
+            style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 16 }}
+            contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
           >
             {mainTab === 'categories' ? (
               <View>
@@ -251,7 +246,7 @@ export const CategoryBreakdownModal = ({
                           <View key={category} style={modalStyles.itemCard}>
                             <View style={modalStyles.itemMainRow}>
                               <View style={[modalStyles.iconBox, { backgroundColor: theme.bg }]}>
-                                <Ionicons name={theme.icon} size={16} color={theme.color} />
+                                <Ionicons name={theme.icon} size={18} color={theme.color} />
                               </View>
 
                               <View style={modalStyles.itemCenterCol}>
@@ -319,7 +314,7 @@ export const CategoryBreakdownModal = ({
                           <View key={category} style={modalStyles.itemCard}>
                             <View style={modalStyles.itemMainRow}>
                               <View style={[modalStyles.iconBox, { backgroundColor: theme.bg }]}>
-                                <Ionicons name={theme.icon} size={16} color={theme.color} />
+                                <Ionicons name={theme.icon} size={18} color={theme.color} />
                               </View>
 
                               <View style={modalStyles.itemCenterCol}>
@@ -475,7 +470,7 @@ export const CategoryBreakdownModal = ({
                           <View key={b.category} style={modalStyles.itemCard}>
                             <View style={modalStyles.itemMainRow}>
                               <View style={[modalStyles.iconBox, { backgroundColor: theme.bg }]}>
-                                <Ionicons name={theme.icon} size={16} color={theme.color} />
+                                <Ionicons name={theme.icon} size={18} color={theme.color} />
                               </View>
 
                               <View style={modalStyles.itemCenterCol}>
@@ -551,40 +546,40 @@ const modalStyles = StyleSheet.create({
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
-    maxHeight: '85%',
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 28,
+    height: FIXED_MODAL_HEIGHT,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
   handle: {
-    width: 36,
-    height: 4,
+    width: 40,
+    height: 5,
     backgroundColor: COLORS.borderLight,
-    borderRadius: 2,
+    borderRadius: 3,
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
-    paddingBottom: 12,
+    marginBottom: 16,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
   titleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     flex: 1,
     marginRight: 8,
   },
   headerIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(56, 189, 248, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -593,13 +588,13 @@ const modalStyles = StyleSheet.create({
   },
   title: {
     color: COLORS.textPrimary,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
     letterSpacing: -0.2,
   },
   subtitle: {
     color: COLORS.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 2,
     fontWeight: '500',
   },
@@ -607,16 +602,17 @@ const modalStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.bgCardSub,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderRadius: RADIUS.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    gap: 4,
+    minHeight: 38,
+    gap: 6,
   },
   setBudgetBtnText: {
     color: COLORS.finance,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
   },
 
@@ -624,9 +620,9 @@ const modalStyles = StyleSheet.create({
   mainTabRow: {
     flexDirection: 'row',
     backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.md,
-    padding: 3,
-    marginBottom: 14,
+    borderRadius: RADIUS.lg,
+    padding: 4,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -635,8 +631,9 @@ const modalStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: RADIUS.sm,
+    paddingVertical: 12,
+    minHeight: 44,
+    borderRadius: RADIUS.md,
   },
   mainTabBtnActive: {
     backgroundColor: COLORS.bgCard,
@@ -645,7 +642,7 @@ const modalStyles = StyleSheet.create({
   },
   mainTabText: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   mainTabTextActive: {
@@ -656,17 +653,18 @@ const modalStyles = StyleSheet.create({
   // Sub Tabs
   subTabRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 14,
   },
   subTabBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: RADIUS.sm,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    minHeight: 44,
+    borderRadius: RADIUS.md,
     backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -681,7 +679,7 @@ const modalStyles = StyleSheet.create({
   },
   subTabText: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
 
@@ -691,97 +689,97 @@ const modalStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.md,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 12,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   summaryBannerLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
     color: COLORS.textMuted,
     letterSpacing: 0.8,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   summaryBannerAmount: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '900',
     fontVariant: ['tabular-nums'],
     letterSpacing: -0.3,
   },
   summaryBannerBadge: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: RADIUS.xs,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   summaryBannerBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.textSecondary,
   },
 
   // List Items
   list: {
-    gap: 8,
+    gap: 10,
   },
   itemCard: {
     backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.md,
-    padding: 12,
+    borderRadius: RADIUS.lg,
+    padding: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   itemMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   iconBox: {
-    width: 36,
-    height: 36,
+    width: 42,
+    height: 42,
     borderRadius: RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 12,
     flexShrink: 0,
   },
   itemCenterCol: {
     flex: 1,
-    marginRight: 8,
+    marginRight: 10,
     justifyContent: 'center',
   },
   itemTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
+    gap: 8,
+    marginBottom: 3,
   },
   categoryName: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: COLORS.textPrimary,
     flexShrink: 1,
   },
   overBadge: {
     backgroundColor: COLORS.dangerLight,
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
     borderRadius: RADIUS.xs,
     flexShrink: 0,
   },
   overBadgeText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
     color: COLORS.danger,
     letterSpacing: 0.2,
   },
   itemMetaText: {
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.textMuted,
     fontWeight: '500',
   },
@@ -789,33 +787,33 @@ const modalStyles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'center',
     flexShrink: 0,
-    minWidth: 70,
+    minWidth: 80,
   },
   amountText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
   percentShareText: {
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.textMuted,
     fontWeight: '600',
     marginTop: 2,
     fontVariant: ['tabular-nums'],
   },
   budgetPercentText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
   budgetDiffText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     marginTop: 2,
     fontVariant: ['tabular-nums'],
   },
   barTrack: {
-    height: 5,
+    height: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: RADIUS.full,
     overflow: 'hidden',
@@ -828,9 +826,9 @@ const modalStyles = StyleSheet.create({
   // Budget Hero Banner
   budgetHeroBanner: {
     backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.md,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: RADIUS.lg,
+    padding: 16,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -840,32 +838,32 @@ const modalStyles = StyleSheet.create({
     alignItems: 'center',
   },
   budgetHeroLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
     color: COLORS.textMuted,
     letterSpacing: 0.8,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   budgetHeroAmount: {
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '900',
     color: COLORS.textPrimary,
     fontVariant: ['tabular-nums'],
   },
   budgetHeroLimit: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: COLORS.textMuted,
   },
   budgetStatusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: RADIUS.xs,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
     flexShrink: 0,
   },
   budgetStatusBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.3,
   },
@@ -873,15 +871,15 @@ const modalStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 10,
   },
   budgetHeroSubLeft: {
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.textSecondary,
     fontWeight: '600',
   },
   budgetHeroSubRight: {
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.textMuted,
     fontWeight: '500',
   },
@@ -890,37 +888,38 @@ const modalStyles = StyleSheet.create({
   emptyBox: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 32,
-    paddingHorizontal: 16,
+    paddingVertical: 36,
+    paddingHorizontal: 18,
     backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   emptyTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: COLORS.textSecondary,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   emptyText: {
-    fontSize: 12,
+    fontSize: 13,
     color: COLORS.textMuted,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   emptyCtaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.finance,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
     borderRadius: RADIUS.md,
-    marginTop: 14,
+    marginTop: 16,
+    minHeight: 44,
   },
   emptyCtaText: {
     color: '#08090C',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
   },
 });

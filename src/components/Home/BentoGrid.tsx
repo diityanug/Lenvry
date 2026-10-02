@@ -1,9 +1,8 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, Href } from 'expo-router';
-import { homeStyles as styles } from '../../styles/homeStyles';
+import { Href, router } from 'expo-router';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '../../constants/theme';
+import { homeStyles as styles } from '../../styles/homeStyles';
 
 interface BentoGridProps {
   habitCompletedCount: number;
@@ -28,15 +27,25 @@ export default function BentoGrid({
 }: BentoGridProps) {
   const habitPercent =
     habitTotalCount > 0 ? Math.round((habitCompletedCount / habitTotalCount) * 100) : 0;
-  const formattedExpenses = `Rp ${todayExpenses.toLocaleString('id-ID')}`;
   const nutritionPercent =
     calorieTarget > 0 ? Math.min(100, Math.round((todayCaloriesConsumed / calorieTarget) * 100)) : 0;
 
+  // Format expense with compact readable format so it never cuts off
+  const formatExpensesShort = (amount: number) => {
+    if (amount === 0) return 'Rp 0';
+    if (amount >= 1_000_000_000) return `Rp ${(amount / 1_000_000_000).toFixed(1)}B`;
+    if (amount >= 1_000_000) return `Rp ${(amount / 1_000_000).toFixed(1)}M`;
+    if (amount >= 100_000) return `Rp ${Math.round(amount / 1_000)}k`;
+    return `Rp ${amount.toLocaleString('id-ID')}`;
+  };
+
   return (
-    <>
-      <Text style={styles.sectionLabel}>OVERVIEW</Text>
+    <View style={styles.overviewSection}>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionLabel}>DAILY OVERVIEW</Text>
+      </View>
       <View style={styles.grid2x2}>
-        {/* Habits Card */}
+        {/* Habits / Activities Card */}
         <TouchableOpacity
           style={styles.pillarCard}
           onPress={() => router.push('/habits' as Href)}
@@ -52,13 +61,17 @@ export default function BentoGrid({
                 },
               ]}
             >
-              <Ionicons name="checkbox-outline" size={17} color={COLORS.success} />
+              <Ionicons name="checkbox-outline" size={18} color={COLORS.success} />
             </View>
-            <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
+            <View style={styles.pillarBadge}>
+              <Text style={styles.pillarBadgeText}>
+                {habitTotalCount > 0 ? `${habitPercent}%` : '0%'}
+              </Text>
+            </View>
           </View>
           <Text style={styles.pillarLabel}>Activities</Text>
           <Text style={styles.pillarValue}>
-            {habitTotalCount > 0 ? `${habitCompletedCount}/${habitTotalCount}` : '0'}
+            {habitTotalCount > 0 ? `${habitCompletedCount} / ${habitTotalCount}` : '0 / 0'}
           </Text>
           <View style={styles.pillarProgressTrack}>
             <View
@@ -68,12 +81,14 @@ export default function BentoGrid({
               ]}
             />
           </View>
-          <Text style={styles.pillarSub}>
-            {habitTotalCount > 0 ? `${habitPercent}% completed` : 'No tasks today'}
+          <Text style={styles.pillarSub} numberOfLines={1} ellipsizeMode="tail">
+            {habitTotalCount > 0
+              ? `${habitCompletedCount} of ${habitTotalCount} completed`
+              : 'No activities scheduled'}
           </Text>
         </TouchableOpacity>
 
-        {/* Fitness Card */}
+        {/* Fitness / Workout Card */}
         <TouchableOpacity
           style={styles.pillarCard}
           onPress={() => router.push('/fitness' as Href)}
@@ -89,13 +104,17 @@ export default function BentoGrid({
                 },
               ]}
             >
-              <Ionicons name="barbell-outline" size={17} color={COLORS.warning} />
+              <Ionicons name="barbell-outline" size={18} color={COLORS.warning} />
             </View>
-            <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
+            <View style={styles.pillarBadge}>
+              <Text style={styles.pillarBadgeText}>
+                {todayWorkoutCount > 0 ? 'Active' : 'Rest'}
+              </Text>
+            </View>
           </View>
           <Text style={styles.pillarLabel}>Workout</Text>
           <Text style={styles.pillarValue} numberOfLines={1}>
-            {todayWorkoutCount > 0 ? `${todayWorkoutCount} Exercises` : 'Rest Day'}
+            {todayWorkoutCount > 0 ? `${todayWorkoutCount} Done` : 'Rest Day'}
           </Text>
           <View style={styles.pillarProgressTrack}>
             <View
@@ -108,8 +127,8 @@ export default function BentoGrid({
               ]}
             />
           </View>
-          <Text style={styles.pillarSub} numberOfLines={1}>
-            {todayWorkoutCount > 0 ? todayWorkoutTitle : 'No workout today'}
+          <Text style={styles.pillarSub} numberOfLines={1} ellipsizeMode="tail">
+            {todayWorkoutCount > 0 ? todayWorkoutTitle : 'No workouts record'}
           </Text>
         </TouchableOpacity>
 
@@ -129,13 +148,17 @@ export default function BentoGrid({
                 },
               ]}
             >
-              <Ionicons name="restaurant-outline" size={17} color={COLORS.nutrition} />
+              <Ionicons name="restaurant-outline" size={18} color={COLORS.nutrition} />
             </View>
-            <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
+            <View style={styles.pillarBadge}>
+              <Text style={styles.pillarBadgeText}>
+                {`${nutritionPercent}%`}
+              </Text>
+            </View>
           </View>
           <Text style={styles.pillarLabel}>Nutrition</Text>
           <Text style={styles.pillarValue} numberOfLines={1}>
-            {todayCaloriesConsumed.toLocaleString('id-ID')}
+            {todayCaloriesConsumed.toLocaleString('en-US')}
             <Text style={styles.pillarUnit}> kcal</Text>
           </Text>
           <View style={styles.pillarProgressTrack}>
@@ -146,8 +169,8 @@ export default function BentoGrid({
               ]}
             />
           </View>
-          <Text style={styles.pillarSub} numberOfLines={1}>
-            {calorieTarget ? `Goal ${calorieTarget.toLocaleString('id-ID')} kcal` : 'Daily intake'}
+          <Text style={styles.pillarSub} numberOfLines={1} ellipsizeMode="tail">
+            {calorieTarget ? `Target: ${calorieTarget.toLocaleString('en-US')} kcal` : 'Daily calorie goal'}
           </Text>
         </TouchableOpacity>
 
@@ -167,13 +190,17 @@ export default function BentoGrid({
                 },
               ]}
             >
-              <Ionicons name="wallet-outline" size={17} color={COLORS.accentUSD} />
+              <Ionicons name="wallet-outline" size={18} color={COLORS.accentUSD} />
             </View>
-            <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
+            <View style={styles.pillarBadge}>
+              <Text style={styles.pillarBadgeText}>
+                Today
+              </Text>
+            </View>
           </View>
-          <Text style={styles.pillarLabel}>Expenses</Text>
+          <Text style={styles.pillarLabel}>Spending</Text>
           <Text style={styles.pillarValue} numberOfLines={1}>
-            {todayExpenses > 0 ? formattedExpenses : 'Rp 0'}
+            {formatExpensesShort(todayExpenses)}
           </Text>
           <View style={styles.pillarProgressTrack}>
             <View
@@ -186,11 +213,11 @@ export default function BentoGrid({
               ]}
             />
           </View>
-          <Text style={styles.pillarSub} numberOfLines={1}>
-            {todayExpenses > 0 ? "Today's spending" : 'No expenses today'}
+          <Text style={styles.pillarSub} numberOfLines={1} ellipsizeMode="tail">
+            {todayExpenses > 0 ? 'Total expenses' : 'No expenses'}
           </Text>
         </TouchableOpacity>
       </View>
-    </>
+    </View>
   );
 }

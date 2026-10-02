@@ -72,14 +72,16 @@ export const homeStyles = StyleSheet.create({
     flexShrink: 0,
   },
 
-  // Section Header
+  // Section Header & Overview
+  overviewSection: {
+    marginBottom: 20,
+  },
   sectionLabel: {
     color: COLORS.textMuted,
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1.1,
+    letterSpacing: 1,
     textTransform: 'uppercase',
-    marginBottom: 14,
   },
 
   // 2x2 Pillar Grid
@@ -87,8 +89,7 @@ export const homeStyles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: 14,
-    marginBottom: 26,
+    gap: 12,
   },
   pillarCard: {
     width: '48%',
@@ -96,38 +97,50 @@ export const homeStyles = StyleSheet.create({
     borderRadius: RADIUS.xl,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.border,
     justifyContent: 'space-between',
-    minHeight: 156,
+    minHeight: 162,
   },
   pillarTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   pillarIconWrap: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
   },
-  pillarLabel: {
+  pillarBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  pillarBadgeText: {
     fontSize: 11,
     fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+  pillarLabel: {
+    fontSize: 12,
+    fontWeight: '700',
     color: COLORS.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.2,
     marginBottom: 4,
   },
   pillarValue: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '800',
     color: COLORS.textPrimary,
-    letterSpacing: -0.4,
-    marginBottom: 8,
+    letterSpacing: -0.3,
+    marginBottom: 10,
   },
   pillarUnit: {
     fontSize: 12,
@@ -135,24 +148,24 @@ export const homeStyles = StyleSheet.create({
     color: COLORS.textMuted,
   },
   pillarProgressTrack: {
-    height: 5,
+    height: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 3,
+    borderRadius: RADIUS.full,
     overflow: 'hidden',
     marginBottom: 8,
   },
   pillarProgressFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: RADIUS.full,
   },
   pillarSub: {
     fontSize: 11,
     fontWeight: '500',
     color: COLORS.textSecondary,
-    lineHeight: 14,
+    lineHeight: 15,
   },
 
-  // Today's Habits Section
+  // Today's Activities Section
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -177,13 +190,14 @@ export const homeStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingVertical: 6,
     marginBottom: 20,
   },
   habitItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
+    minHeight: 52,
   },
   habitItemBorder: {
     borderBottomWidth: 1,
@@ -191,9 +205,9 @@ export const homeStyles = StyleSheet.create({
   },
   habitItemTitle: {
     color: COLORS.textPrimary,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 3,
   },
   habitItemTitleDone: {
     color: COLORS.textMuted,
@@ -201,35 +215,55 @@ export const homeStyles = StyleSheet.create({
   },
   habitItemMeta: {
     color: COLORS.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '500',
   },
-  highPriorityDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.danger,
-    marginLeft: 8,
+  priorityBadge: {
+    backgroundColor: 'rgba(244, 63, 94, 0.15)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(244, 63, 94, 0.3)',
+  },
+  priorityBadgeText: {
+    color: COLORS.danger,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   emptyCard: {
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.xl,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: 22,
+    padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
   },
+  emptyCardIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+  },
   emptyCardTitle: {
     color: COLORS.textPrimary,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     marginBottom: 4,
+    textAlign: 'center',
   },
   emptyCardSub: {
     color: COLORS.textMuted,
     fontSize: 12,
+    textAlign: 'center',
   },
 
   // Daily Status Overview Strip
@@ -244,14 +278,19 @@ export const homeStyles = StyleSheet.create({
   summaryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  summaryHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   summaryTitle: {
     color: COLORS.textMuted,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   summaryGrid: {
@@ -268,17 +307,16 @@ export const homeStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: -0.3,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   summaryItemLabel: {
     color: COLORS.textMuted,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
-    textTransform: 'uppercase',
   },
   summaryDivider: {
     width: 1,
-    height: 22,
+    height: 26,
     backgroundColor: COLORS.border,
   },
 

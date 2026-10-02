@@ -132,8 +132,8 @@ function NotificationSoundContent({
                     <Ionicons name="musical-notes" size={18} color={COLORS.success} />
                   </View>
                   <View>
-                    <Text style={styles.headerTitle}>Sound & Notification Style</Text>
-                    <Text style={styles.headerSubtitle}>Choose ringtones & configure habit alarms</Text>
+                    <Text style={styles.headerTitle}>Notification Style</Text>
+                    <Text style={styles.headerSubtitle}>Configure alarms</Text>
                   </View>
                 </View>
 
@@ -149,7 +149,7 @@ function NotificationSoundContent({
 
               <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
                 {/* Sound Options List */}
-                <Text style={styles.sectionLabel}>RINGTONE OPTIONS</Text>
+                <Text style={styles.sectionLabel}>LIST</Text>
                 <View style={styles.soundList}>
                   {SOUND_OPTIONS.map((s) => {
                     const isSelected = (selectedSoundId || settings.defaultSound) === s.id;

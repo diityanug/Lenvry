@@ -96,6 +96,7 @@ export default function HabitTrackerScreen() {
           timeSlot: h.timeSlot || 'Anytime',
           completedDates: Array.isArray(h.completedDates) ? h.completedDates : [],
           subtasks: Array.isArray(h.subtasks) ? h.subtasks : [],
+          extraNotes: Array.isArray(h.extraNotes) ? h.extraNotes : [],
         }));
         setHabits(parsed);
       }
@@ -296,6 +297,14 @@ export default function HabitTrackerScreen() {
     await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updatedHabits));
   };
 
+  const updateHabitNotes = async (habitId: string, extraNotes: string[]) => {
+    const updatedHabits = habits.map((h) =>
+      h.id === habitId ? { ...h, extraNotes } : h
+    );
+    setHabits(updatedHabits);
+    await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updatedHabits));
+  };
+
   const deleteHabit = (id: string) => {
     showAlert(
       'danger',
@@ -366,7 +375,7 @@ export default function HabitTrackerScreen() {
       <View style={styles.headerRow}>
         <View style={{ flex: 1, marginRight: 12 }}>
           <Text style={styles.headerTitleBold}>Daily Activities</Text>
-          <Text style={styles.headerSubtitleLight}>Build Consistency, Shape Your Future</Text>
+          <Text style={styles.headerSubtitleLight}>Build Consistency</Text>
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -471,6 +480,7 @@ export default function HabitTrackerScreen() {
                   onDelete={deleteHabit}
                   onEdit={handleOpenEdit}
                   onToggleSubtask={toggleSubtask}
+                  onUpdateNotes={updateHabitNotes}
                 />
               );
             })}

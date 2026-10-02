@@ -55,6 +55,34 @@ const PRESET_HABITS = [
   { title: 'Sleep 8 Hours', category: 'Health' },
 ];
 
+const HABIT_CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Health: 'fitness-outline',
+  Fitness: 'barbell-outline',
+  Work: 'briefcase-outline',
+  Study: 'book-outline',
+  Mindfulness: 'leaf-outline',
+  Spirituality: 'sunny-outline',
+  Finance: 'wallet-outline',
+  Routine: 'time-outline',
+  Personal: 'person-outline',
+  Social: 'people-outline',
+};
+
+const getHabitCategoryIcon = (category: string): keyof typeof Ionicons.glyphMap => {
+  if (HABIT_CATEGORY_ICONS[category]) return HABIT_CATEGORY_ICONS[category];
+  const FALLBACKS: (keyof typeof Ionicons.glyphMap)[] = [
+    'sparkles-outline',
+    'compass-outline',
+    'flash-outline',
+    'flame-outline',
+    'ribbon-outline',
+    'star-outline',
+  ];
+  let hash = 0;
+  for (let i = 0; i < category.length; i++) hash = category.charCodeAt(i) + ((hash << 5) - hash);
+  return FALLBACKS[Math.abs(hash) % FALLBACKS.length];
+};
+
 export default function AddHabitModal({
   visible,
   selectedDate,
@@ -208,7 +236,7 @@ function AddHabitContent({
           {/* Header */}
           <View style={habitModalStyles.headerRow}>
             <Text style={habitModalStyles.headerTitle}>
-              {isEditing ? 'Edit Habit / Task' : 'New Habit / Task'}
+              {isEditing ? 'Edit Activity' : 'Add Activity'}
             </Text>
             <TouchableOpacity
               onPress={onClose}
@@ -276,10 +304,10 @@ function AddHabitContent({
 
             {/* Habit Name Input */}
             <View style={habitModalStyles.sectionCard}>
-              <Text style={habitModalStyles.sectionLabel}>NAME / TITLE</Text>
+              <Text style={habitModalStyles.sectionLabel}>TITLE</Text>
               <TextInput
                 style={habitModalStyles.input}
-                placeholder="e.g. Read 20 Pages, Drink Water, Submit Project..."
+                placeholder="e.g. Pray, Running..."
                 placeholderTextColor={COLORS.textMuted}
                 value={localTitle}
                 onChangeText={(val) => {
@@ -298,7 +326,7 @@ function AddHabitContent({
 
             {/* Frequency (Recurring Settings) */}
             <View style={habitModalStyles.sectionCard}>
-              <Text style={habitModalStyles.sectionLabel}>RECURRING FREQUENCY</Text>
+              <Text style={habitModalStyles.sectionLabel}>REPEAT FREQUENCY</Text>
               <View style={habitModalStyles.rowWrap}>
                 {[
                   { label: 'One-time', value: 'once' },
@@ -529,9 +557,9 @@ function AddHabitContent({
               ) : null}
             </View>
 
-            {/* Checklist / Sub-tasks */}
+            {/* Checklist */}
             <View style={habitModalStyles.sectionCard}>
-              <Text style={habitModalStyles.sectionLabel}>CHECKLIST / SUB-TASKS</Text>
+              <Text style={habitModalStyles.sectionLabel}>CHECKLIST</Text>
               
               {localSubtasks.map((st) => (
                 <View key={st.id} style={habitModalStyles.subtaskItemRow}>
@@ -568,7 +596,7 @@ function AddHabitContent({
 
             {/* Description Input */}
             <View style={habitModalStyles.sectionCard}>
-              <Text style={habitModalStyles.sectionLabel}>DESCRIPTION & NOTES</Text>
+              <Text style={habitModalStyles.sectionLabel}>NOTES</Text>
               <TextInput
                 style={[habitModalStyles.input, habitModalStyles.descriptionInput]}
                 placeholder="Notes, targets, details..."
@@ -590,6 +618,7 @@ function AddHabitContent({
               <View style={habitModalStyles.categoriesWrap}>
                 {categories.map((cat) => {
                   const isSelected = localCategory === cat;
+                  const catIcon = getHabitCategoryIcon(cat);
                   return (
                     <TouchableOpacity
                       key={cat}
@@ -604,6 +633,12 @@ function AddHabitContent({
                       onLongPress={() => onDeleteCategory(cat)}
                       activeOpacity={0.7}
                     >
+                      <Ionicons
+                        name={catIcon}
+                        size={16}
+                        color={isSelected ? '#08090C' : COLORS.textSecondary}
+                        style={{ marginRight: 6 }}
+                      />
                       <Text
                         style={[
                           habitModalStyles.categoryChipText,
@@ -621,7 +656,7 @@ function AddHabitContent({
                   onPress={onOpenAddCategory}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="add" size={14} color={COLORS.success} />
+                  <Ionicons name="add" size={16} color={COLORS.success} />
                   <Text style={habitModalStyles.addCategoryText}>Add</Text>
                 </TouchableOpacity>
               </View>
@@ -736,26 +771,26 @@ const habitModalStyles = StyleSheet.create({
   },
   sectionCard: {
     backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.lg,
-    padding: 14,
+    borderRadius: RADIUS.xl,
+    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   sectionLabel: {
     color: COLORS.textSecondary,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1,
-    marginBottom: 8,
+    marginBottom: 10,
     textTransform: 'uppercase',
   },
   subSectionLabel: {
     color: COLORS.textMuted,
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.8,
-    marginBottom: 6,
+    marginBottom: 8,
     textTransform: 'uppercase',
   },
   catHeaderRow: {
@@ -767,30 +802,32 @@ const habitModalStyles = StyleSheet.create({
   input: {
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.md,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 50,
     color: COLORS.textPrimary,
-    fontSize: 13,
+    fontSize: 15,
     borderWidth: 1,
     borderColor: COLORS.border,
     fontWeight: '600',
   },
   descriptionInput: {
-    height: 70,
-    paddingTop: 10,
+    minHeight: 88,
+    paddingTop: 12,
   },
   rowWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
   },
   chipBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.bgCard,
-    paddingVertical: 6,
-    paddingHorizontal: 11,
-    borderRadius: RADIUS.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    minHeight: 42,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -800,7 +837,7 @@ const habitModalStyles = StyleSheet.create({
   },
   chipBtnText: {
     color: COLORS.textSecondary,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
   },
   chipBtnTextActive: {
@@ -808,20 +845,20 @@ const habitModalStyles = StyleSheet.create({
     fontWeight: '800',
   },
   priorityDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
   },
   daysRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 4,
+    marginTop: 6,
   },
   dayCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: COLORS.bgCard,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -834,7 +871,7 @@ const habitModalStyles = StyleSheet.create({
   },
   dayCircleText: {
     color: COLORS.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
   },
   dayCircleTextActive: {
@@ -845,28 +882,30 @@ const habitModalStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 46,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   subtaskItemTitle: {
     flex: 1,
     color: COLORS.textPrimary,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    marginLeft: 8,
+    marginLeft: 10,
   },
   addSubtaskRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
+    gap: 8,
   },
   addSubtaskBtn: {
-    width: 40,
-    height: 40,
+    width: 50,
+    height: 50,
     borderRadius: RADIUS.md,
     backgroundColor: COLORS.success,
     alignItems: 'center',
@@ -875,13 +914,16 @@ const habitModalStyles = StyleSheet.create({
   categoriesWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
   categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.bgCard,
-    paddingVertical: 7,
-    paddingHorizontal: 13,
-    borderRadius: RADIUS.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minHeight: 44,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -891,7 +933,7 @@ const habitModalStyles = StyleSheet.create({
   },
   categoryChipText: {
     color: COLORS.textSecondary,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   categoryChipTextActive: {
@@ -903,38 +945,42 @@ const habitModalStyles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.successSoft,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(16, 185, 129, 0.35)',
     borderStyle: 'dashed',
-    paddingVertical: 7,
-    paddingHorizontal: 11,
-    borderRadius: RADIUS.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    minHeight: 44,
+    borderRadius: RADIUS.md,
   },
   addCategoryText: {
     color: COLORS.success,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
-    marginLeft: 4,
+    marginLeft: 6,
   },
   saveButton: {
     backgroundColor: COLORS.success,
-    borderRadius: RADIUS.md,
-    paddingVertical: 14,
+    borderRadius: RADIUS.xl,
+    paddingVertical: 16,
+    minHeight: 52,
     alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 4,
+    justifyContent: 'center',
+    marginTop: 10,
+    marginBottom: 8,
   },
   saveButtonText: {
     color: '#08090C',
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '800',
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
   },
   presetChip: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.bgCardSub,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    minHeight: 38,
     borderRadius: RADIUS.full,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -945,7 +991,7 @@ const habitModalStyles = StyleSheet.create({
   },
   presetChipText: {
     color: COLORS.textSecondary,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   presetChipTextActive: {
@@ -969,20 +1015,21 @@ const habitModalStyles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.md,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    minHeight: 50,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   timePickerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     flex: 1,
   },
   timePickerIconBox: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     borderRadius: RADIUS.sm,
     backgroundColor: COLORS.bgCardSub,
     justifyContent: 'center',
@@ -996,25 +1043,25 @@ const habitModalStyles = StyleSheet.create({
   },
   timePickerValue: {
     color: COLORS.success,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
   },
   timePickerValuePlaceholder: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
   },
   timePickerSubtext: {
     color: COLORS.textMuted,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '500',
-    marginTop: 1,
+    marginTop: 2,
   },
   timePickerRight: {
     marginLeft: 8,
   },
   timePickerClearBtn: {
-    padding: 2,
+    padding: 4,
   },
   soundSelectorContainer: {
     marginTop: 4,

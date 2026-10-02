@@ -98,7 +98,7 @@ export const CategoryBudgetModal = ({
             <View style={styles.headerRow}>
               <View style={styles.headerTitleGroup}>
                 <View style={[styles.headerIconWrap, { backgroundColor: theme.bg }]}>
-                  <Ionicons name={theme.icon} size={18} color={theme.color} />
+                  <Ionicons name={theme.icon} size={20} color={theme.color} />
                 </View>
                 <View style={{ flex: 1, flexShrink: 1 }}>
                   <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">Set Category Budget</Text>
@@ -106,15 +106,15 @@ export const CategoryBudgetModal = ({
                 </View>
               </View>
 
-              <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
+              <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Ionicons name="close-circle" size={26} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
 
             <ScrollView
               showsVerticalScrollIndicator={false}
               automaticallyAdjustKeyboardInsets={true}
-              contentContainerStyle={{ paddingBottom: Math.max(16, keyboardHeight + 16) }}
+              contentContainerStyle={{ paddingBottom: Math.max(20, keyboardHeight + 20) }}
               keyboardShouldPersistTaps="handled"
             >
               {/* Category Horizontal Chips */}
@@ -140,7 +140,7 @@ export const CategoryBudgetModal = ({
                       >
                         <Ionicons
                           name={catTheme.icon}
-                          size={14}
+                          size={16}
                           color={isSelected ? '#08090C' : catTheme.color}
                           style={{ marginRight: 6 }}
                         />
@@ -195,7 +195,7 @@ export const CategoryBudgetModal = ({
 
                 {currentBudget && currentBudget.limit > 0 ? (
                   <View style={styles.currentLimitBox}>
-                    <Ionicons name="information-circle-outline" size={14} color={COLORS.finance} />
+                    <Ionicons name="information-circle-outline" size={16} color={COLORS.finance} />
                     <Text style={styles.currentLimitText}>
                       Active limit: {formatMoney(currentBudget.limit, currency)} / month
                     </Text>
@@ -228,79 +228,79 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
-    maxHeight: '85%',
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 28,
+    maxHeight: '88%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
   handle: {
-    width: 36,
-    height: 4,
+    width: 40,
+    height: 5,
     backgroundColor: COLORS.borderLight,
-    borderRadius: 2,
+    borderRadius: 3,
     alignSelf: 'center',
-    marginBottom: 14,
+    marginBottom: 16,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
-    paddingBottom: 12,
+    marginBottom: 16,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
   headerTitleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     flex: 1,
   },
   headerIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
     color: COLORS.textPrimary,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
     letterSpacing: -0.2,
   },
   subtitle: {
     color: COLORS.textMuted,
-    fontSize: 11,
-    marginTop: 1,
+    fontSize: 12,
+    marginTop: 2,
     fontWeight: '500',
   },
   sectionCard: {
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   label: {
     color: COLORS.textSecondary,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.8,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   chipBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.bgCard,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    minHeight: 38,
+    minHeight: 44,
   },
   chipBtnActive: {
     backgroundColor: COLORS.finance,
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     color: COLORS.textSecondary,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   chipTextActive: {
@@ -316,9 +316,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   chipDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: COLORS.finance,
     marginLeft: 6,
   },
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   },
   clearBtnText: {
     color: COLORS.danger,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
   },
   inputContainer: {
@@ -339,41 +339,45 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-    marginTop: 2,
-    marginBottom: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    marginTop: 4,
+    marginBottom: 12,
+    minHeight: 54,
   },
   currencyPrefix: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
     color: COLORS.finance,
-    marginRight: 8,
+    marginRight: 10,
   },
   input: {
     flex: 1,
     color: COLORS.textPrimary,
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '800',
-    paddingVertical: 8,
+    paddingVertical: 10,
     fontVariant: ['tabular-nums'],
   },
   presetsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 8,
+    gap: 8,
+    marginBottom: 10,
   },
   presetChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: RADIUS.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
     borderColor: COLORS.border,
+    minHeight: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   presetChipText: {
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.textMuted,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
@@ -381,28 +385,30 @@ const styles = StyleSheet.create({
   currentLimitBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
-    paddingTop: 8,
+    gap: 8,
+    marginTop: 8,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.05)',
   },
   currentLimitText: {
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.finance,
     fontWeight: '600',
   },
   saveBtn: {
     backgroundColor: COLORS.finance,
-    borderRadius: RADIUS.md,
-    paddingVertical: 14,
+    borderRadius: RADIUS.lg,
+    paddingVertical: 16,
+    minHeight: 52,
     alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 16,
+    justifyContent: 'center',
+    marginTop: 6,
+    marginBottom: 20,
   },
   saveBtnText: {
     color: '#08090C',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.4,
   },
