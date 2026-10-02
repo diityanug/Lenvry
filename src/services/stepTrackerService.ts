@@ -69,14 +69,23 @@ export function subscribeLivePedometer(
   onStepDelta: (stepDelta: number) => void
 ): (() => void) | null {
   try {
-    let lastReportedSteps = 0;
+    let lastReportedSteps: number | null = null;
 
     const subscription = Pedometer.watchStepCount((result) => {
       if (result && typeof result.steps === 'number') {
+        if (lastReportedSteps === null) {
+          // Initialize baseline with the first reading; do not emit delta for existing steps
+          lastReportedSteps = result.steps;
+          return;
+        }
+
         const delta = result.steps - lastReportedSteps;
         if (delta > 0) {
           lastReportedSteps = result.steps;
           onStepDelta(delta);
+        } else if (result.steps < lastReportedSteps) {
+          // In case sensor counter was reset
+          lastReportedSteps = result.steps;
         }
       }
     });
