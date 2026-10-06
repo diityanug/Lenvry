@@ -374,6 +374,7 @@ export default function FinanceTracker() {
     await AsyncStorage.setItem('@finance_recurring', JSON.stringify(bills));
   };
 
+
   const handleQuickLogBill = (bill: RecurringBill) => {
     setEditingTxId(null);
     setIsPayingBill(true);
@@ -550,6 +551,41 @@ export default function FinanceTracker() {
     }
     setNewCategoryName('');
     setCatModalVisible(false);
+  };
+
+  const deleteCategory = (catToDelete: string) => {
+    const isExpense = type === 'expense';
+    const list = isExpense ? expenseCategories : incomeCategories;
+    if (list.length <= 1) {
+      showAlert('warning', 'Cannot Delete', 'At least one category must remain.');
+      return;
+    }
+    showAlert(
+      'danger',
+      'Delete Category?',
+      `Remove category "${catToDelete}"?`,
+      'DELETE',
+      'CANCEL',
+      async () => {
+        const updated = list.filter((c) => c !== catToDelete);
+        if (isExpense) {
+          setExpenseCategories(updated);
+          await AsyncStorage.setItem('@finance_exp_cat', JSON.stringify(updated));
+        } else {
+          setIncomeCategories(updated);
+          await AsyncStorage.setItem('@finance_inc_cat', JSON.stringify(updated));
+        }
+        if (selectedCategory === catToDelete) setSelectedCategory(updated[0]);
+
+        // Remove custom icon only if the category no longer exists in either list
+        const stillUsed = expenseCategories.concat(incomeCategories).filter((c) => c === catToDelete).length > 1;
+        if (!stillUsed && customCategoryIcons.some((c) => c.category === catToDelete)) {
+          const nextIcons = customCategoryIcons.filter((c) => c.category !== catToDelete);
+          setCustomCategoryIcons(nextIcons);
+          await AsyncStorage.setItem('@finance_custom_cat_icons', JSON.stringify(nextIcons));
+        }
+      }
+    );
   };
 
   const saveBalanceCorrection = async () => {
@@ -823,6 +859,8 @@ export default function FinanceTracker() {
         accounts={accounts}
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}
+        customCategoryIcons={customCategoryIcons}
+        transactions={transactions}
         isEditing={Boolean(editingTxId)}
         hideTypeSwitcher={isPayingBill}
         onClose={() => {
@@ -841,6 +879,7 @@ export default function FinanceTracker() {
         setSelectedToSubAccId={setSelectedToSubAccId}
         onOpenDatePicker={() => setDatePickerVisible(true)}
         onOpenAddCategory={() => setCatModalVisible(true)}
+        onDeleteCategory={deleteCategory}
       />
 
       <DatePickerModal
@@ -858,6 +897,11 @@ export default function FinanceTracker() {
         account={selectedAccountForDetail}
         totalBalance={selectedAccountForDetail ? getAccBalance(selectedAccountForDetail.id) : 0}
         getSubBalance={getSubBalance}
+        transactions={transactions}
+        accounts={accounts}
+        onEditTransaction={editTransaction}
+        onDeleteTransaction={deleteTransaction}
+        onCloneTransaction={cloneTransaction}
         onClose={() => setAccDetailModalVisible(false)}
         onRenameAccount={(acc) => {
           setRenameTarget({ type: 'main', accId: acc.id });

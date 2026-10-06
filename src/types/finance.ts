@@ -46,6 +46,7 @@ export interface RecurringBill {
   currency: 'IDR' | 'USD';
 }
 
+
 export const ACCOUNT_TYPES = ['Bank', 'E-Wallet', 'Cash', 'Investment', 'Credit Card', 'E-Money'] as const;
 
 export const DEFAULT_EXPENSE_CATEGORIES = [

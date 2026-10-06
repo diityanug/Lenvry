@@ -16,18 +16,10 @@ import StickyNoteModal from '../components/Home/StickyNoteModal';
 import { Habit } from '../types/habits';
 import { NutritionLog, NutritionTarget, DEFAULT_NUTRITION_TARGET } from '../types/nutrition';
 import { StickyNote } from '../types/notes';
-import {
-  fetchTodaySystemSteps,
-  subscribeLivePedometer,
-  syncTodayStepsToStorage,
-  incrementTodayStepsInStorage,
-  getTodayDateKey,
-} from '../services/stepTrackerService';
 
 const USERNAME_KEY = '@wakemove_user_name';
 const NUTRITION_LOGS_KEY = '@wakemove_nutrition_logs';
 const NUTRITION_TARGETS_KEY = '@wakemove_nutrition_targets';
-const STEPS_LOGS_KEY = '@lenvry_steps_logs';
 const GENERAL_NOTES_KEY = '@lenvry_general_notes';
 
 export default function HomeScreen() {
@@ -47,8 +39,6 @@ export default function HomeScreen() {
   const [todayCaloriesConsumed, setTodayCaloriesConsumed] = useState(0);
   const [calorieTarget, setCalorieTarget] = useState(DEFAULT_NUTRITION_TARGET.calories);
 
-  const [todaySteps, setTodaySteps] = useState(0);
-  const [stepsGoal, setStepsGoal] = useState(6000);
   const [notes, setNotes] = useState<StickyNote[]>([]);
 
   const today = new Date().toLocaleDateString('en-US', {
@@ -66,7 +56,6 @@ export default function HomeScreen() {
         '@fitness_workouts',
         NUTRITION_LOGS_KEY,
         NUTRITION_TARGETS_KEY,
-        STEPS_LOGS_KEY,
         GENERAL_NOTES_KEY,
       ];
       const results = await AsyncStorage.multiGet(keys);
@@ -155,22 +144,6 @@ export default function HomeScreen() {
         }
       }
 
-      // Steps Tracker
-      const storedStepsLogs = dataMap[STEPS_LOGS_KEY];
-      const todayStepKey = getTodayDateKey(todayDateObj);
-      if (storedStepsLogs) {
-        const stepsMap: Record<string, { steps: number; goal?: number }> = JSON.parse(storedStepsLogs);
-        const todayStepData = stepsMap[todayStepKey] || stepsMap[dateIsoKey];
-        if (todayStepData) {
-          setTodaySteps(todayStepData.steps || 0);
-          if (todayStepData.goal) setStepsGoal(todayStepData.goal);
-        } else {
-          setTodaySteps(0);
-        }
-      } else {
-        setTodaySteps(0);
-      }
-
       // General Sticky Notes & Plans
       const storedNotes = dataMap[GENERAL_NOTES_KEY];
       if (storedNotes) {
@@ -198,52 +171,8 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      let isMounted = true;
-      let unsubscribePedometer: (() => void) | null = null;
-
-      const initPedometerFlow = async () => {
-        // Step 1: Wait for storage metrics to fully load first
-        await fetchDashboardData();
-
-        if (!isMounted) return;
-
-        // Step 2: Sync system steps if OS reports higher count
-        try {
-          const systemSteps = await fetchTodaySystemSteps();
-          if (isMounted && typeof systemSteps === 'number' && systemSteps > 0) {
-            setTodaySteps((prev) => {
-              const finalSteps = Math.max(prev, systemSteps);
-              syncTodayStepsToStorage(finalSteps, stepsGoal);
-              return finalSteps;
-            });
-          }
-        } catch {
-          // ignore
-        }
-
-        if (!isMounted) return;
-
-        // Step 3: Start live pedometer watcher ONLY after baseline is established
-        unsubscribePedometer = subscribeLivePedometer((delta) => {
-          if (isMounted && delta > 0) {
-            incrementTodayStepsInStorage(delta, stepsGoal).then((newTotal) => {
-              if (isMounted && newTotal > 0) {
-                setTodaySteps(newTotal);
-              }
-            });
-          }
-        });
-      };
-
-      initPedometerFlow();
-
-      return () => {
-        isMounted = false;
-        if (unsubscribePedometer) {
-          unsubscribePedometer();
-        }
-      };
-    }, [stepsGoal])
+      fetchDashboardData();
+    }, [])
   );
 
   const handleOpenCreateNote = () => {
@@ -371,8 +300,6 @@ export default function HomeScreen() {
           todayExpenses={todayExpenses}
           todayCaloriesConsumed={todayCaloriesConsumed}
           calorieTarget={calorieTarget}
-          todaySteps={todaySteps}
-          stepsGoal={stepsGoal}
         />
 
         {/* Pinned Sticky Notes (Daftar Belanja, Ide, Wishlist) */}

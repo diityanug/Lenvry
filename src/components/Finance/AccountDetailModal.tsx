@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Text,
   View,
@@ -10,8 +10,11 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Account, formatMoney } from '../../types/finance';
+import { Account, Transaction, formatMoney } from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
+
+const formatTxShortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
 interface AccountDetailModalProps {
   visible: boolean;
@@ -24,6 +27,11 @@ interface AccountDetailModalProps {
   onEditBalance: (accId: string, subId: string) => void;
   onRenameSubAccount: (accId: string, subId: string, currentName: string) => void;
   onDeleteSubAccount: (accId: string, subId: string) => void;
+  transactions?: Transaction[];
+  accounts?: Account[];
+  onEditTransaction?: (tx: Transaction) => void;
+  onDeleteTransaction?: (id: string) => void;
+  onCloneTransaction?: (tx: Transaction) => void;
 }
 
 export const AccountDetailModal = ({
@@ -37,7 +45,50 @@ export const AccountDetailModal = ({
   onEditBalance,
   onRenameSubAccount,
   onDeleteSubAccount,
+  transactions = [],
+  accounts = [],
+  onEditTransaction,
+  onDeleteTransaction,
+  onCloneTransaction,
 }: AccountDetailModalProps) => {
+  const [subFilter, setSubFilter] = useState<string>('all');
+  const [visibleCount, setVisibleCount] = useState<number>(20);
+  const [prevKey, setPrevKey] = useState<string>('');
+
+  const currentKey = `${account?.id}_${visible}`;
+  if (currentKey !== prevKey) {
+    setPrevKey(currentKey);
+    setSubFilter('all');
+    setVisibleCount(20);
+  }
+
+  const history = useMemo(() => {
+    if (!account) return [];
+    const rows: { tx: Transaction; delta: number }[] = [];
+    for (const tx of transactions) {
+      const isSource = tx.accountId === account.id;
+      const isDest = tx.type === 'transfer' && tx.toAccountId === account.id;
+      if (!isSource && !isDest) continue;
+
+      const srcMatches = isSource && (subFilter === 'all' || tx.subAccountId === subFilter);
+      const dstMatches = isDest && (subFilter === 'all' || tx.toSubAccountId === subFilter);
+      if (!srcMatches && !dstMatches) continue;
+
+      let delta = 0;
+      if (tx.type === 'income') delta = tx.amount;
+      else if (tx.type === 'expense') delta = -tx.amount;
+      else {
+        // Transfer: money out of the source, into the destination (nets to 0 when both are in view)
+        delta = (dstMatches ? tx.amount : 0) - (srcMatches ? tx.amount : 0);
+      }
+      rows.push({ tx, delta });
+    }
+    return rows.sort((a, b) => new Date(b.tx.date).getTime() - new Date(a.tx.date).getTime());
+  }, [account, transactions, subFilter]);
+
+  const totalIncome = history.reduce((s, r) => (r.tx.type === 'income' ? s + r.tx.amount : s), 0);
+  const totalExpense = history.reduce((s, r) => (r.tx.type === 'expense' ? s + r.tx.amount : s), 0);
+
   if (!account) return null;
 
   return (
@@ -147,6 +198,107 @@ export const AccountDetailModal = ({
                     </View>
                   );
                 })}
+
+                {/* SECTION: ACCOUNT HISTORY */}
+                <View style={modalStyles.subSectionHeader}>
+                  <Text style={modalStyles.sectionLabel}>HISTORY ({history.length})</Text>
+                  <Text style={modalStyles.subHelperText}>Income & expenses for this account</Text>
+                </View>
+
+                <View style={modalStyles.historySummaryRow}>
+                  <View style={modalStyles.historySummaryBox}>
+                    <Text style={modalStyles.historySummaryLabel}>INCOME</Text>
+                    <Text style={[modalStyles.historySummaryValue, { color: COLORS.success }]} numberOfLines={1}>
+                      {formatMoney(totalIncome, account.currency)}
+                    </Text>
+                  </View>
+                  <View style={modalStyles.historySummaryBox}>
+                    <Text style={modalStyles.historySummaryLabel}>EXPENSE</Text>
+                    <Text style={[modalStyles.historySummaryValue, { color: COLORS.danger }]} numberOfLines={1}>
+                      {formatMoney(totalExpense, account.currency)}
+                    </Text>
+                  </View>
+                </View>
+
+                {account.subAccounts.length > 1 && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={modalStyles.historyChipRow}
+                  >
+                    {[{ id: 'all', name: 'All' }, ...account.subAccounts].map((s) => {
+                      const active = subFilter === s.id;
+                      return (
+                        <TouchableOpacity
+                          key={s.id}
+                          style={[modalStyles.historyChip, active && modalStyles.historyChipActive]}
+                          onPress={() => {
+                            setSubFilter(s.id);
+                            setVisibleCount(20);
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[modalStyles.historyChipText, active && modalStyles.historyChipTextActive]}>
+                            {s.name}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+
+                {history.length === 0 ? (
+                  <Text style={modalStyles.historyEmpty}>No transactions for this account yet.</Text>
+                ) : (
+                  history.slice(0, visibleCount).map(({ tx, delta }) => {
+                    const isTransfer = tx.type === 'transfer';
+                    const color = isTransfer && delta === 0 ? COLORS.accentUSD : delta >= 0 ? COLORS.success : COLORS.danger;
+                    const srcSub = account.subAccounts.find((s) => s.id === tx.subAccountId)?.name;
+                    const dstAcc = tx.toAccountId ? accounts.find((a) => a.id === tx.toAccountId) : undefined;
+                    const dstSub = dstAcc?.subAccounts.find((s) => s.id === tx.toSubAccountId)?.name;
+                    const meta = isTransfer
+                      ? `Transfer • ${srcSub || 'Main'} → ${dstAcc && dstAcc.id !== account.id ? `${dstAcc.name} • ` : ''}${dstSub || 'Main'}`
+                      : `${tx.category}${srcSub ? ` • ${srcSub}` : ''}`;
+                    return (
+                      <TouchableOpacity
+                        key={tx.id}
+                        style={modalStyles.historyRow}
+                        onPress={() => onEditTransaction?.(tx)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[modalStyles.historyIcon, { backgroundColor: `${color}22` }]}>
+                          <Ionicons
+                            name={isTransfer ? 'swap-horizontal' : tx.type === 'income' ? 'arrow-down' : 'arrow-up'}
+                            size={16}
+                            color={color}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={modalStyles.historyDesc} numberOfLines={1}>
+                            {tx.description}
+                          </Text>
+                          <Text style={modalStyles.historyMeta} numberOfLines={1}>
+                            {formatTxShortDate(tx.date)} • {meta}
+                          </Text>
+                        </View>
+                        <Text style={[modalStyles.historyAmount, { color }]}>
+                          {delta > 0 ? '+' : delta < 0 ? '-' : ''}
+                          {formatMoney(tx.amount, account.currency)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
+
+                {history.length > visibleCount && (
+                  <TouchableOpacity
+                    style={modalStyles.historyMoreBtn}
+                    onPress={() => setVisibleCount((c) => c + 20)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={modalStyles.historyMoreText}>Show more</Text>
+                  </TouchableOpacity>
+                )}
               </ScrollView>
             </View>
           </TouchableWithoutFeedback>
@@ -341,5 +493,102 @@ const modalStyles = StyleSheet.create({
     borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  historySummaryRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  historySummaryBox: {
+    flex: 1,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  historySummaryLabel: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  historySummaryValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 2,
+    fontVariant: ['tabular-nums'],
+  },
+  historyChipRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingBottom: 10,
+  },
+  historyChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bgCardSub,
+  },
+  historyChipActive: {
+    backgroundColor: COLORS.finance,
+    borderColor: COLORS.finance,
+  },
+  historyChipText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  historyChipTextActive: {
+    color: '#08090C',
+    fontWeight: '800',
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    gap: 10,
+  },
+  historyIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  historyDesc: {
+    color: COLORS.textPrimary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  historyMeta: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  historyAmount: {
+    fontSize: 13,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  historyEmpty: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    paddingVertical: 18,
+  },
+  historyMoreBtn: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  historyMoreText: {
+    color: COLORS.finance,
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

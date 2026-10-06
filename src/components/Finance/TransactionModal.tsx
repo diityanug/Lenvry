@@ -12,7 +12,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Account, CategoryCustomIcon, formatMoney } from '../../types/finance';
+import { Account, CategoryCustomIcon, Transaction, formatMoney } from '../../types/finance';
 import { CalculatorModal } from './CalculatorModal';
 import { COLORS, RADIUS } from '../../constants/theme';
 import { getCategoryTheme } from './CategoryBreakdownCard';
@@ -32,6 +32,7 @@ interface TransactionModalProps {
   expenseCategories: string[];
   incomeCategories: string[];
   customCategoryIcons?: CategoryCustomIcon[];
+  transactions?: Transaction[];
   isEditing?: boolean;
   onClose: () => void;
   onSave: () => void;
@@ -45,6 +46,7 @@ interface TransactionModalProps {
   setSelectedToSubAccId?: (id: string) => void;
   onOpenDatePicker: () => void;
   onOpenAddCategory: () => void;
+  onDeleteCategory?: (cat: string) => void;
   hideTypeSwitcher?: boolean;
 }
 
@@ -63,6 +65,7 @@ export const TransactionModal = ({
   expenseCategories,
   incomeCategories,
   customCategoryIcons,
+  transactions = [],
   isEditing = false,
   hideTypeSwitcher = false,
   onClose,
@@ -77,6 +80,7 @@ export const TransactionModal = ({
   setSelectedToSubAccId,
   onOpenDatePicker,
   onOpenAddCategory,
+  onDeleteCategory,
 }: TransactionModalProps) => {
   const [calcVisible, setCalcVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -108,6 +112,30 @@ export const TransactionModal = ({
   const isExpense = type === 'expense';
   const isTransfer = type === 'transfer';
   const activeCategories = isExpense ? expenseCategories : incomeCategories;
+
+  // Previously used descriptions for the selected category (most frequent first)
+  const descriptionSuggestions = React.useMemo(() => {
+    if (isTransfer) return [];
+    const counts = new Map<string, { text: string; count: number; last: number }>();
+    for (const t of transactions) {
+      if (t.category !== selectedCategory || t.type !== type) continue;
+      const text = (t.description || '').trim();
+      if (!text) continue;
+      const key = text.toLowerCase();
+      const time = new Date(t.date).getTime();
+      const prev = counts.get(key);
+      if (prev) {
+        prev.count += 1;
+        prev.last = Math.max(prev.last, time);
+      } else {
+        counts.set(key, { text, count: 1, last: time });
+      }
+    }
+    return Array.from(counts.values())
+      .sort((a, b) => b.count - a.count || b.last - a.last)
+      .slice(0, 8)
+      .map((e) => e.text);
+  }, [transactions, selectedCategory, type, isTransfer]);
 
   const handleSelectAccount = (acc: Account) => {
     setSelectedAccId(acc.id);
@@ -444,6 +472,29 @@ export const TransactionModal = ({
                 onChangeText={setDescription}
               />
 
+              {!isTransfer && descriptionSuggestions.length > 0 && (
+                <View>
+                  <Text style={txStyles.suggestLabel}>
+                    SAVED DESCRIPTIONS • {selectedCategory.toUpperCase()}
+                  </Text>
+                  <View style={txStyles.suggestWrap}>
+                    {descriptionSuggestions.map((s) => (
+                      <TouchableOpacity
+                        key={s}
+                        style={txStyles.suggestChip}
+                        onPress={() => setDescription(s)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="time-outline" size={12} color={COLORS.finance} style={{ marginRight: 5 }} />
+                        <Text style={txStyles.suggestChipText} numberOfLines={1}>
+                          {s}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
               <View style={{ marginTop: 12 }}>
                 <Text style={txStyles.sectionLabel}>TRANSACTION DATE</Text>
                 <TouchableOpacity style={txStyles.datePickerBtn} onPress={onOpenDatePicker} activeOpacity={0.7}>
@@ -501,6 +552,8 @@ export const TransactionModal = ({
                         key={cat}
                         style={[txStyles.catChip, isSelected && txStyles.catChipActive]}
                         onPress={() => setSelectedCategory(cat)}
+                        onLongPress={() => onDeleteCategory?.(cat)}
+                        delayLongPress={400}
                         activeOpacity={0.7}
                       >
                         <Ionicons
@@ -815,6 +868,36 @@ const txStyles = StyleSheet.create({
   catChipTextActive: {
     color: '#08090C',
     fontWeight: '800',
+  },
+  suggestLabel: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  suggestWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  suggestChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bgCardSub,
+    maxWidth: '100%',
+  },
+  suggestChipText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+    flexShrink: 1,
   },
   saveBtn: {
     backgroundColor: COLORS.finance,

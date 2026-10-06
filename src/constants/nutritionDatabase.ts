@@ -1,4 +1,5 @@
 import { FoodItem } from '../types/nutrition';
+import { BRAND_FOOD_DATABASE } from './brandFoodDatabase';
 
 export const BUILTIN_FOOD_DATABASE: FoodItem[] = [
   // --- STAPLES & KARBOHIDRAT ---
@@ -2786,6 +2787,7 @@ export const BUILTIN_FOOD_DATABASE: FoodItem[] = [
     defaultServingText: '1 pcs (52g)',
     defaultServingGrams: 52,
   },
+  ...BRAND_FOOD_DATABASE,
 ];
 
 /**
