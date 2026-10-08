@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Href, useFocusEffect } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readManyStored, updateStored } from '../storage';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import {
@@ -28,13 +28,8 @@ import HomeSettingsModal from '../components/Home/HomeSettingsModal';
 import StickyNotesSection from '../components/Home/StickyNotesSection';
 import StickyNoteModal from '../components/Home/StickyNoteModal';
 import { Habit } from '../types/habits';
-import { NutritionLog, NutritionTarget, DEFAULT_NUTRITION_TARGET } from '../types/nutrition';
+import { DEFAULT_NUTRITION_TARGET } from '../types/nutrition';
 import { StickyNote } from '../types/notes';
-
-const USERNAME_KEY = '@wakemove_user_name';
-const NUTRITION_LOGS_KEY = '@wakemove_nutrition_logs';
-const NUTRITION_TARGETS_KEY = '@wakemove_nutrition_targets';
-const GENERAL_NOTES_KEY = '@lenvry_general_notes';
 
 function getGreeting(hour = new Date().getHours()) {
   if (hour < 5) return 'Good night';
@@ -69,21 +64,18 @@ export default function HomeScreen() {
 
   const fetchDashboardData = async () => {
     try {
-      const keys = [
-        USERNAME_KEY,
-        '@finance_tx',
-        '@lenvry_habits',
-        '@fitness_workouts',
-        NUTRITION_LOGS_KEY,
-        NUTRITION_TARGETS_KEY,
-        GENERAL_NOTES_KEY,
-      ];
-      const results = await AsyncStorage.multiGet(keys);
-      const dataMap = Object.fromEntries(results);
+      const data = await readManyStored([
+        'userName',
+        'financeTransactions',
+        'habits',
+        'fitnessWorkouts',
+        'nutritionLogs',
+        'nutritionTargets',
+        'generalNotes',
+      ]);
 
-      const storedName = dataMap[USERNAME_KEY];
-      if (storedName) {
-        setUserName(storedName);
+      if (data.userName) {
+        setUserName(data.userName);
       }
 
       const todayDateObj = new Date();
@@ -91,10 +83,8 @@ export default function HomeScreen() {
       const dateIsoKey = todayDateObj.toISOString().split('T')[0];
 
       // Finance
-      const storedTx = dataMap['@finance_tx'];
-      if (storedTx) {
-        const txs: any[] = JSON.parse(storedTx);
-        const exp = txs
+      setTodayExpenses(
+        (data.financeTransactions ?? [])
           .filter((t) => {
             const d = new Date(t.date);
             return (
@@ -104,77 +94,32 @@ export default function HomeScreen() {
               t.type === 'expense'
             );
           })
-          .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-        setTodayExpenses(exp);
-      } else {
-        setTodayExpenses(0);
-      }
+          .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+      );
 
       // Habits
-      const storedHabits = dataMap['@lenvry_habits'];
-      if (storedHabits) {
-        const habits: Habit[] = JSON.parse(storedHabits);
-        const currentDayHabits = habits.filter((h) => isHabitActiveForDate(h, todayDateObj));
-        setTodayHabits(currentDayHabits);
-        setHabitTotalCount(currentDayHabits.length);
-        setHabitCompletedCount(
-          currentDayHabits.filter((h) => isHabitCompletedForDate(h, habitKey)).length
-        );
-      } else {
-        setTodayHabits([]);
-        setHabitTotalCount(0);
-        setHabitCompletedCount(0);
-      }
+      const currentDayHabits = (data.habits ?? []).filter((h) =>
+        isHabitActiveForDate(h, todayDateObj)
+      );
+      setTodayHabits(currentDayHabits);
+      setHabitTotalCount(currentDayHabits.length);
+      setHabitCompletedCount(
+        currentDayHabits.filter((h) => isHabitCompletedForDate(h, habitKey)).length
+      );
 
       // Fitness
-      const storedWorkouts = dataMap['@fitness_workouts'];
-      if (storedWorkouts) {
-        const workouts: any[] = JSON.parse(storedWorkouts);
-        const todayW = workouts.filter((w) => w.date === dateIsoKey);
-        setTodayWorkoutCount(todayW.length);
-      } else {
-        setTodayWorkoutCount(0);
-      }
+      setTodayWorkoutCount((data.fitnessWorkouts ?? []).filter((w) => w.date === dateIsoKey).length);
 
       // Nutrition
-      const storedLogs = dataMap[NUTRITION_LOGS_KEY];
-      if (storedLogs) {
-        const logs: NutritionLog[] = JSON.parse(storedLogs);
-        const todayLogs = logs.filter((log) => log.date === dateIsoKey);
-        const totalCals = todayLogs.reduce((sum, item) => sum + (item.calories || 0), 0);
-        setTodayCaloriesConsumed(totalCals);
-      } else {
-        setTodayCaloriesConsumed(0);
+      const todayLogs = (data.nutritionLogs ?? []).filter((log) => log.date === dateIsoKey);
+      setTodayCaloriesConsumed(todayLogs.reduce((sum, item) => sum + (item.calories || 0), 0));
+
+      if (data.nutritionTargets?.calories) {
+        setCalorieTarget(data.nutritionTargets.calories);
       }
 
-      const storedTargets = dataMap[NUTRITION_TARGETS_KEY];
-      if (storedTargets) {
-        const target: NutritionTarget = JSON.parse(storedTargets);
-        if (target.calories) {
-          setCalorieTarget(target.calories);
-        }
-      }
-
-      // General Sticky Notes & Plans
-      const storedNotes = dataMap[GENERAL_NOTES_KEY];
-      if (storedNotes) {
-        const rawNotes: any[] = JSON.parse(storedNotes);
-        const normalized: StickyNote[] = Array.isArray(rawNotes)
-          ? rawNotes.map((item, idx) => ({
-              id: item.id || `${Date.now()}-${idx}`,
-              title: item.title || 'Note',
-              type: item.type || (item.checklist && item.checklist.length > 0 ? 'checklist' : 'text'),
-              color: item.color || 'amber',
-              description: item.description ?? (item.content || ''),
-              checklist: Array.isArray(item.checklist) ? item.checklist : [],
-              createdAt: item.createdAt || new Date().toISOString(),
-              updatedAt: item.updatedAt || new Date().toISOString(),
-            }))
-          : [];
-        setNotes(normalized);
-      } else {
-        setNotes([]);
-      }
+      // General Sticky Notes & Plans — already normalised by the storage schema.
+      setNotes(data.generalNotes ?? []);
     } catch (e) {
       console.error('Failed to sync dashboard metrics:', e);
     }
@@ -219,15 +164,12 @@ export default function HomeScreen() {
 
   const handleSaveStickyNote = async (savedNote: StickyNote) => {
     try {
-      const exists = notes.some((n) => n.id === savedNote.id);
-      let updated: StickyNote[];
-      if (exists) {
-        updated = notes.map((n) => (n.id === savedNote.id ? savedNote : n));
-      } else {
-        updated = [savedNote, ...notes];
-      }
+      const updated = await updateStored('generalNotes', (current) =>
+        current.some((n) => n.id === savedNote.id)
+          ? current.map((n) => (n.id === savedNote.id ? savedNote : n))
+          : [savedNote, ...current]
+      );
       setNotes(updated);
-      await AsyncStorage.setItem(GENERAL_NOTES_KEY, JSON.stringify(updated));
     } catch (e) {
       console.error('Failed to save sticky note:', e);
     }
@@ -235,9 +177,10 @@ export default function HomeScreen() {
 
   const handleDeleteStickyNote = async (id: string) => {
     try {
-      const updated = notes.filter((n) => n.id !== id);
+      const updated = await updateStored('generalNotes', (current) =>
+        current.filter((n) => n.id !== id)
+      );
       setNotes(updated);
-      await AsyncStorage.setItem(GENERAL_NOTES_KEY, JSON.stringify(updated));
     } catch (e) {
       console.error('Failed to delete sticky note:', e);
     }
@@ -245,43 +188,39 @@ export default function HomeScreen() {
 
   const toggleHabitOnHome = async (id: string) => {
     try {
-      const storedHabits = await AsyncStorage.getItem('@lenvry_habits');
-      if (!storedHabits) return;
-      const todayDateObj = new Date();
-      const habitKey = formatDateKey(todayDateObj);
-      const allHabits: Habit[] = JSON.parse(storedHabits);
+      const habitKey = formatDateKey(new Date());
 
-      const updated = allHabits.map((h) => {
-        if (h.id === id) {
+      // updateStored re-reads the row first, so toggling here can no longer
+      // overwrite a change made on the Habits tab (and vice versa).
+      await updateStored('habits', (current) =>
+        current.map((h) => {
+          if (h.id !== id) return h;
+
           const isFreqOnce = !h.frequency || h.frequency === 'once';
+          const dates = h.completedDates ?? [];
+
           if (isFreqOnce) {
             const nextCompleted = !h.completed;
-            const currentDates = Array.isArray(h.completedDates) ? h.completedDates : [];
             const nextDates = nextCompleted
-              ? Array.from(new Set([...currentDates, habitKey]))
-              : currentDates.filter((d) => d !== habitKey);
+              ? Array.from(new Set([...dates, habitKey]))
+              : dates.filter((d) => d !== habitKey);
             return {
               ...h,
               completed: nextCompleted,
               completedDates: nextDates,
             };
-          } else {
-            const dates = Array.isArray(h.completedDates) ? h.completedDates : [];
-            const exists = dates.includes(habitKey);
-            const nextDates = exists
-              ? dates.filter((d) => d !== habitKey)
-              : [...dates, habitKey];
-            return {
-              ...h,
-              completed: nextDates.includes(habitKey),
-              completedDates: nextDates,
-            };
           }
-        }
-        return h;
-      });
 
-      await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updated));
+          const exists = dates.includes(habitKey);
+          const nextDates = exists ? dates.filter((d) => d !== habitKey) : [...dates, habitKey];
+          return {
+            ...h,
+            completed: nextDates.includes(habitKey),
+            completedDates: nextDates,
+          };
+        })
+      );
+
       fetchDashboardData();
     } catch (e) {
       console.error('Failed to toggle habit from home', e);

@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readStoredOr, updateStored } from '../storage';
 import { Habit } from '../types/habits';
+import { DEFAULT_NOTIFICATION_SETTINGS, NotificationSettings } from '../types/settings';
 import { isAndroidExpoGo } from '../utils/expoGoHelper';
 
 // On Android Expo Go (SDK 53+), importing/calling expo-notifications causes an immediate crash.
@@ -81,21 +82,8 @@ export const SOUND_OPTIONS: SoundOption[] = [
   },
 ];
 
-export interface NotificationSettings {
-  enabled: boolean;
-  defaultSound: string;
-  vibrate: boolean;
-  fullScreenAlarm: boolean;
-}
-
-const SETTINGS_STORAGE_KEY = '@lenvry_habit_notification_settings';
-
-const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
-  enabled: true,
-  defaultSound: 'chime',
-  vibrate: true,
-  fullScreenAlarm: true,
-};
+// Re-exported so existing importers keep working.
+export type { NotificationSettings };
 
 // Global preview player instance
 let currentPreviewPlayer: any = null;
@@ -162,9 +150,7 @@ export function getActivePreviewId(): string | null {
  */
 export async function getNotificationSettings(): Promise<NotificationSettings> {
   try {
-    const raw = await AsyncStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (!raw) return DEFAULT_NOTIFICATION_SETTINGS;
-    return { ...DEFAULT_NOTIFICATION_SETTINGS, ...JSON.parse(raw) };
+    return await readStoredOr('notificationSettings');
   } catch {
     return DEFAULT_NOTIFICATION_SETTINGS;
   }
@@ -177,10 +163,9 @@ export async function saveNotificationSettings(
   settings: Partial<NotificationSettings>
 ): Promise<NotificationSettings> {
   try {
-    const current = await getNotificationSettings();
-    const updated = { ...current, ...settings };
-    await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(updated));
-    return updated;
+    // Read-modify-write is done under the storage lock so two quick toggles
+    // (e.g. sound + vibration) cannot drop one of the changes.
+    return await updateStored('notificationSettings', (current) => ({ ...current, ...settings }));
   } catch {
     return DEFAULT_NOTIFICATION_SETTINGS;
   }

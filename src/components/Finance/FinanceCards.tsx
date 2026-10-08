@@ -385,10 +385,13 @@ export const HeroSummaryCard = ({
 
   return (
     <View>
-      {/* 1. Executive Total Net Worth Card */}
-      <View style={styles.heroCard}>
+      {/* 1. Executive Total Net Worth Card (Colorful & Integrated) */}
+      <View style={[styles.heroCard, isIDR ? styles.heroCardIDR : styles.heroCardUSD]}>
         <View style={styles.heroTopRow}>
-          <Text style={styles.balanceLabel}>TOTAL NET WORTH</Text>
+          <View style={styles.heroLabelGroup}>
+            <View style={[styles.heroIndicatorDot, { backgroundColor: isIDR ? COLORS.finance : COLORS.success }]} />
+            <Text style={styles.balanceLabel}>TOTAL NET WORTH</Text>
+          </View>
 
           <View style={styles.currencyToggle}>
             <TouchableOpacity
@@ -409,7 +412,7 @@ export const HeroSummaryCard = ({
         </View>
 
         <Text
-          style={styles.balanceAmount}
+          style={[styles.balanceAmount, isIDR ? styles.balanceAmountIDR : styles.balanceAmountUSD]}
           numberOfLines={1}
           adjustsFontSizeToFit={true}
           minimumFontScale={0.7}
@@ -417,9 +420,15 @@ export const HeroSummaryCard = ({
           {formatMoney(currentTotal, selectedCurrency)}
         </Text>
 
+        {/* Integrated Bottom Stats Row */}
         <View style={styles.heroSubRow}>
-          <View style={styles.heroSubBadge}>
-            <Text style={styles.heroSubBadgeText}>
+          <View style={[styles.heroSubBadge, { backgroundColor: isIDR ? 'rgba(56, 189, 248, 0.16)' : 'rgba(16, 185, 129, 0.16)', borderColor: isIDR ? 'rgba(56, 189, 248, 0.35)' : 'rgba(16, 185, 129, 0.35)' }]}>
+            <Ionicons
+              name="wallet"
+              size={13}
+              color={isIDR ? COLORS.finance : COLORS.success}
+            />
+            <Text style={[styles.heroSubBadgeText, { color: isIDR ? COLORS.finance : COLORS.success }]}>
               {accountsCount} {accountsCount === 1 ? 'Account' : 'Accounts'} Active
             </Text>
           </View>

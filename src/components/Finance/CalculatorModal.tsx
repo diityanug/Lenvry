@@ -287,13 +287,6 @@ const CalculatorModalContent = ({
                   </TouchableOpacity>
                 </View>
               </View>
-
-              <View style={calcStyles.footerHintRow}>
-                <Ionicons name="flash-outline" size={13} color={ACCENT} />
-                <Text style={calcStyles.footerHintText} numberOfLines={2}>
-                  Supports + − × ÷ and quick thousands (000) entry.
-                </Text>
-              </View>
             </ScrollView>
           </View>
         </TouchableWithoutFeedback>

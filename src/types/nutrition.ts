@@ -14,11 +14,11 @@ export interface FoodItem {
   name: string;
   indonesianName?: string;
   category: FoodCategory;
-  calories: number; // per 100g
-  protein: number;  // grams per 100g
-  carbs: number;    // grams per 100g
-  fat: number;      // grams per 100g
-  fiber?: number;   // grams per 100g
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber?: number;
   defaultServingText: string;
   defaultServingGrams: number;
   isCustom?: boolean;
@@ -26,7 +26,7 @@ export interface FoodItem {
 
 export interface NutritionLog {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   mealType: MealType;
   foodId?: string;
   foodName: string;
@@ -47,7 +47,7 @@ export interface NutritionTarget {
 }
 
 export interface WaterLog {
-  date: string; // YYYY-MM-DD
+  date: string;
   amountMl: number;
   targetMl: number;
 }

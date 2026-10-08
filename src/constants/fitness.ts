@@ -31,11 +31,7 @@ export const getCategoryIcon = (category: string): string => {
   }
 };
 
-export const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-export const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
+export { DAYS_SHORT, MONTHS } from './date';
 
 export interface RoutinePreset {
   name: string;

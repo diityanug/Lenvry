@@ -11,22 +11,19 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
 } from 'react-native';
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import {
   Account,
-  ACCOUNT_TYPE_THEME,
   CategoryCustomIcon,
   TX_TYPE_THEME,
   Transaction,
   formatMoney,
-  getAccountIcon,
-  getCategoryTheme,
-  hexToRgba,
 } from '../../types/finance';
 import { CalculatorModal } from './CalculatorModal';
+import { FormCategorySelector } from './form/FormCategorySelector';
+import { FormAccountSelector } from './form/FormAccountSelector';
+import { getCategoryTheme as getCategoryVisualTheme } from './CategoryBreakdownCard';
 import { COLORS, RADIUS } from '../../constants/theme';
-// Icon glyphs only — every colour below comes from getCategoryTheme in ../../types/finance.
-import { getCategoryTheme as getCategoryIconTheme } from './CategoryBreakdownCard';
 
 interface TransactionModalProps {
   visible: boolean;
@@ -91,7 +88,6 @@ export const TransactionModal = ({
   setSelectedToSubAccId,
   onOpenDatePicker,
   onOpenAddCategory,
-  onDeleteCategory,
 }: TransactionModalProps) => {
   const [calcVisible, setCalcVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -117,18 +113,16 @@ export const TransactionModal = ({
   };
 
   const selectedAccount = accounts.find((a) => a.id === selectedAccId);
-  const selectedToAccount = accounts.find((a) => a.id === selectedToAccId);
   const currency = selectedAccount?.currency || 'IDR';
   const currencySymbol = currency === 'USD' ? '$' : 'Rp';
   const isExpense = type === 'expense';
   const isTransfer = type === 'transfer';
   const activeCategories = isExpense ? expenseCategories : incomeCategories;
 
-  // Colour theme for the currently active transaction type
   const typeTheme = TX_TYPE_THEME[type];
   const typeIcon = isExpense ? 'arrow-up-circle' : isTransfer ? 'swap-horizontal' : 'arrow-down-circle';
 
-  // History suggestions specifically for the clicked/selected category
+  // Smart suggestions from previous transactions
   const descriptionSuggestions = React.useMemo(() => {
     if (isTransfer || !selectedCategory) return [];
     const counts = new Map<string, { text: string; count: number; last: number }>();
@@ -151,15 +145,14 @@ export const TransactionModal = ({
 
     return Array.from(counts.values())
       .sort((a, b) => b.count - a.count || b.last - a.last)
-      .slice(0, 8)
+      .slice(0, 6)
       .map((e) => e.text);
   }, [transactions, selectedCategory, type, isTransfer]);
 
   const handleSelectAccount = (acc: Account) => {
     setSelectedAccId(acc.id);
-    const newSubId = acc.subAccounts.length > 0 ? acc.subAccounts[0].id : '';
+    const newSubId = acc.subAccounts && acc.subAccounts.length > 0 ? acc.subAccounts[0].id : '';
     setSelectedSubAccId(newSubId);
-    // If destination was same account and same sub-account, pick another sub-account if possible
     if (selectedToAccId === acc.id && selectedToSubAccId === newSubId && setSelectedToSubAccId) {
       const otherSub = acc.subAccounts.find((s) => s.id !== newSubId);
       if (otherSub) setSelectedToSubAccId(otherSub.id);
@@ -180,10 +173,9 @@ export const TransactionModal = ({
     if (setSelectedToAccId) setSelectedToAccId(acc.id);
     if (setSelectedToSubAccId) {
       if (acc.id === selectedAccId) {
-        // If selecting same account, automatically pick a different sub-account
         const otherSub = acc.subAccounts.find((s) => s.id !== selectedSubAccId);
         setSelectedToSubAccId(otherSub ? otherSub.id : (acc.subAccounts[0]?.id || ''));
-      } else if (acc.subAccounts.length > 0) {
+      } else if (acc.subAccounts && acc.subAccounts.length > 0) {
         setSelectedToSubAccId(acc.subAccounts[0].id);
       } else {
         setSelectedToSubAccId('');
@@ -205,38 +197,38 @@ export const TransactionModal = ({
         <View style={txStyles.content}>
           <View style={txStyles.handle} />
 
-            {/* Header */}
-            <View style={txStyles.headerRow}>
-              <View style={txStyles.headerTextWrap}>
-                <Text style={txStyles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
-                  {isEditing ? 'Edit Transaction' : 'New Transaction'}
-                </Text>
-                <Text style={txStyles.headerSubtitle} numberOfLines={1} ellipsizeMode="tail">
-                  {typeTheme.label} • {currency}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={onClose}
-                activeOpacity={0.7}
-                style={txStyles.closeBtn}
-                accessibilityRole="button"
-              >
-                <Ionicons name="close" size={20} color={COLORS.textSecondary} />
-              </TouchableOpacity>
+          {/* Header */}
+          <View style={txStyles.headerRow}>
+            <View style={txStyles.headerTextWrap}>
+              <Text style={txStyles.headerTitle} numberOfLines={1}>
+                {isEditing ? 'Edit Transaction' : 'New Transaction'}
+              </Text>
+              <Text style={txStyles.headerSubtitle} numberOfLines={1}>
+                {typeTheme.label} • {currency}
+              </Text>
             </View>
-
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              automaticallyAdjustKeyboardInsets={true}
-              showsVerticalScrollIndicator={false}
-              nestedScrollEnabled={true}
-              contentContainerStyle={[
-                txStyles.scrollContent,
-                { paddingBottom: Math.max(28, keyboardHeight + 28) },
-              ]}
+            <TouchableOpacity
+              onPress={onClose}
+              activeOpacity={0.7}
+              style={txStyles.closeBtn}
+              accessibilityRole="button"
             >
-            {/* 1. Transaction Type Toggle (Expense, Income, Transfer) */}
-            {!hideTypeSwitcher ? (
+              <Ionicons name="close" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true}
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled={true}
+            contentContainerStyle={[
+              txStyles.scrollContent,
+              { paddingBottom: Math.max(28, keyboardHeight + 28) },
+            ]}
+          >
+            {/* 1. Transaction Type Toggle */}
+            {!hideTypeSwitcher && (
               <View style={txStyles.typeSwitcher}>
                 <TouchableOpacity
                   style={[
@@ -248,26 +240,16 @@ export const TransactionModal = ({
                   ]}
                   onPress={() => {
                     setType('expense');
-                    setSelectedCategory(expenseCategories[0]);
+                    setSelectedCategory(expenseCategories[0] || 'Food');
                   }}
-                  activeOpacity={0.8}
+                  activeOpacity={0.7}
                 >
                   <Ionicons
                     name="arrow-up-circle"
                     size={16}
                     color={isExpense ? TX_TYPE_THEME.expense.color : COLORS.textMuted}
-                    style={txStyles.typeTabIcon}
                   />
-                  <Text
-                    style={[
-                      txStyles.typeTabText,
-                      isExpense && txStyles.typeTabTextActive,
-                      isExpense && { color: TX_TYPE_THEME.expense.color },
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.75}
-                  >
+                  <Text style={[txStyles.typeTabText, isExpense && { color: TX_TYPE_THEME.expense.color, fontWeight: '700' }]}>
                     Expense
                   </Text>
                 </TouchableOpacity>
@@ -282,26 +264,16 @@ export const TransactionModal = ({
                   ]}
                   onPress={() => {
                     setType('income');
-                    setSelectedCategory(incomeCategories[0]);
+                    setSelectedCategory(incomeCategories[0] || 'Salary');
                   }}
-                  activeOpacity={0.8}
+                  activeOpacity={0.7}
                 >
                   <Ionicons
                     name="arrow-down-circle"
                     size={16}
                     color={type === 'income' ? TX_TYPE_THEME.income.color : COLORS.textMuted}
-                    style={txStyles.typeTabIcon}
                   />
-                  <Text
-                    style={[
-                      txStyles.typeTabText,
-                      type === 'income' && txStyles.typeTabTextActive,
-                      type === 'income' && { color: TX_TYPE_THEME.income.color },
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.75}
-                  >
+                  <Text style={[txStyles.typeTabText, type === 'income' && { color: TX_TYPE_THEME.income.color, fontWeight: '700' }]}>
                     Income
                   </Text>
                 </TouchableOpacity>
@@ -314,458 +286,143 @@ export const TransactionModal = ({
                       borderColor: TX_TYPE_THEME.transfer.border,
                     },
                   ]}
-                  onPress={() => {
-                    setType('transfer');
-                    setSelectedCategory('Transfer');
-                  }}
-                  activeOpacity={0.8}
+                  onPress={() => setType('transfer')}
+                  activeOpacity={0.7}
                 >
                   <Ionicons
                     name="swap-horizontal"
                     size={16}
                     color={isTransfer ? TX_TYPE_THEME.transfer.color : COLORS.textMuted}
-                    style={txStyles.typeTabIcon}
                   />
-                  <Text
-                    style={[
-                      txStyles.typeTabText,
-                      isTransfer && txStyles.typeTabTextActive,
-                      isTransfer && { color: TX_TYPE_THEME.transfer.color },
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.75}
-                  >
+                  <Text style={[txStyles.typeTabText, isTransfer && { color: TX_TYPE_THEME.transfer.color, fontWeight: '700' }]}>
                     Transfer
                   </Text>
                 </TouchableOpacity>
               </View>
-            ) : null}
+            )}
 
-            {/* 2. Amount Input Hero Card */}
-            <TouchableOpacity
-              style={[
-                txStyles.amountCard,
-                {
-                  backgroundColor: hexToRgba(typeTheme.color, 0.08),
-                  borderColor: typeTheme.border,
-                },
-              ]}
-              onPress={() => setCalcVisible(true)}
-              activeOpacity={0.8}
-            >
-              <View style={txStyles.amountHeaderRow}>
-                <Text style={txStyles.amountLabel} numberOfLines={1}>AMOUNT</Text>
-                <View
-                  style={[
-                    txStyles.calcBadge,
-                    {
-                      backgroundColor: hexToRgba(typeTheme.color, 0.14),
-                      borderColor: typeTheme.border,
-                    },
-                  ]}
-                >
-                  <Ionicons name="calculator-outline" size={13} color={typeTheme.color} style={txStyles.calcBadgeIcon} />
-                  <Text style={[txStyles.calcBadgeText, { color: typeTheme.color }]} numberOfLines={1}>
-                    Keypad
-                  </Text>
-                </View>
-              </View>
-
-              <View style={txStyles.amountValueRow}>
-                <Text style={[txStyles.currencyBadge, { color: typeTheme.color }]} numberOfLines={1}>
+            {/* 2. Amount Input & Calculator */}
+            <View style={txStyles.amountCard}>
+              <Text style={txStyles.amountLabel}>AMOUNT</Text>
+              <View style={txStyles.amountInputRow}>
+                <Text style={[txStyles.currencyPrefix, { color: typeTheme.color }]}>
                   {currencySymbol}
                 </Text>
-                <Text
-                  style={[txStyles.amountText, { color: typeTheme.color }]}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.7}
+                <TextInput
+                  style={[txStyles.amountInput, { color: typeTheme.color }]}
+                  placeholder="0"
+                  placeholderTextColor={COLORS.textMuted}
+                  keyboardType="numeric"
+                  value={amount}
+                  onChangeText={(val) => setAmount(val.replace(/[^0-9]/g, ''))}
+                  maxLength={15}
+                />
+                <TouchableOpacity
+                  style={txStyles.calcBtn}
+                  onPress={() => setCalcVisible(true)}
+                  activeOpacity={0.7}
                 >
-                  {formattedDisplayAmount}
-                </Text>
+                  <Ionicons name="calculator-outline" size={20} color={COLORS.textSecondary} />
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-
-            {/* 3. Account Selection */}
-            <View style={txStyles.sectionCard}>
-              <Text style={txStyles.sectionLabel} numberOfLines={1} ellipsizeMode="tail">
-                {type === 'income' ? 'DEPOSIT TO' : isTransfer ? 'FROM ACCOUNT' : 'PAID FROM'}
-              </Text>
-
-              <ScrollView
-                horizontal
-                nestedScrollEnabled={true}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={txStyles.hScrollContent}
-                keyboardShouldPersistTaps="handled"
-              >
-                {accounts.map((acc) => {
-                  const isSelected = selectedAccId === acc.id;
-                  const accTheme = ACCOUNT_TYPE_THEME[acc.type];
-                  return (
-                    <TouchableOpacity
-                      key={acc.id}
-                      style={[
-                        txStyles.accountChip,
-                        { backgroundColor: accTheme.bg, borderColor: accTheme.border },
-                        isSelected && {
-                          backgroundColor: accTheme.color,
-                          borderColor: accTheme.color,
-                        },
-                      ]}
-                      onPress={() => handleSelectAccount(acc)}
-                      activeOpacity={0.7}
-                    >
-                      <FontAwesome5
-                        name={getAccountIcon(acc.type)}
-                        size={14}
-                        color={isSelected ? '#08090C' : accTheme.color}
-                        style={txStyles.chipIcon}
-                      />
-                      <Text
-                        style={[txStyles.accountChipText, isSelected && txStyles.accountChipTextActive]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {acc.name} ({acc.currency})
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-
-              {/* Sub Account selection */}
-              {selectedAccount && selectedAccount.subAccounts.length > 0 && (
-                <View style={txStyles.subBlock}>
-                  <Text style={txStyles.subLabel} numberOfLines={1}>POCKET</Text>
-                  <ScrollView
-                    horizontal
-                    nestedScrollEnabled={true}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={txStyles.hScrollContent}
-                    keyboardShouldPersistTaps="handled"
-                  >
-                    {selectedAccount.subAccounts.map((sub) => {
-                      const isSubSelected = selectedSubAccId === sub.id;
-                      return (
-                        <TouchableOpacity
-                          key={sub.id}
-                          style={[txStyles.subChip, isSubSelected && txStyles.subChipActive]}
-                          onPress={() => handleSelectSubAccount(sub.id)}
-                          activeOpacity={0.7}
-                        >
-                          <Text
-                            style={[txStyles.subChipText, isSubSelected && txStyles.subChipTextActive]}
-                            numberOfLines={1}
-                            ellipsizeMode="tail"
-                          >
-                            {sub.name}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
+              {amount !== '' && (
+                <Text style={txStyles.formattedSubAmount}>
+                  {currencySymbol} {formattedDisplayAmount}
+                </Text>
               )}
             </View>
 
-            {/* 4. Target Account selection for Transfer */}
+            {/* 3. Account Selectors */}
+            <FormAccountSelector
+              label={isTransfer ? 'From Account' : 'Account'}
+              accounts={accounts}
+              selectedAccId={selectedAccId}
+              selectedSubAccId={selectedSubAccId}
+              onSelectAccount={handleSelectAccount}
+              onSelectSubAccount={handleSelectSubAccount}
+            />
+
             {isTransfer && (
-              <View style={txStyles.sectionCard}>
-                <View style={txStyles.transferHeaderRow}>
-                  <Text style={txStyles.sectionLabelInline} numberOfLines={1} ellipsizeMode="tail">TO ACCOUNT</Text>
-                  {selectedAccount && selectedAccount.subAccounts.length > 1 && (
-                    <TouchableOpacity
-                      onPress={() => handleSelectToAccount(selectedAccount)}
-                      activeOpacity={0.7}
-                      style={[
-                        txStyles.sameAccPill,
-                        selectedToAccId === selectedAccId && txStyles.sameAccPillActive,
-                      ]}
-                    >
-                      <Ionicons
-                        name="repeat"
-                        size={12}
-                        color={selectedToAccId === selectedAccId ? '#08090C' : COLORS.finance}
-                        style={txStyles.chipIcon}
-                      />
-                      <Text
-                        style={[
-                          txStyles.sameAccPillText,
-                          selectedToAccId === selectedAccId && txStyles.sameAccPillTextActive,
-                        ]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        Sub-Account Transfer
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Account Selection */}
-                <ScrollView
-                  horizontal
-                  nestedScrollEnabled={true}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={txStyles.hScrollContent}
-                  keyboardShouldPersistTaps="handled"
-                >
-                  {accounts.map((acc) => {
-                    const isSelected = selectedToAccId === acc.id;
-                    const isSameAccount = acc.id === selectedAccId;
-                    const accTheme = ACCOUNT_TYPE_THEME[acc.type];
-                    return (
-                      <TouchableOpacity
-                        key={`to_${acc.id}`}
-                        style={[
-                          txStyles.accountChip,
-                          { backgroundColor: accTheme.bg, borderColor: accTheme.border },
-                          isSameAccount && !isSelected && txStyles.accountChipSame,
-                          isSelected && {
-                            backgroundColor: accTheme.color,
-                            borderColor: accTheme.color,
-                          },
-                        ]}
-                        onPress={() => handleSelectToAccount(acc)}
-                        activeOpacity={0.7}
-                      >
-                        <FontAwesome5
-                          name={getAccountIcon(acc.type)}
-                          size={14}
-                          color={isSelected ? '#08090C' : accTheme.color}
-                          style={txStyles.chipIcon}
-                        />
-                        <Text
-                          style={[txStyles.accountChipText, isSelected && txStyles.accountChipTextActive]}
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                        >
-                          {acc.name} ({acc.currency})
-                          {isSameAccount ? ' • Same Account' : ''}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-
-                {/* Sub Account Selection for Destination */}
-                {selectedToAccount && selectedToAccount.subAccounts.length > 0 && (
-                  <View style={txStyles.subBlock}>
-                    <Text style={txStyles.subLabel} numberOfLines={1}>DESTINATION</Text>
-                    <ScrollView
-                      horizontal
-                      nestedScrollEnabled={true}
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={txStyles.hScrollContent}
-                      keyboardShouldPersistTaps="handled"
-                    >
-                      {selectedToAccount.subAccounts.map((sub) => {
-                        const isSubSelected = selectedToSubAccId === sub.id;
-                        const isSameAsSourceSub = selectedToAccId === selectedAccId && sub.id === selectedSubAccId;
-
-                        return (
-                          <TouchableOpacity
-                            key={`to_sub_${sub.id}`}
-                            style={[
-                              txStyles.subChip,
-                              isSubSelected && txStyles.subChipActive,
-                              isSameAsSourceSub && txStyles.subChipDisabled,
-                            ]}
-                            onPress={() => {
-                              if (!isSameAsSourceSub && setSelectedToSubAccId) {
-                                setSelectedToSubAccId(sub.id);
-                              }
-                            }}
-                            disabled={isSameAsSourceSub}
-                            activeOpacity={0.7}
-                          >
-                            <Text
-                              style={[
-                                txStyles.subChipText,
-                                isSubSelected && txStyles.subChipTextActive,
-                                isSameAsSourceSub && txStyles.subChipTextDisabled,
-                              ]}
-                              numberOfLines={1}
-                              ellipsizeMode="tail"
-                            >
-                              {sub.name} {isSameAsSourceSub ? '(Source)' : ''}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
-                  </View>
-                )}
-
-                {/* Transfer route preview */}
-                {selectedAccount && selectedToAccount && (
-                  <View style={txStyles.transferRoutePreview}>
-                    <Ionicons name="swap-horizontal" size={15} color={COLORS.accentUSD} style={txStyles.chipIcon} />
-                    <Text style={txStyles.transferRouteText} numberOfLines={1} ellipsizeMode="tail">
-                      {selectedAccount.name} ({selectedAccount.subAccounts.find((s) => s.id === selectedSubAccId)?.name || 'Main'})
-                      {'  ➔  '}
-                      {selectedToAccount.name} ({selectedToAccount.subAccounts.find((s) => s.id === selectedToSubAccId)?.name || 'Main'})
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <FormAccountSelector
+                label="To Destination Account"
+                accounts={accounts}
+                selectedAccId={selectedToAccId}
+                selectedSubAccId={selectedToSubAccId}
+                onSelectAccount={handleSelectToAccount}
+                onSelectSubAccount={(subId) => setSelectedToSubAccId && setSelectedToSubAccId(subId)}
+              />
             )}
 
-            {/* 5. Categories (Only for Income / Expense) - 1:1 Aspect Ratio Symmetrical Grid */}
+            {/* 4. Category Selector (Only for Income / Expense) */}
             {!isTransfer && (
-              <View style={txStyles.sectionCard}>
-                <View style={txStyles.catHeaderRow}>
-                  <Text style={txStyles.sectionLabelInline} numberOfLines={1} ellipsizeMode="tail">CATEGORY</Text>
-                  <TouchableOpacity onPress={onOpenAddCategory} activeOpacity={0.7} style={txStyles.addCatBtn}>
-                    <Ionicons name="add" size={14} color={COLORS.finance} style={txStyles.chipIcon} />
-                    <Text style={txStyles.addCatText} numberOfLines={1}>Add Category</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={txStyles.categoriesWrap}>
-                  {activeCategories.map((cat) => {
-                    const isSelected = selectedCategory === cat;
-                    const catTheme = getCategoryTheme(cat, customCategoryIcons);
-                    const catIcon = getCategoryIconTheme(cat, type === 'income' ? 'income' : 'expense', customCategoryIcons);
-                    return (
-                      <TouchableOpacity
-                        key={cat}
-                        style={[
-                          txStyles.catSquare,
-                          { backgroundColor: catTheme.bg, borderColor: catTheme.border },
-                          isSelected && {
-                            backgroundColor: hexToRgba(catTheme.color, 0.28),
-                            borderColor: catTheme.color,
-                          },
-                        ]}
-                        onPress={() => setSelectedCategory(cat)}
-                        onLongPress={() => onDeleteCategory?.(cat)}
-                        delayLongPress={400}
-                        activeOpacity={0.7}
-                      >
-                        <View
-                          style={[
-                            txStyles.catIconCircle,
-                            { backgroundColor: isSelected ? catTheme.color : hexToRgba(catTheme.color, 0.22) },
-                          ]}
-                        >
-                          <Ionicons
-                            name={catIcon.icon}
-                            size={18}
-                            color={isSelected ? '#08090C' : catTheme.color}
-                          />
-                        </View>
-                        <Text
-                          style={[txStyles.catSquareText, isSelected && txStyles.catSquareTextActive]}
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                          adjustsFontSizeToFit
-                          minimumFontScale={0.7}
-                        >
-                          {cat}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
+              <FormCategorySelector
+                categories={activeCategories}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                onOpenAddCategory={onOpenAddCategory}
+                getCategoryTheme={(cat) => getCategoryVisualTheme(cat, isExpense ? 'expense' : 'income', customCategoryIcons)}
+                type={isExpense ? 'expense' : 'income'}
+              />
             )}
 
-            {/* 6. Description & Date with Frequent Suggestions */}
-            <View style={txStyles.sectionCard}>
-              <Text style={txStyles.sectionLabel} numberOfLines={1} ellipsizeMode="tail">DESCRIPTION &amp; NOTE</Text>
+            {/* 5. Description Input & Suggestions */}
+            <View style={txStyles.fieldSection}>
+              <Text style={txStyles.sectionTitle}>DESCRIPTION</Text>
               <TextInput
-                style={txStyles.input}
-                placeholder="e.g. Lunch, Grocery, Transfer to Savings..."
+                style={txStyles.textInput}
+                placeholder="e.g. Starbucks, Groceries..."
                 placeholderTextColor={COLORS.textMuted}
                 value={description}
                 onChangeText={setDescription}
+                maxLength={100}
               />
-
-              {!isTransfer && descriptionSuggestions.length > 0 && (
-                <View style={txStyles.suggestBlock}>
-                  <Text style={txStyles.suggestLabel} numberOfLines={1} ellipsizeMode="tail">
-                    SUGGESTIONS • {selectedCategory.toUpperCase()}
-                  </Text>
-                  <ScrollView
-                    horizontal
-                    nestedScrollEnabled={true}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={txStyles.hScrollContent}
-                    keyboardShouldPersistTaps="handled"
-                  >
-                    {descriptionSuggestions.map((text) => (
-                      <TouchableOpacity
-                        key={text}
-                        style={txStyles.suggestChip}
-                        onPress={() => setDescription(text)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="time-outline" size={12} color={COLORS.finance} style={txStyles.chipIcon} />
-                        <Text style={txStyles.suggestChipText} numberOfLines={1} ellipsizeMode="tail">
-                          {text}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+              {descriptionSuggestions.length > 0 && (
+                <View style={txStyles.suggestionsRow}>
+                  {descriptionSuggestions.map((sug, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      style={txStyles.sugChip}
+                      onPress={() => setDescription(sug)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={txStyles.sugText}>{sug}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               )}
-
-              <View style={txStyles.dateBlock}>
-                <Text style={txStyles.sectionLabel} numberOfLines={1} ellipsizeMode="tail">TRANSACTION DATE</Text>
-                <TouchableOpacity style={txStyles.datePickerBtn} onPress={onOpenDatePicker} activeOpacity={0.7}>
-                  <View style={txStyles.datePickerLeft}>
-                    <Ionicons name="calendar-outline" size={17} color={COLORS.finance} style={txStyles.chipIcon} />
-                    <Text
-                      style={txStyles.datePickerText}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.75}
-                    >
-                      {(() => {
-                        const today = new Date();
-                        const isToday =
-                          txDate.getDate() === today.getDate() &&
-                          txDate.getMonth() === today.getMonth() &&
-                          txDate.getFullYear() === today.getFullYear();
-
-                        const yesterday = new Date(today);
-                        yesterday.setDate(yesterday.getDate() - 1);
-                        const isYesterday =
-                          txDate.getDate() === yesterday.getDate() &&
-                          txDate.getMonth() === yesterday.getMonth() &&
-                          txDate.getFullYear() === yesterday.getFullYear();
-
-                        const formattedStr = txDate.toLocaleDateString('en-US', {
-                          weekday: 'short',
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        });
-
-                        if (isToday) return `Today • ${formattedStr}`;
-                        if (isYesterday) return `Yesterday • ${formattedStr}`;
-                        return formattedStr;
-                      })()}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={15} color={COLORS.textMuted} />
-                </TouchableOpacity>
-              </View>
             </View>
 
-            {/* Save Button */}
+            {/* 6. Date Picker Trigger */}
+            <View style={txStyles.fieldSection}>
+              <Text style={txStyles.sectionTitle}>DATE</Text>
+              <TouchableOpacity
+                style={txStyles.datePickerTrigger}
+                onPress={onOpenDatePicker}
+                activeOpacity={0.7}
+              >
+                <View style={txStyles.datePickerLeft}>
+                  <Ionicons name="calendar-outline" size={17} color={COLORS.finance} />
+                  <Text style={txStyles.datePickerText}>
+                    {txDate.toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={15} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            {/* 7. Save Button */}
             <TouchableOpacity
               style={[txStyles.saveBtn, { backgroundColor: typeTheme.color }]}
               onPress={onSave}
               activeOpacity={0.85}
             >
-              <Ionicons name={typeIcon as any} size={16} color="#08090C" style={txStyles.chipIcon} />
-              <Text style={txStyles.saveBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+              <Ionicons name={typeIcon as any} size={16} color="#08090C" />
+              <Text style={txStyles.saveBtnText}>
                 {isEditing ? 'UPDATE TRANSACTION' : 'SAVE TRANSACTION'}
               </Text>
             </TouchableOpacity>
@@ -790,7 +447,7 @@ export const TransactionModal = ({
 const txStyles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay,
+    backgroundColor: 'rgba(5, 6, 9, 0.75)',
     justifyContent: 'flex-end',
   },
   dismissArea: {
@@ -798,444 +455,192 @@ const txStyles = StyleSheet.create({
   },
   content: {
     backgroundColor: COLORS.bgCard,
-    borderTopLeftRadius: RADIUS.modal,
-    borderTopRightRadius: RADIUS.modal,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 26,
+    borderTopLeftRadius: RADIUS.xxl,
+    borderTopRightRadius: RADIUS.xxl,
+    borderTopWidth: 1,
+    borderColor: COLORS.border,
     maxHeight: '90%',
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
   },
   handle: {
-    width: 44,
+    width: 36,
     height: 4,
-    backgroundColor: COLORS.borderHighlight,
-    borderRadius: RADIUS.full,
+    borderRadius: 2,
+    backgroundColor: COLORS.borderSubtle,
     alignSelf: 'center',
-    marginBottom: 18,
+    marginTop: 10,
+    marginBottom: 6,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 18,
-    paddingBottom: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: COLORS.borderSubtle,
   },
   headerTextWrap: {
     flex: 1,
-    minWidth: 0,
-    flexShrink: 1,
   },
   headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
     color: COLORS.textPrimary,
-    fontSize: 19,
-    fontWeight: '900',
-    letterSpacing: -0.4,
   },
   headerSubtitle: {
-    color: COLORS.textSecondary,
     fontSize: 12,
-    fontWeight: '600',
-    marginTop: 3,
+    color: COLORS.textMuted,
+    marginTop: 2,
   },
   closeBtn: {
-    width: 44,
-    height: 44,
+    width: 32,
+    height: 32,
     borderRadius: RADIUS.full,
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: COLORS.bgCardSub,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    flexShrink: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollContent: {
-    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 16,
   },
   typeSwitcher: {
     flexDirection: 'row',
     backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.md,
     padding: 4,
     gap: 4,
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
   typeTab: {
     flex: 1,
-    minWidth: 0,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: 6,
-    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   typeTabText: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 13,
     color: COLORS.textMuted,
-    flexShrink: 1,
-  },
-  typeTabTextActive: {
-    fontWeight: '900',
-  },
-  typeTabIcon: {
-    marginRight: 5,
+    fontWeight: '500',
   },
   amountCard: {
+    marginTop: 16,
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
-    padding: 18,
+    padding: 14,
     borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  amountHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
+    borderColor: COLORS.borderSubtle,
   },
   amountLabel: {
+    fontSize: 11,
+    fontWeight: '700',
     color: COLORS.textMuted,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1,
-    flexShrink: 1,
+    letterSpacing: 0.8,
+    marginBottom: 6,
   },
-  calcBadge: {
+  amountInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    flexShrink: 0,
   },
-  calcBadgeIcon: {
-    marginRight: 5,
+  currencyPrefix: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginRight: 8,
   },
-  calcBadgeText: {
-    color: COLORS.finance,
-    fontSize: 10.5,
+  amountInput: {
+    flex: 1,
+    fontSize: 26,
     fontWeight: '800',
+    padding: 0,
   },
-  amountValueRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
+  calcBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.bgCardHover,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  currencyBadge: {
-    fontSize: 22,
-    fontWeight: '900',
-    flexShrink: 0,
-  },
-  amountText: {
-    fontSize: 32,
-    fontWeight: '900',
-    letterSpacing: -0.8,
-    flexShrink: 1,
-    minWidth: 0,
-    fontVariant: ['tabular-nums'],
-  },
-  sectionCard: {
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.lg,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    gap: 12,
-  },
-  sectionLabel: {
-    color: COLORS.textSecondary,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-  },
-  sectionLabelInline: {
-    color: COLORS.textSecondary,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    flexShrink: 1,
-    minWidth: 0,
-  },
-  subLabel: {
+  formattedSubAmount: {
+    fontSize: 12,
     color: COLORS.textMuted,
-    fontSize: 10,
-    fontWeight: '800',
+    marginTop: 4,
+  },
+  fieldSection: {
+    marginTop: 16,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textMuted,
     letterSpacing: 0.8,
     marginBottom: 8,
   },
-  subBlock: {
-    marginTop: 2,
-  },
-  hScrollContent: {
-    gap: 8,
-    paddingRight: 4,
-    paddingVertical: 1,
-  },
-  chipIcon: {
-    marginRight: 6,
-  },
-  accountChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.bgCard,
-    paddingHorizontal: 14,
-    minHeight: 44,
+  textInput: {
+    backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    maxWidth: 240,
-  },
-  accountChipSame: {
-    borderStyle: 'dashed',
-  },
-  accountChipText: {
-    color: COLORS.textPrimary,
-    fontSize: 13,
-    fontWeight: '700',
-    flexShrink: 1,
-    minWidth: 0,
-  },
-  accountChipTextActive: {
-    color: '#08090C',
-    fontWeight: '900',
-  },
-  subChip: {
-    backgroundColor: COLORS.bgCard,
-    paddingHorizontal: 14,
-    minHeight: 44,
-    justifyContent: 'center',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    maxWidth: 220,
-  },
-  subChipActive: {
-    backgroundColor: COLORS.finance,
-    borderColor: COLORS.finance,
-  },
-  subChipText: {
-    color: COLORS.textSecondary,
-    fontSize: 12.5,
-    fontWeight: '700',
-    flexShrink: 1,
-  },
-  subChipTextActive: {
-    color: '#08090C',
-    fontWeight: '900',
-  },
-  input: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.md,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    minHeight: 52,
-    color: COLORS.textPrimary,
+    padding: 12,
     fontSize: 14,
+    color: COLORS.textPrimary,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    fontWeight: '600',
+    borderColor: COLORS.borderSubtle,
   },
-  dateBlock: {
-    marginTop: 2,
-  },
-  datePickerBtn: {
+  suggestionsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.md,
-    paddingHorizontal: 16,
-    minHeight: 54,
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  sugChip: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderSubtle,
+  },
+  sugText: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+  },
+  datePickerTrigger: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.md,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
   },
   datePickerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    minWidth: 0,
-    flexShrink: 1,
-  },
-  datePickerText: {
-    color: COLORS.textPrimary,
-    fontSize: 13.5,
-    fontWeight: '700',
-    flexShrink: 1,
-    minWidth: 0,
-  },
-  catHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 10,
-  },
-  addCatBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    minHeight: 44,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.financeLight,
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
-    flexShrink: 0,
-  },
-  addCatText: {
-    color: COLORS.finance,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  categoriesWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
   },
-  catSquare: {
-    width: '31.3%',
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 12,
-    minHeight: 76,
-  },
-  catIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: RADIUS.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  catSquareText: {
-    color: COLORS.textSecondary,
-    fontSize: 11.5,
-    fontWeight: '800',
-    textAlign: 'center',
-    alignSelf: 'stretch',
-    letterSpacing: -0.2,
-  },
-  catSquareTextActive: {
+  datePickerText: {
+    fontSize: 14,
     color: COLORS.textPrimary,
-    fontWeight: '900',
-  },
-  suggestBlock: {
-    marginTop: 2,
-  },
-  suggestLabel: {
-    color: COLORS.textMuted,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    marginBottom: 8,
-  },
-  suggestChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    minHeight: 44,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.bgCard,
-    maxWidth: 240,
-  },
-  suggestChipText: {
-    color: COLORS.textSecondary,
-    fontSize: 12.5,
-    fontWeight: '700',
-    flexShrink: 1,
-    minWidth: 0,
+    fontWeight: '500',
   },
   saveBtn: {
     flexDirection: 'row',
-    backgroundColor: COLORS.finance,
-    borderRadius: RADIUS.md,
-    minHeight: 54,
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 18,
-    marginTop: 4,
-    marginBottom: 4,
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: RADIUS.lg,
+    marginTop: 24,
+    marginBottom: 8,
   },
   saveBtnText: {
-    color: '#08090C',
-    fontSize: 13.5,
-    fontWeight: '900',
-    letterSpacing: 0.4,
-  },
-  transferHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 10,
-  },
-  sameAccPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.bgCard,
-    paddingHorizontal: 12,
-    minHeight: 44,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
-    flexShrink: 0,
-  },
-  sameAccPillActive: {
-    backgroundColor: COLORS.finance,
-    borderColor: COLORS.finance,
-  },
-  sameAccPillText: {
-    color: COLORS.finance,
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '800',
-  },
-  sameAccPillTextActive: {
     color: '#08090C',
-    fontWeight: '900',
-  },
-  subChipDisabled: {
-    opacity: 0.35,
-    borderStyle: 'dashed',
-  },
-  subChipTextDisabled: {
-    color: COLORS.textMuted,
-  },
-  transferRoutePreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: hexToRgba('#818CF8', 0.12),
-    borderRadius: RADIUS.md,
-    paddingHorizontal: 14,
-    minHeight: 48,
-    marginTop: 2,
-    borderWidth: 1,
-    borderColor: hexToRgba('#818CF8', 0.34),
-  },
-  transferRouteText: {
-    color: COLORS.textPrimary,
-    fontSize: 12,
-    fontWeight: '700',
-    flex: 1,
-    minWidth: 0,
-    flexShrink: 1,
+    letterSpacing: 0.5,
   },
 });

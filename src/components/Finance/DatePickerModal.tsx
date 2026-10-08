@@ -10,24 +10,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS } from '../../constants/theme';
+import { MONTHS as MONTH_NAMES, DAYS_SHORT as DAYS_OF_WEEK } from '../../constants/date';
 
 const ACCENT = '#38BDF8';
-
-const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_NAMES = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
 
 interface DatePickerModalProps {
   visible: boolean;

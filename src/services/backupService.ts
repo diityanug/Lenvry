@@ -1,47 +1,40 @@
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 
-const APP_KEYS = [
-  '@wakemove_user_name',
-  '@finance_tx',
-  '@finance_acc',
-  '@finance_exp_cat',
-  '@finance_inc_cat',
-  '@finance_category_budgets',
-  '@finance_recurring',
-  '@lenvry_habits',
-  '@lenvry_habit_categories',
-  '@lenvry_habit_category_icons',
-  '@fitness_workouts',
-  '@fitness_install_date',
-  '@lenvry_steps_logs',
-  '@lenvry_general_notes',
-  '@wakemove_nutrition_logs',
-  '@wakemove_nutrition_targets',
-  '@wakemove_custom_foods',
-  '@wakemove_water_logs',
-];
+import { SCHEMA_VERSION, clearAllStored, exportStoredData, restoreStoredData } from '../storage';
+
+/**
+ * Shape of a backup file written by this build.
+ *
+ * The payload itself lives under `data`, keyed by raw storage key, so it stays
+ * readable — and files written by earlier builds (flat, no envelope) still
+ * restore through the same code path.
+ */
+interface BackupFile {
+  app: string;
+  schemaVersion: number;
+  exportedAt: string;
+  data: Record<string, unknown>;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 export async function exportBackup(): Promise<{ success: boolean; message?: string }> {
   try {
-    const stores = await AsyncStorage.multiGet(APP_KEYS);
-    const backupData: Record<string, any> = {};
+    const data = await exportStoredData();
 
-    stores.forEach(([key, value]) => {
-      if (value !== null) {
-        try {
-          backupData[key] = JSON.parse(value);
-        } catch {
-          backupData[key] = value;
-        }
-      }
-    });
+    const payload: BackupFile = {
+      app: 'lenvry',
+      schemaVersion: SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    };
 
-    const jsonString = JSON.stringify(backupData, null, 2);
-    const fileName = `wakemove_backup_${Date.now()}.json`;
+    const jsonString = JSON.stringify(payload, null, 2);
+    const fileName = `lenvry_backup_${Date.now()}.json`;
 
     // Modern Android: Use StorageAccessFramework to let user pick folder (e.g., Download) or save directly
     if (Platform.OS === 'android' && FileSystem.StorageAccessFramework) {
@@ -101,25 +94,21 @@ export async function importRestore(
 
     const fileUri = result.assets[0].uri;
     const fileContent = await FileSystem.readAsStringAsync(fileUri);
-    const parsedData = JSON.parse(fileContent);
+    const parsed = JSON.parse(fileContent) as unknown;
 
-    const keyValuePairs: [string, string][] = [];
-    APP_KEYS.forEach((key) => {
-      if (parsedData[key] !== undefined) {
-        keyValuePairs.push([
-          key,
-          typeof parsedData[key] === 'string'
-            ? parsedData[key]
-            : JSON.stringify(parsedData[key]),
-        ]);
-      }
-    });
+    // Current format nests the rows under `data`; legacy backups are flat.
+    const source = isRecord(parsed) && isRecord(parsed.data) ? parsed.data : parsed;
 
-    if (keyValuePairs.length === 0) {
+    if (!isRecord(source)) {
       return { success: false, message: 'Invalid backup file format.' };
     }
 
-    await AsyncStorage.multiSet(keyValuePairs);
+    // Values from a file are untrusted: the storage layer validates every row.
+    const restoredKeys = await restoreStoredData(source);
+    if (restoredKeys === 0) {
+      return { success: false, message: 'Invalid backup file format.' };
+    }
+
     if (onSuccess) onSuccess();
     return { success: true };
   } catch (e) {
@@ -132,8 +121,7 @@ export async function clearAllAppData(
   onSuccess?: () => void
 ): Promise<{ success: boolean; message?: string }> {
   try {
-    const keys = await AsyncStorage.getAllKeys();
-    await AsyncStorage.multiRemove(keys);
+    await clearAllStored();
     if (onSuccess) onSuccess();
     return { success: true };
   } catch (e) {

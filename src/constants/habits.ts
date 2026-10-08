@@ -1,3 +1,5 @@
+import { formatDateKey, formatDisplayDate } from './date';
+
 export const DEFAULT_CATEGORIES = [
   'Health',
   'Faith',
@@ -50,21 +52,7 @@ export const HABIT_DEFAULT_CATEGORY_CONFIG: Record<string, HabitCategoryIconItem
   Mindfulness: { icon: 'leaf-outline', label: 'Mindfulness', color: '#A855F7', bg: 'rgba(168, 85, 247, 0.12)' },
 };
 
-export const formatDateKey = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-export const formatDisplayDate = (date: Date): string => {
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-};
+export { formatDateKey, formatDisplayDate };
 
 export const DAYS_OF_WEEK = [
   { label: 'Sun', value: 0 },

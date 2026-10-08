@@ -8,7 +8,7 @@ import {
   AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readManyStored, updateStored, writeStored } from '../storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
@@ -32,11 +32,6 @@ import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModa
 import { TAB_BAR_HEIGHT } from '../constants/tabBar';
 import { COLORS } from '../constants/theme';
 import { nutritionStyles as styles } from '../styles/nutritionStyles';
-
-const NUTRITION_LOGS_KEY = '@wakemove_nutrition_logs';
-const NUTRITION_TARGETS_KEY = '@wakemove_nutrition_targets';
-const CUSTOM_FOODS_KEY = '@wakemove_custom_foods';
-const WATER_LOGS_KEY = '@wakemove_water_logs';
 
 const formatDateKey = (d: Date): string => {
   const year = d.getFullYear();
@@ -107,34 +102,17 @@ export default function NutritionScreen() {
 
   const loadNutritionData = useCallback(async () => {
     try {
-      const keys = [
-        NUTRITION_LOGS_KEY,
-        CUSTOM_FOODS_KEY,
-        NUTRITION_TARGETS_KEY,
-        WATER_LOGS_KEY,
-      ];
-      const results = await AsyncStorage.multiGet(keys);
-      const dataMap = Object.fromEntries(results);
+      const stored = await readManyStored([
+        'nutritionLogs',
+        'customFoods',
+        'nutritionTargets',
+        'waterLogs',
+      ]);
 
-      const storedLogs = dataMap[NUTRITION_LOGS_KEY];
-      if (storedLogs) {
-        setLogs(JSON.parse(storedLogs));
-      }
-
-      const storedCustom = dataMap[CUSTOM_FOODS_KEY];
-      if (storedCustom) {
-        setCustomFoods(JSON.parse(storedCustom));
-      }
-
-      const storedTargets = dataMap[NUTRITION_TARGETS_KEY];
-      if (storedTargets) {
-        setTarget(JSON.parse(storedTargets));
-      }
-
-      const storedWater = dataMap[WATER_LOGS_KEY];
-      if (storedWater) {
-        setWaterLogs(JSON.parse(storedWater));
-      }
+      if (stored.nutritionLogs) setLogs(stored.nutritionLogs);
+      if (stored.customFoods) setCustomFoods(stored.customFoods);
+      if (stored.nutritionTargets) setTarget(stored.nutritionTargets);
+      if (stored.waterLogs) setWaterLogs(stored.waterLogs);
     } catch {
       // Ignored
     }
@@ -203,21 +181,20 @@ export default function NutritionScreen() {
   // Water handlers
   const handleAddWater = async (amount: number) => {
     const newAmount = currentWaterMl + amount;
-    const updatedWaterLogs = waterLogs.filter((w) => w.date !== currentDateKey);
-    updatedWaterLogs.push({
-      date: currentDateKey,
-      amountMl: newAmount,
-      targetMl: currentWaterTarget,
-    });
-
-    setWaterLogs(updatedWaterLogs);
-    await AsyncStorage.setItem(WATER_LOGS_KEY, JSON.stringify(updatedWaterLogs));
+    setWaterLogs(
+      await updateStored('waterLogs', (current) => [
+        ...current.filter((w) => w.date !== currentDateKey),
+        {
+          date: currentDateKey,
+          amountMl: newAmount,
+          targetMl: currentWaterTarget,
+        },
+      ])
+    );
   };
 
   const handleResetWater = async () => {
-    const updatedWaterLogs = waterLogs.filter((w) => w.date !== currentDateKey);
-    setWaterLogs(updatedWaterLogs);
-    await AsyncStorage.setItem(WATER_LOGS_KEY, JSON.stringify(updatedWaterLogs));
+    setWaterLogs(await updateStored('waterLogs', (current) => current.filter((w) => w.date !== currentDateKey)));
   };
 
   // Log food handler
@@ -228,16 +205,16 @@ export default function NutritionScreen() {
       createdAt: new Date().toISOString(),
     };
 
-    const updated = [newLog, ...logs];
-    setLogs(updated);
-    await AsyncStorage.setItem(NUTRITION_LOGS_KEY, JSON.stringify(updated));
+    setLogs(await updateStored('nutritionLogs', (current) => [newLog, ...current]));
   };
 
   // Update portion handler
   const handleUpdateLog = async (updatedLog: NutritionLog) => {
-    const updated = logs.map((l) => (l.id === updatedLog.id ? updatedLog : l));
-    setLogs(updated);
-    await AsyncStorage.setItem(NUTRITION_LOGS_KEY, JSON.stringify(updated));
+    setLogs(
+      await updateStored('nutritionLogs', (current) =>
+        current.map((l) => (l.id === updatedLog.id ? updatedLog : l))
+      )
+    );
     setEditingLog(null);
   };
 
@@ -263,9 +240,7 @@ export default function NutritionScreen() {
       createdAt: new Date().toISOString(),
     }));
 
-    const updated = [...copiedEntries, ...logs];
-    setLogs(updated);
-    await AsyncStorage.setItem(NUTRITION_LOGS_KEY, JSON.stringify(updated));
+    setLogs(await updateStored('nutritionLogs', (current) => [...copiedEntries, ...current]));
     showAlert('success', 'Meals Copied', `Copied ${copiedEntries.length} ${mealType} items from yesterday.`);
   };
 
@@ -278,25 +253,20 @@ export default function NutritionScreen() {
       'DELETE',
       'CANCEL',
       async () => {
-        const updated = logs.filter((l) => l.id !== id);
-        setLogs(updated);
-        await AsyncStorage.setItem(NUTRITION_LOGS_KEY, JSON.stringify(updated));
+        setLogs(await updateStored('nutritionLogs', (current) => current.filter((l) => l.id !== id)));
       }
     );
   };
 
   // Custom food handler
   const handleSaveCustomFood = async (newFood: FoodItem) => {
-    const updated = [newFood, ...customFoods];
-    setCustomFoods(updated);
-    await AsyncStorage.setItem(CUSTOM_FOODS_KEY, JSON.stringify(updated));
+    setCustomFoods(await updateStored('customFoods', (current) => [newFood, ...current]));
     showAlert('success', 'Food Saved', `${newFood.name} has been added to your local library.`);
   };
 
   // Target save handler
   const handleSaveTarget = async (newTarget: NutritionTarget) => {
-    setTarget(newTarget);
-    await AsyncStorage.setItem(NUTRITION_TARGETS_KEY, JSON.stringify(newTarget));
+    setTarget(await writeStored('nutritionTargets', newTarget));
     showAlert('success', 'Goals Updated', 'Your daily calorie budget and macronutrient targets have been saved.');
   };
 
@@ -442,7 +412,7 @@ export default function NutritionScreen() {
         visible={calendarModalVisible}
         selectedDate={selectedDate}
         onClose={() => setCalendarModalVisible(false)}
-        onSelectDate={(newDate) => {
+        onSelectDate={(newDate: Date) => {
           setSelectedDate(newDate);
           setCalendarModalVisible(false);
         }}

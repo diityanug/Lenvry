@@ -9,7 +9,7 @@ import {
   AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readStoredOr, updateStored } from '../storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
@@ -71,10 +71,7 @@ export default function FitnessScreen() {
 
   const loadWorkouts = useCallback(async () => {
     try {
-      const storedWorkouts = await AsyncStorage.getItem('@fitness_workouts');
-      if (storedWorkouts !== null) {
-        setWorkouts(JSON.parse(storedWorkouts));
-      }
+      setWorkouts(await readStoredOr('fitnessWorkouts'));
     } catch (e) {
       console.error('Failed to load fitness data:', e);
     }
@@ -148,39 +145,40 @@ export default function FitnessScreen() {
     reps: string;
     weight: string;
   }) => {
-    let updatedWorkouts: Workout[];
-
-    if (data.id) {
-      // Edit existing workout
-      updatedWorkouts = workouts.map((w) =>
-        w.id === data.id
-          ? {
-              ...w,
-              exercise: data.exercise.trim(),
-              category: data.category,
-              sets: data.sets,
-              reps: data.reps,
-              weight: data.weight,
-            }
-          : w
-      );
-    } else {
-      // Create new workout
-      const newWorkout: Workout = {
-        id: new Date().getTime().toString() + Math.random().toString().slice(2, 6),
-        exercise: data.exercise.trim(),
-        category: data.category,
-        sets: data.sets,
-        reps: data.reps,
-        weight: data.weight,
-        date: currentDateKey,
-      };
-      updatedWorkouts = [newWorkout, ...workouts];
-    }
-
     try {
-      await AsyncStorage.setItem('@fitness_workouts', JSON.stringify(updatedWorkouts));
-      setWorkouts(updatedWorkouts);
+      // updateStored re-reads the row first, so logging a workout can never
+      // clobber one saved from the routine/history flows in between.
+      const saved = await updateStored('fitnessWorkouts', (current) => {
+        if (data.id) {
+          // Edit existing workout
+          return current.map((w) =>
+            w.id === data.id
+              ? {
+                  ...w,
+                  exercise: data.exercise.trim(),
+                  category: data.category,
+                  sets: data.sets,
+                  reps: data.reps,
+                  weight: data.weight,
+                }
+              : w
+          );
+        }
+
+        // Create new workout
+        const newWorkout: Workout = {
+          id: new Date().getTime().toString() + Math.random().toString().slice(2, 6),
+          exercise: data.exercise.trim(),
+          category: data.category,
+          sets: data.sets,
+          reps: data.reps,
+          weight: data.weight,
+          date: currentDateKey,
+        };
+        return [newWorkout, ...current];
+      });
+
+      setWorkouts(saved);
       Keyboard.dismiss();
       setModalVisible(false);
       setPrefillWorkout(null);
@@ -215,10 +213,9 @@ export default function FitnessScreen() {
       date: currentDateKey,
     }));
 
-    const updatedWorkouts = [...newItems, ...workouts];
     try {
-      await AsyncStorage.setItem('@fitness_workouts', JSON.stringify(updatedWorkouts));
-      setWorkouts(updatedWorkouts);
+      const saved = await updateStored('fitnessWorkouts', (current) => [...newItems, ...current]);
+      setWorkouts(saved);
       setRoutineModalVisible(false);
       showAlert('success', 'Routine Loaded', `Added ${routine.exercises.length} exercises from ${routine.name}.`);
     } catch (e) {
@@ -234,9 +231,7 @@ export default function FitnessScreen() {
       'DELETE',
       'CANCEL',
       async () => {
-        const updatedWorkouts = workouts.filter((w) => w.id !== id);
-        setWorkouts(updatedWorkouts);
-        await AsyncStorage.setItem('@fitness_workouts', JSON.stringify(updatedWorkouts));
+        setWorkouts(await updateStored('fitnessWorkouts', (current) => current.filter((w) => w.id !== id)));
       }
     );
   };

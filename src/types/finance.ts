@@ -84,10 +84,7 @@ export const DEFAULT_INCOME_CATEGORIES = [
   'Others',
 ];
 
-export const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
+export { MONTHS } from '../constants/date';
 
 export const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 

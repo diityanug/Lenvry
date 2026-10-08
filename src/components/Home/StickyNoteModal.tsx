@@ -524,7 +524,7 @@ function StickyNoteModalContent({
                   >
                     {/* Description Box */}
                     <Text style={styles.inputLabel}>
-                      {type === 'checklist' ? 'DESCRIPTION (OPTIONAL)' : 'NOTE CONTENT'}
+                      {type === 'checklist' ? 'DESCRIPTION' : 'NOTE CONTENT'}
                     </Text>
                     <TextInput
                       style={[

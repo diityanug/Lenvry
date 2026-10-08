@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/lenvry.png",
     "scheme": "lenvry",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#08090C",
@@ -21,15 +21,11 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-        "android.permission.ACTIVITY_RECOGNITION"
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ]
     },
     "ios": {
-      "supportsTablet": true,
-      "infoPlist": {
-        "NSMotionUsageDescription": "Lenvry needs access to your motion data to count your daily steps."
-      }
+      "supportsTablet": true
     },
     "web": {
       "output": "static",
@@ -57,7 +53,8 @@
           ]
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -9,7 +9,7 @@ import {
   AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readManyStored, updateStored, writeStored } from '../storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
@@ -87,35 +87,21 @@ export default function HabitTrackerScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [storedHabits, storedCategories, storedIcons] = await AsyncStorage.multiGet([
-        '@lenvry_habits',
-        '@lenvry_habit_categories',
-        '@lenvry_habit_category_icons',
-      ]).then((pairs) => pairs.map((p) => p[1]));
+      // Row shapes (frequency, completedDates, subtasks, priority, ...) are
+      // normalised by the storage schema, so no patching is needed here.
+      const stored = await readManyStored(['habits', 'habitCategories', 'habitCategoryIcons']);
 
-      if (storedHabits !== null) {
-        const parsed: Habit[] = JSON.parse(storedHabits).map((h: any) => ({
-          ...h,
-          date: h.date || formatDateKey(new Date()),
-          completed: typeof h.completed === 'boolean' ? h.completed : false,
-          frequency: h.frequency || 'once',
-          priority: h.priority || 'medium',
-          timeSlot: h.timeSlot || 'Anytime',
-          completedDates: Array.isArray(h.completedDates) ? h.completedDates : [],
-          subtasks: Array.isArray(h.subtasks) ? h.subtasks : [],
-          extraNotes: Array.isArray(h.extraNotes) ? h.extraNotes : [],
-        }));
-        setHabits(parsed);
+      if (stored.habits) {
+        setHabits(stored.habits);
       }
-      if (storedCategories !== null) {
-        const parsedCategories = JSON.parse(storedCategories);
-        setCategories(parsedCategories);
+      if (stored.habitCategories) {
+        setCategories(stored.habitCategories);
       }
-      if (storedIcons !== null) {
-        try {
-          const parsedIcons = JSON.parse(storedIcons);
-          setCustomCategoryIcons({ ...HABIT_DEFAULT_CATEGORY_CONFIG, ...parsedIcons });
-        } catch {}
+      if (stored.habitCategoryIcons) {
+        setCustomCategoryIcons({
+          ...HABIT_DEFAULT_CATEGORY_CONFIG,
+          ...stored.habitCategoryIcons,
+        });
       }
     } catch (e) {
       console.error('Failed to load habit data', e);
@@ -289,8 +275,7 @@ export default function HabitTrackerScreen() {
       updatedHabits = [...habits, newHabit];
     }
 
-    setHabits(updatedHabits);
-    await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updatedHabits));
+    setHabits(await writeStored('habits', updatedHabits));
 
     Keyboard.dismiss();
     setModalVisible(false);
@@ -298,65 +283,65 @@ export default function HabitTrackerScreen() {
   };
 
   const toggleHabitForDate = async (id: string) => {
-    const updatedHabits = habits.map((habit) => {
-      if (habit.id === id) {
-        const isFreqOnce = !habit.frequency || habit.frequency === 'once';
+    setHabits(
+      await updateStored('habits', (current) =>
+        current.map((habit) => {
+          if (habit.id !== id) return habit;
 
-        if (isFreqOnce) {
-          const nextCompleted = !habit.completed;
-          const currentDates = Array.isArray(habit.completedDates) ? habit.completedDates : [];
-          const nextDates = nextCompleted
-            ? Array.from(new Set([...currentDates, currentDateKey]))
-            : currentDates.filter((d) => d !== currentDateKey);
+          const isFreqOnce = !habit.frequency || habit.frequency === 'once';
+          const currentDates = habit.completedDates ?? [];
 
-          return {
-            ...habit,
-            completed: nextCompleted,
-            completedDates: nextDates,
-          };
-        } else {
+          if (isFreqOnce) {
+            const nextCompleted = !habit.completed;
+            const nextDates = nextCompleted
+              ? Array.from(new Set([...currentDates, currentDateKey]))
+              : currentDates.filter((d) => d !== currentDateKey);
+
+            return {
+              ...habit,
+              completed: nextCompleted,
+              completedDates: nextDates,
+            };
+          }
+
           // Recurring habit: toggle date in completedDates
-          const dates = Array.isArray(habit.completedDates) ? habit.completedDates : [];
-          const exists = dates.includes(currentDateKey);
+          const exists = currentDates.includes(currentDateKey);
           const nextDates = exists
-            ? dates.filter((d) => d !== currentDateKey)
-            : [...dates, currentDateKey];
+            ? currentDates.filter((d) => d !== currentDateKey)
+            : [...currentDates, currentDateKey];
 
           return {
             ...habit,
             completed: nextDates.includes(todayDateKey),
             completedDates: nextDates,
           };
-        }
-      }
-      return habit;
-    });
-
-    setHabits(updatedHabits);
-    await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updatedHabits));
+        })
+      )
+    );
   };
 
   const toggleSubtask = async (habitId: string, subtaskId: string) => {
-    const updatedHabits = habits.map((habit) => {
-      if (habit.id === habitId && habit.subtasks) {
-        const updatedSubtasks = habit.subtasks.map((st) =>
-          st.id === subtaskId ? { ...st, completed: !st.completed } : st
-        );
-        return { ...habit, subtasks: updatedSubtasks };
-      }
-      return habit;
-    });
-
-    setHabits(updatedHabits);
-    await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updatedHabits));
+    setHabits(
+      await updateStored('habits', (current) =>
+        current.map((habit) => {
+          if (habit.id !== habitId || !habit.subtasks) return habit;
+          return {
+            ...habit,
+            subtasks: habit.subtasks.map((st) =>
+              st.id === subtaskId ? { ...st, completed: !st.completed } : st
+            ),
+          };
+        })
+      )
+    );
   };
 
   const updateHabitNotes = async (habitId: string, extraNotes: string[]) => {
-    const updatedHabits = habits.map((h) =>
-      h.id === habitId ? { ...h, extraNotes } : h
+    setHabits(
+      await updateStored('habits', (current) =>
+        current.map((h) => (h.id === habitId ? { ...h, extraNotes } : h))
+      )
     );
-    setHabits(updatedHabits);
-    await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updatedHabits));
   };
 
   const deleteHabit = (id: string) => {
@@ -371,9 +356,7 @@ export default function HabitTrackerScreen() {
         if (target?.notificationId) {
           await cancelHabitReminder(target.notificationId);
         }
-        const updatedHabits = habits.filter((h) => h.id !== id);
-        setHabits(updatedHabits);
-        await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updatedHabits));
+        setHabits(await updateStored('habits', (current) => current.filter((h) => h.id !== id)));
       }
     );
   };
@@ -389,21 +372,19 @@ export default function HabitTrackerScreen() {
       );
       return;
     }
-    const updatedCategories = [...categories, trimmed];
-    setCategories(updatedCategories);
-    await AsyncStorage.setItem('@lenvry_habit_categories', JSON.stringify(updatedCategories));
+    setCategories(await writeStored('habitCategories', [...categories, trimmed]));
 
     if (iconConfig) {
-      const updatedIcons = {
-        ...customCategoryIcons,
-        [trimmed]: {
-          icon: iconConfig.icon,
-          color: iconConfig.color,
-          bg: iconConfig.bg,
-        },
-      };
-      setCustomCategoryIcons(updatedIcons);
-      await AsyncStorage.setItem('@lenvry_habit_category_icons', JSON.stringify(updatedIcons));
+      setCustomCategoryIcons(
+        await writeStored('habitCategoryIcons', {
+          ...customCategoryIcons,
+          [trimmed]: {
+            icon: iconConfig.icon,
+            color: iconConfig.color,
+            bg: iconConfig.bg,
+          },
+        })
+      );
     }
 
     setCategoryInputVisible(false);
@@ -418,18 +399,13 @@ export default function HabitTrackerScreen() {
       'CANCEL',
       async () => {
         const updatedCategories = categories.filter((c) => c !== catToDelete);
-        setCategories(updatedCategories);
         if (activeFilter === catToDelete) setActiveFilter('All');
-        await AsyncStorage.setItem(
-          '@lenvry_habit_categories',
-          JSON.stringify(updatedCategories)
-        );
+        setCategories(await writeStored('habitCategories', updatedCategories));
 
         if (customCategoryIcons[catToDelete]) {
           const nextIcons = { ...customCategoryIcons };
           delete nextIcons[catToDelete];
-          setCustomCategoryIcons(nextIcons);
-          await AsyncStorage.setItem('@lenvry_habit_category_icons', JSON.stringify(nextIcons));
+          setCustomCategoryIcons(await writeStored('habitCategoryIcons', nextIcons));
         }
       }
     );

@@ -209,7 +209,7 @@ export const RenameModal = ({
                 {isMain && onChangeDescValue && (
                   <View style={dialogStyles.fieldBlock}>
                     <Text style={dialogStyles.fieldLabel} numberOfLines={1} ellipsizeMode="tail">
-                      DESCRIPTION / NOTE (OPTIONAL)
+                      DESCRIPTION / NOTE
                     </Text>
                     <TextInput
                       style={dialogStyles.inputField}

@@ -10,8 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS } from '../../constants/theme';
-
-const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+import { SHORT_MONTHS } from '../../constants/date';
 
 const ACCENT = '#38BDF8';
 const TODAY_MONTH_TINT = 'rgba(56, 189, 248, 0.10)';

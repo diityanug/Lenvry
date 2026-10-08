@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StatusBar, ScrollView, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readManyStored, updateStored, writeStored } from '../storage';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 
@@ -103,41 +103,32 @@ export default function FinanceTracker() {
 
   const loadData = useCallback(async () => {
     try {
-      const keys = [
-        '@finance_tx',
-        '@finance_acc',
-        '@finance_exp_cat',
-        '@finance_inc_cat',
-        '@finance_category_budgets',
-        '@finance_recurring',
-        '@finance_custom_cat_icons',
-      ];
-      const results = await AsyncStorage.multiGet(keys);
-      const dataMap = Object.fromEntries(results);
+      const data = await readManyStored([
+        'financeTransactions',
+        'financeAccounts',
+        'financeExpenseCategories',
+        'financeIncomeCategories',
+        'financeCategoryBudgets',
+        'financeRecurringBills',
+        'financeCustomCategoryIcons',
+      ]);
 
-      const storedTx = dataMap['@finance_tx'];
-      const storedAcc = dataMap['@finance_acc'];
-      const storedExpCat = dataMap['@finance_exp_cat'];
-      const storedIncCat = dataMap['@finance_inc_cat'];
-      const storedBudgets = dataMap['@finance_category_budgets'];
-      const storedBills = dataMap['@finance_recurring'];
-      const storedIcons = dataMap['@finance_custom_cat_icons'];
+      if (data.financeTransactions) setTransactions(data.financeTransactions);
+      if (data.financeExpenseCategories) setExpenseCategories(data.financeExpenseCategories);
+      if (data.financeIncomeCategories) setIncomeCategories(data.financeIncomeCategories);
+      if (data.financeCategoryBudgets) setCategoryBudgets(data.financeCategoryBudgets);
+      if (data.financeRecurringBills) setRecurringBills(data.financeRecurringBills);
+      if (data.financeCustomCategoryIcons) setCustomCategoryIcons(data.financeCustomCategoryIcons);
 
-      if (storedTx) setTransactions(JSON.parse(storedTx));
-      if (storedExpCat) setExpenseCategories(JSON.parse(storedExpCat));
-      if (storedIncCat) setIncomeCategories(JSON.parse(storedIncCat));
-      if (storedBudgets) setCategoryBudgets(JSON.parse(storedBudgets));
-      if (storedBills) setRecurringBills(JSON.parse(storedBills));
-      if (storedIcons) setCustomCategoryIcons(JSON.parse(storedIcons));
-
-      if (storedAcc) {
-        setAccounts(JSON.parse(storedAcc).map((a: any) => ({ ...a, currency: a.currency || 'IDR' })));
+      if (data.financeAccounts) {
+        // The 'IDR' fallback for legacy rows now lives in the storage schema.
+        setAccounts(data.financeAccounts);
       } else {
+        // First launch: seed a wallet so the screen has somewhere to record to.
         const defaultAcc: Account[] = [
           { id: 'acc_1', name: 'Cash', type: 'Cash', currency: 'IDR', subAccounts: [{ id: 'sub_1', name: 'Main' }] },
         ];
-        setAccounts(defaultAcc);
-        await AsyncStorage.setItem('@finance_acc', JSON.stringify(defaultAcc));
+        setAccounts(await writeStored('financeAccounts', defaultAcc));
       }
     } catch (e) {
       console.error('Failed to load finance data', e);
@@ -378,8 +369,7 @@ export default function FinanceTracker() {
       updatedTx = [newTx, ...transactions];
     }
 
-    setTransactions(updatedTx);
-    await AsyncStorage.setItem('@finance_tx', JSON.stringify(updatedTx));
+    setTransactions(await writeStored('financeTransactions', updatedTx));
     setAmount('');
     setDescription('');
     setEditingTxId(null);
@@ -388,13 +378,11 @@ export default function FinanceTracker() {
   };
 
   const saveCategoryBudgets = async (budgets: CategoryBudget[]) => {
-    setCategoryBudgets(budgets);
-    await AsyncStorage.setItem('@finance_category_budgets', JSON.stringify(budgets));
+    setCategoryBudgets(await writeStored('financeCategoryBudgets', budgets));
   };
 
   const saveRecurringBills = async (bills: RecurringBill[]) => {
-    setRecurringBills(bills);
-    await AsyncStorage.setItem('@finance_recurring', JSON.stringify(bills));
+    setRecurringBills(await writeStored('financeRecurringBills', bills));
   };
 
 
@@ -446,8 +434,7 @@ export default function FinanceTracker() {
         return acc;
       });
     }
-    setAccounts(updatedAccounts);
-    await AsyncStorage.setItem('@finance_acc', JSON.stringify(updatedAccounts));
+    setAccounts(await writeStored('financeAccounts', updatedAccounts));
     setNewAccName('');
     setNewAccDesc('');
     setAccModalVisible(false);
@@ -469,12 +456,16 @@ export default function FinanceTracker() {
       'DELETE',
       'CANCEL',
       async () => {
-        const updatedTx = transactions.filter((t) => t.accountId !== accId);
-        setTransactions(updatedTx);
-        await AsyncStorage.setItem('@finance_tx', JSON.stringify(updatedTx));
-        const updatedAcc = accounts.filter((acc) => acc.id !== accId);
-        setAccounts(updatedAcc);
-        await AsyncStorage.setItem('@finance_acc', JSON.stringify(updatedAcc));
+        setTransactions(
+          await updateStored('financeTransactions', (current) =>
+            current.filter((t) => t.accountId !== accId)
+          )
+        );
+        setAccounts(
+          await updateStored('financeAccounts', (current) =>
+            current.filter((acc) => acc.id !== accId)
+          )
+        );
         setAccDetailModalVisible(false);
       }
     );
@@ -488,16 +479,19 @@ export default function FinanceTracker() {
       'DELETE',
       'CANCEL',
       async () => {
-        const updatedTx = transactions.filter((t) => !(t.accountId === accId && t.subAccountId === subId));
-        setTransactions(updatedTx);
-        await AsyncStorage.setItem('@finance_tx', JSON.stringify(updatedTx));
-        const updatedAcc = accounts.map((acc) =>
-          acc.id === accId
-            ? { ...acc, subAccounts: acc.subAccounts.filter((s) => s.id !== subId) }
-            : acc
+        setTransactions(
+          await updateStored('financeTransactions', (current) =>
+            current.filter((t) => !(t.accountId === accId && t.subAccountId === subId))
+          )
+        );
+        const updatedAcc = await updateStored('financeAccounts', (current) =>
+          current.map((acc) =>
+            acc.id === accId
+              ? { ...acc, subAccounts: acc.subAccounts.filter((s) => s.id !== subId) }
+              : acc
+          )
         );
         setAccounts(updatedAcc);
-        await AsyncStorage.setItem('@finance_acc', JSON.stringify(updatedAcc));
         if (selectedAccountForDetail?.id === accId) {
           const updatedSelected = updatedAcc.find((a) => a.id === accId);
           if (updatedSelected) setSelectedAccountForDetail(updatedSelected);
@@ -514,33 +508,34 @@ export default function FinanceTracker() {
       'DELETE',
       'CANCEL',
       async () => {
-        const updated = transactions.filter((t) => t.id !== id);
-        setTransactions(updated);
-        await AsyncStorage.setItem('@finance_tx', JSON.stringify(updated));
+        setTransactions(
+          await updateStored('financeTransactions', (current) => current.filter((t) => t.id !== id))
+        );
       }
     );
   };
 
   const saveRename = async () => {
     if (!renameValue.trim() || !renameTarget) return;
-    const updated = accounts.map((acc) => {
-      if (acc.id === renameTarget.accId) {
-        if (renameTarget.type === 'main') {
+    const updated = await updateStored('financeAccounts', (current) =>
+      current.map((acc) => {
+        if (acc.id === renameTarget.accId) {
+          if (renameTarget.type === 'main') {
+            return {
+              ...acc,
+              name: renameValue.trim(),
+              description: renameDescValue.trim() || undefined,
+            };
+          }
           return {
             ...acc,
-            name: renameValue.trim(),
-            description: renameDescValue.trim() || undefined,
+            subAccounts: acc.subAccounts.map((s) => (s.id === renameTarget.subId ? { ...s, name: renameValue.trim() } : s)),
           };
         }
-        return {
-          ...acc,
-          subAccounts: acc.subAccounts.map((s) => (s.id === renameTarget.subId ? { ...s, name: renameValue.trim() } : s)),
-        };
-      }
-      return acc;
-    });
+        return acc;
+      })
+    );
     setAccounts(updated);
-    await AsyncStorage.setItem('@finance_acc', JSON.stringify(updated));
     if (selectedAccountForDetail?.id === renameTarget.accId) {
       const updatedAcc = updated.find((a) => a.id === renameTarget.accId);
       if (updatedAcc) setSelectedAccountForDetail(updatedAcc);
@@ -561,22 +556,19 @@ export default function FinanceTracker() {
       } else {
         updatedIcons = [...customCategoryIcons, { category: catName, ...iconConfig }];
       }
-      setCustomCategoryIcons(updatedIcons);
-      await AsyncStorage.setItem('@finance_custom_cat_icons', JSON.stringify(updatedIcons));
+      setCustomCategoryIcons(await writeStored('financeCustomCategoryIcons', updatedIcons));
     }
 
     if (type === 'expense') {
       if (!expenseCategories.includes(catName)) {
         const updated = [...expenseCategories, catName];
-        setExpenseCategories(updated);
-        await AsyncStorage.setItem('@finance_exp_cat', JSON.stringify(updated));
+        setExpenseCategories(await writeStored('financeExpenseCategories', updated));
       }
       setSelectedCategory(catName);
     } else {
       if (!incomeCategories.includes(catName)) {
         const updated = [...incomeCategories, catName];
-        setIncomeCategories(updated);
-        await AsyncStorage.setItem('@finance_inc_cat', JSON.stringify(updated));
+        setIncomeCategories(await writeStored('financeIncomeCategories', updated));
       }
       setSelectedCategory(catName);
     }
@@ -600,11 +592,9 @@ export default function FinanceTracker() {
       async () => {
         const updated = list.filter((c) => c !== catToDelete);
         if (isExpense) {
-          setExpenseCategories(updated);
-          await AsyncStorage.setItem('@finance_exp_cat', JSON.stringify(updated));
+          setExpenseCategories(await writeStored('financeExpenseCategories', updated));
         } else {
-          setIncomeCategories(updated);
-          await AsyncStorage.setItem('@finance_inc_cat', JSON.stringify(updated));
+          setIncomeCategories(await writeStored('financeIncomeCategories', updated));
         }
         if (selectedCategory === catToDelete) setSelectedCategory(updated[0]);
 
@@ -612,8 +602,7 @@ export default function FinanceTracker() {
         const stillUsed = expenseCategories.concat(incomeCategories).filter((c) => c === catToDelete).length > 1;
         if (!stillUsed && customCategoryIcons.some((c) => c.category === catToDelete)) {
           const nextIcons = customCategoryIcons.filter((c) => c.category !== catToDelete);
-          setCustomCategoryIcons(nextIcons);
-          await AsyncStorage.setItem('@finance_custom_cat_icons', JSON.stringify(nextIcons));
+          setCustomCategoryIcons(await writeStored('financeCustomCategoryIcons', nextIcons));
         }
       }
     );
@@ -637,9 +626,7 @@ export default function FinanceTracker() {
       accountId: editAccId,
       subAccountId: editSubAccId,
     };
-    const updatedTx = [newTx, ...transactions];
-    setTransactions(updatedTx);
-    await AsyncStorage.setItem('@finance_tx', JSON.stringify(updatedTx));
+    setTransactions(await updateStored('financeTransactions', (current) => [newTx, ...current]));
     setBalanceModalVisible(false);
     if (accDetailModalVisible && selectedAccountForDetail) {
       const updatedAcc = accounts.find((a) => a.id === selectedAccountForDetail.id);
@@ -1132,8 +1119,7 @@ export default function FinanceTracker() {
         getAccBalance={getAccBalance}
         onClose={() => setManageAccModalVisible(false)}
         onReorderAccounts={async (newAccounts) => {
-          setAccounts(newAccounts);
-          await AsyncStorage.setItem('@finance_acc', JSON.stringify(newAccounts));
+          setAccounts(await writeStored('financeAccounts', newAccounts));
         }}
       />
 

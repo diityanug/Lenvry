@@ -472,7 +472,7 @@ function AddHabitContent({
                 })}
               </View>
 
-              <Text style={[habitModalStyles.subSectionLabel, { marginTop: 12 }]}>REMINDER TIME (OPTIONAL)</Text>
+              <Text style={[habitModalStyles.subSectionLabel, { marginTop: 12 }]}>REMINDER TIME</Text>
               <TouchableOpacity
                 style={habitModalStyles.timePickerTrigger}
                 onPress={() => setTimePickerVisible(true)}

@@ -10,13 +10,11 @@ import {
   Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { writeStored } from '../../storage';
 import { homeStyles as styles } from '../../styles/homeStyles';
 import { COLORS } from '../../constants/theme';
 import { exportBackup, importRestore, clearAllAppData } from '../../services/backupService';
 import AppAlertModal, { AppAlertConfig } from '../Common/AppAlertModal';
-
-const USERNAME_KEY = '@wakemove_user_name';
 
 interface HomeSettingsModalProps {
   visible: boolean;
@@ -96,7 +94,7 @@ function HomeSettingsContent({
       return;
     }
     try {
-      await AsyncStorage.setItem(USERNAME_KEY, trimmed);
+      await writeStored('userName', trimmed);
       Keyboard.dismiss();
       onUserNameUpdated(trimmed);
       showAlert('success', 'Profile Updated', 'Your profile name has been saved.');

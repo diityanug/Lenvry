@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Tabs } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ensureSchema, updateStored } from '../storage';
 import CurvedTabBar from '../components/Navigation/CurvedTabBar';
 import HabitAlarmModal, { HabitAlarmData } from '../components/Habits/HabitAlarmModal';
 import {
@@ -14,7 +14,6 @@ import { COLORS } from '../constants/theme';
 let Notifications: any = null;
 if (!isAndroidExpoGo) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     Notifications = require('expo-notifications');
   } catch (err) {
     console.warn('Failed to load expo-notifications in _layout:', err);
@@ -25,14 +24,17 @@ export default function AppLayout() {
   const [alarmData, setAlarmData] = useState<HabitAlarmData | null>(null);
 
   useEffect(() => {
-    // Initialize notifications & channels safely
+    // Validate storage schema once per launch.
+    ensureSchema();
+
+    // Init notifications.
     initializeNotifications();
 
     if (!Notifications || !Notifications.addNotificationReceivedListener) {
       return;
     }
 
-    // Listener 1: Notification received while app is in foreground
+    // Foreground notification listener.
     const receivedSubscription = Notifications.addNotificationReceivedListener(async (notification: any) => {
       const data = notification?.request?.content?.data as any;
       if (data && data.habitTitle) {
@@ -60,7 +62,7 @@ export default function AppLayout() {
       }
     });
 
-    // Listener 2: User tapped notification banner / lock screen alert
+    // Tapped notification listener.
     const responseSubscription = Notifications.addNotificationResponseReceivedListener?.(async (response: any) => {
       const data = response?.notification?.request?.content?.data as any;
       if (data && data.habitTitle) {
@@ -94,23 +96,17 @@ export default function AppLayout() {
 
   const handleCompleteHabit = async (habitId: string) => {
     try {
-      const raw = await AsyncStorage.getItem('@lenvry_habits');
-      if (raw) {
-        const habits: any[] = JSON.parse(raw);
-        const today = new Date().toISOString().split('T')[0];
-        const updated = habits.map((h) => {
-          if (h.id === habitId) {
-            const dates = Array.isArray(h.completedDates) ? h.completedDates : [];
-            return {
-              ...h,
-              completed: true,
-              completedDates: Array.from(new Set([...dates, today])),
-            };
-          }
-          return h;
-        });
-        await AsyncStorage.setItem('@lenvry_habits', JSON.stringify(updated));
-      }
+      const today = new Date().toISOString().split('T')[0];
+      await updateStored('habits', (current) =>
+        current.map((h) => {
+          if (h.id !== habitId) return h;
+          return {
+            ...h,
+            completed: true,
+            completedDates: Array.from(new Set([...(h.completedDates ?? []), today])),
+          };
+        })
+      );
     } catch (e) {
       console.warn('Failed to mark habit complete from alarm', e);
     }
@@ -122,8 +118,8 @@ export default function AppLayout() {
       if (alarmData && Notifications?.scheduleNotificationAsync) {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: `⏰ Tunda 5 Min: ${alarmData.habitTitle}`,
-            body: 'Waktu tunda habis! Yuk selesaikan habit ini sekarang.',
+            title: `⏰ Snooze 5 Min: ${alarmData.habitTitle}`,
+            body: 'Snooze time is up! Complete your habit now.',
             sound: alarmData.soundId ? `${alarmData.soundId}.wav` : 'default',
             data: alarmData,
           },
@@ -161,7 +157,7 @@ export default function AppLayout() {
         <Tabs.Screen name="finance" options={{ title: 'Finance' }} />
       </Tabs>
 
-      {/* Global In-App Full-Screen Alarm Modal */}
+      {/* Global full-screen alarm */}
       <HabitAlarmModal
         visible={!!alarmData}
         data={alarmData}
