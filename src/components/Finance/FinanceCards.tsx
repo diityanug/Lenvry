@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { Account, Transaction, formatMoney, getAccountIcon, MONTHS } from '../../types/finance';
 import { financeStyles as styles } from '../../styles/financeStyles';
@@ -188,66 +188,114 @@ interface AccountCardProps {
 export const AccountCard = ({ item, balance, onPress }: AccountCardProps) => {
   const isUSD = item.currency === 'USD';
   const typeIcon = getAccountIcon(item.type);
-  const pocketsCount = item.subAccounts?.length || 0;
-  const accentColor = isUSD ? COLORS.accentUSD : COLORS.finance;
-  const accentBg = isUSD ? 'rgba(56, 189, 248, 0.12)' : 'rgba(56, 189, 248, 0.10)';
-  const accentBorder = isUSD ? 'rgba(56, 189, 248, 0.28)' : 'rgba(56, 189, 248, 0.22)';
+  const pockets = item.subAccounts || [];
+  const pocketsCount = pockets.length;
+
+  const getAccColorTheme = (type: Account['type']) => {
+    switch (type) {
+      case 'Bank':
+        return { color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.28)' };
+      case 'E-Wallet':
+        return { color: '#34D399', bg: 'rgba(52, 211, 153, 0.12)', border: 'rgba(52, 211, 153, 0.28)' };
+      case 'Cash':
+        return { color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.28)' };
+      case 'Credit Card':
+        return { color: '#A855F7', bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.28)' };
+      case 'Investment':
+        return { color: '#EC4899', bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.28)' };
+      default:
+        return { color: COLORS.finance, bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.28)' };
+    }
+  };
+
+  const theme = getAccColorTheme(item.type);
 
   return (
     <TouchableOpacity
-      style={styles.accCard}
-      activeOpacity={0.75}
+      style={[styles.accCard, { borderColor: theme.border }]}
+      activeOpacity={0.8}
       onPress={() => onPress(item)}
     >
       {/* Top Accent Strip */}
-      <View style={[styles.accTopBar, { backgroundColor: accentColor }]} />
+      <View style={[styles.accTopBar, { backgroundColor: theme.color }]} />
 
-      {/* TOP ROW: Icon + Name & Type on left, Currency & Chevron on right */}
-      <View style={styles.accHeaderRow}>
-        <View style={styles.accHeaderLeft}>
-          <View style={[styles.accIconBox, { backgroundColor: accentBg, borderColor: accentBorder }]}>
-            <FontAwesome5
-              name={typeIcon}
-              size={15}
-              color={accentColor}
-            />
+      <View style={styles.accCardBody}>
+        {/* TOP ROW: Icon + Name & Type on left, Currency Pill & Chevron on right */}
+        <View style={styles.accHeaderRow}>
+          <View style={styles.accHeaderLeft}>
+            <View style={[styles.accIconBox, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+              <FontAwesome5 name={typeIcon} size={15} color={theme.color} />
+            </View>
+            <View style={styles.accTitleGroup}>
+              <Text style={styles.accName} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <View style={styles.accMetaRow}>
+                <View style={[styles.accTypeBadge, { backgroundColor: theme.bg }]}>
+                  <Text style={[styles.accTypeBadgeText, { color: theme.color }]}>
+                    {item.type}
+                  </Text>
+                </View>
+                {Boolean(item.description) && (
+                  <Text style={styles.accDescText} numberOfLines={1}>
+                    • {item.description}
+                  </Text>
+                )}
+              </View>
+            </View>
           </View>
-          <View style={styles.accTitleGroup}>
-            <Text style={styles.accName} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <Text style={styles.accTypeLabel} numberOfLines={1}>
-              {item.type}
-              {Boolean(item.description) ? ` • ${item.description}` : ''}
-            </Text>
+
+          <View style={styles.accHeaderRight}>
+            <View style={[styles.accCurrencyPill, isUSD && styles.accCurrencyPillUSD]}>
+              <Text style={[styles.accCurrencyPillText, isUSD && { color: COLORS.accentUSD }]}>
+                {item.currency}
+              </Text>
+            </View>
+            <View style={styles.accChevronBox}>
+              <Ionicons name="chevron-forward" size={13} color={COLORS.textMuted} />
+            </View>
           </View>
         </View>
 
-        <View style={styles.accHeaderRight}>
-          <View style={[styles.accCurrencyPill, isUSD && styles.accCurrencyPillUSD]}>
-            <Text style={[styles.accCurrencyPillText, isUSD && { color: COLORS.accentUSD }]}>
-              {item.currency}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
-        </View>
-      </View>
-
-      {/* BOTTOM ROW: Pocket count on left, Balance on right */}
-      <View style={styles.accBottomRow}>
-        <View style={styles.accPocketBadge}>
-          <Ionicons name="folder-outline" size={12} color={COLORS.textMuted} />
-          <Text style={styles.accPocketBadgeText}>
-            {pocketsCount} {pocketsCount === 1 ? 'Pocket' : 'Pockets'}
-          </Text>
-        </View>
-
-        <View style={styles.accBalanceWrap}>
-          <Text style={styles.accBalanceLabel}>Balance</Text>
+        {/* MIDDLE: Balance Block */}
+        <View style={styles.accBalanceRow}>
+          <Text style={styles.accBalanceLabel}>TOTAL BALANCE</Text>
           <Text style={styles.accBalanceAmount} numberOfLines={1}>
             {formatMoney(balance, item.currency)}
           </Text>
         </View>
+
+        {/* BOTTOM: Pockets Row */}
+        {pocketsCount > 0 ? (
+          <View style={styles.accBottomRow}>
+            <View style={styles.accPocketBadge}>
+              <Ionicons name="folder-outline" size={12} color={theme.color} />
+              <Text style={styles.accPocketBadgeText}>
+                {pocketsCount} {pocketsCount === 1 ? 'pocket' : 'pockets'}
+              </Text>
+            </View>
+
+            <ScrollView
+              horizontal
+              nestedScrollEnabled={true}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.accPocketsScroll}
+            >
+              {pockets.slice(0, 3).map((p) => (
+                <View key={p.id} style={styles.accPocketMiniTag}>
+                  <Text style={styles.accPocketMiniTagText} numberOfLines={1}>
+                    {p.name}
+                  </Text>
+                </View>
+              ))}
+              {pocketsCount > 3 && (
+                <View style={styles.accPocketMiniTagMore}>
+                  <Text style={styles.accPocketMiniTagMoreText}>+{pocketsCount - 3}</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        ) : null}
       </View>
     </TouchableOpacity>
   );

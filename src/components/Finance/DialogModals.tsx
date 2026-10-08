@@ -214,7 +214,7 @@ export const RenameModal = ({
 };
 
 // Available icons for custom categories
-export const AVAILABLE_CATEGORY_ICONS = [
+const AVAILABLE_CATEGORY_ICONS = [
   { icon: 'pricetag-outline', label: 'Tag', color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.16)' },
   { icon: 'cart-outline', label: 'Shopping', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.16)' },
   { icon: 'restaurant-outline', label: 'Food', color: '#F97316', bg: 'rgba(249, 115, 22, 0.16)' },
@@ -315,9 +315,10 @@ export const AddCategoryModal = ({
                 {/* Icon Grid Picker */}
                 <Text style={dialogStyles.inputLabel}>CHOOSE ICON</Text>
                 <ScrollView
+                  nestedScrollEnabled={true}
                   style={dialogStyles.iconScrollArea}
                   contentContainerStyle={dialogStyles.iconGrid}
-                  showsVerticalScrollIndicator={false}
+                  showsVerticalScrollIndicator={true}
                   keyboardShouldPersistTaps="handled"
                 >
                   {AVAILABLE_CATEGORY_ICONS.map((item) => {

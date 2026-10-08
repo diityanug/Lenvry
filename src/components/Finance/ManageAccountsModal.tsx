@@ -4,13 +4,16 @@ import {
   View,
   Modal,
   TouchableOpacity,
-  ScrollView,
   StyleSheet,
   TouchableWithoutFeedback,
-  Keyboard,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Account, formatMoney } from '../../types/finance';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import DraggableFlatList, {
+  ScaleDecorator,
+  RenderItemParams,
+} from 'react-native-draggable-flatlist';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Account, formatMoney, getAccountIcon } from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
 
 interface ManageAccountsModalProps {
@@ -19,8 +22,6 @@ interface ManageAccountsModalProps {
   getAccBalance: (accId: string) => number;
   onClose: () => void;
   onReorderAccounts: (newAccounts: Account[]) => void;
-  onOpenAddAccount: () => void;
-  onSelectAccountDetail: (acc: Account) => void;
 }
 
 export const ManageAccountsModal = ({
@@ -29,132 +30,116 @@ export const ManageAccountsModal = ({
   getAccBalance,
   onClose,
   onReorderAccounts,
-  onOpenAddAccount,
-  onSelectAccountDetail,
 }: ManageAccountsModalProps) => {
-  const moveUp = (index: number) => {
-    if (index === 0) return;
-    const updated = [...accounts];
-    const temp = updated[index - 1];
-    updated[index - 1] = updated[index];
-    updated[index] = temp;
-    onReorderAccounts(updated);
-  };
+  const renderItem = ({ item, drag, isActive }: RenderItemParams<Account>) => {
+    const balance = getAccBalance(item.id);
+    const typeIcon = getAccountIcon(item.type);
 
-  const moveDown = (index: number) => {
-    if (index === accounts.length - 1) return;
-    const updated = [...accounts];
-    const temp = updated[index + 1];
-    updated[index + 1] = updated[index];
-    updated[index] = temp;
-    onReorderAccounts(updated);
+    return (
+      <ScaleDecorator activeScale={1.03}>
+        <TouchableOpacity
+          activeOpacity={1}
+          onLongPress={drag}
+          delayLongPress={150}
+          disabled={isActive}
+          style={[
+            modalStyles.rowCard,
+            isActive && modalStyles.rowCardActive,
+          ]}
+        >
+          {/* Icon */}
+          <View style={modalStyles.iconWrap}>
+            <FontAwesome5 name={typeIcon} size={15} color={COLORS.finance} />
+          </View>
+
+          {/* Info Akun */}
+          <View style={modalStyles.infoGroup}>
+            <Text style={modalStyles.accName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <Text style={modalStyles.accSub} numberOfLines={1}>
+              {item.type} • {formatMoney(balance, item.currency)}
+            </Text>
+          </View>
+
+          {/* Drag Handle Icon - Bisa disentuh/ditarik langsung */}
+          <TouchableOpacity
+            onPressIn={drag}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+            style={[modalStyles.dragHandle, isActive && modalStyles.dragHandleActive]}
+          >
+            <Ionicons
+              name="reorder-three"
+              size={26}
+              color={isActive ? COLORS.finance : COLORS.textMuted}
+            />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </ScaleDecorator>
+    );
   };
 
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={modalStyles.overlay}>
-          <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-            <View style={modalStyles.content}>
-              <View style={modalStyles.handle} />
+          <TouchableWithoutFeedback onPress={onClose}>
+            <View style={modalStyles.backdrop} />
+          </TouchableWithoutFeedback>
 
-              {/* Header */}
-              <View style={modalStyles.headerRow}>
-                <View>
-                  <Text style={modalStyles.headerTitle}>Manage Accounts</Text>
-                </View>
-                <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-                  <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
-                </TouchableOpacity>
+          <View style={modalStyles.content}>
+            <View style={modalStyles.handle} />
+
+            {/* Header */}
+            <View style={modalStyles.headerRow}>
+              <View>
+                <Text style={modalStyles.headerTitle}>Atur Posisi Akun</Text>
+                <Text style={modalStyles.headerSubtitle}>
+                  Tahan & geser ikon garis tiga untuk mengubah urutan
+                </Text>
               </View>
-
-              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 400, marginVertical: 12 }} contentContainerStyle={{ paddingBottom: 8 }}>
-                {accounts.length === 0 ? (
-                  <View style={modalStyles.emptyState}>
-                    <Text style={modalStyles.emptyText}>No accounts found.</Text>
-                  </View>
-                ) : (
-                  accounts.map((acc, index) => {
-                    const balance = getAccBalance(acc.id);
-                    const formattedBal = formatMoney(balance, acc.currency);
-                    return (
-                      <View key={acc.id} style={modalStyles.accRow}>
-                        {/* Order Action Buttons */}
-                        <View style={modalStyles.reorderBtns}>
-                          <TouchableOpacity
-                            style={[modalStyles.orderBtn, index === 0 && modalStyles.orderBtnDisabled]}
-                            onPress={() => moveUp(index)}
-                            disabled={index === 0}
-                            activeOpacity={0.6}
-                          >
-                            <Ionicons
-                              name="chevron-up"
-                              size={18}
-                              color={index === 0 ? COLORS.textMuted : COLORS.textPrimary}
-                            />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[
-                              modalStyles.orderBtn,
-                              index === accounts.length - 1 && modalStyles.orderBtnDisabled,
-                            ]}
-                            onPress={() => moveDown(index)}
-                            disabled={index === accounts.length - 1}
-                            activeOpacity={0.6}
-                          >
-                            <Ionicons
-                              name="chevron-down"
-                              size={18}
-                              color={index === accounts.length - 1 ? COLORS.textMuted : COLORS.textPrimary}
-                            />
-                          </TouchableOpacity>
-                        </View>
-
-                        {/* Account Info */}
-                        <TouchableOpacity
-                          style={modalStyles.accInfo}
-                          onPress={() => {
-                            onClose();
-                            onSelectAccountDetail(acc);
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          <View style={modalStyles.badge}>
-                            <Text style={modalStyles.badgeText}>{index + 1}</Text>
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={modalStyles.accName} numberOfLines={1}>
-                              {acc.name}
-                            </Text>
-                            <Text style={modalStyles.accType}>
-                              {acc.type} • {acc.subAccounts?.length || 0} pockets
-                            </Text>
-                          </View>
-                          <Text style={modalStyles.accBal}>{formattedBal}</Text>
-                          <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} style={{ marginLeft: 6 }} />
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })
-                )}
-              </ScrollView>
-
-              {/* Add Account Shortcut */}
               <TouchableOpacity
-                style={modalStyles.addBtn}
-                onPress={() => {
-                  onClose();
-                  onOpenAddAccount();
-                }}
-                activeOpacity={0.8}
+                onPress={onClose}
+                activeOpacity={0.7}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <Ionicons name="add-circle-outline" size={20} color="#08090C" />
-                <Text style={modalStyles.addBtnText}>Add New Account</Text>
+                <Ionicons name="close-circle" size={26} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
-          </TouchableWithoutFeedback>
+
+            {/* Draggable FlatList dengan konfigurasi spring halus */}
+            <View style={modalStyles.listWrapper}>
+              <DraggableFlatList
+                data={accounts}
+                onDragEnd={({ data }) => onReorderAccounts(data)}
+                keyExtractor={(item) => item.id}
+                renderItem={renderItem}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={modalStyles.scrollContent}
+                animationConfig={{
+                  damping: 24,
+                  mass: 0.8,
+                  stiffness: 160,
+                  overshootClamping: false,
+                }}
+                autoscrollSpeed={100}
+                autoscrollThreshold={40}
+                dragItemOverflow={true}
+                ListEmptyComponent={
+                  <View style={modalStyles.emptyState}>
+                    <Text style={modalStyles.emptyText}>Tidak ada akun.</Text>
+                  </View>
+                }
+              />
+            </View>
+
+            {/* Tombol Selesai */}
+            <TouchableOpacity style={modalStyles.doneBtn} onPress={onClose} activeOpacity={0.8}>
+              <Text style={modalStyles.doneBtnText}>Selesai</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </TouchableWithoutFeedback>
+      </GestureHandlerRootView>
     </Modal>
   );
 };
@@ -165,13 +150,16 @@ const modalStyles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'flex-end',
   },
+  backdrop: {
+    flex: 1,
+  },
   content: {
     backgroundColor: COLORS.bgCard,
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 16,
+    paddingBottom: 24,
     maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
@@ -188,99 +176,97 @@ const modalStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 14,
   },
   headerTitle: {
     color: COLORS.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
   },
   headerSubtitle: {
     color: COLORS.textMuted,
     fontSize: 12,
     marginTop: 2,
   },
+  listWrapper: {
+    maxHeight: 420,
+  },
+  scrollContent: {
+    paddingBottom: 16,
+    gap: 10,
+  },
   emptyState: {
-    padding: 24,
+    padding: 30,
     alignItems: 'center',
   },
   emptyText: {
     color: COLORS.textMuted,
     fontSize: 14,
   },
-  accRow: {
+  rowCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.bgCanvas,
+    backgroundColor: '#11141D',
     borderRadius: RADIUS.md,
-    padding: 10,
-    marginBottom: 8,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: COLORS.border,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 8,
   },
-  reorderBtns: {
-    flexDirection: 'column',
-    marginRight: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+  rowCardActive: {
+    backgroundColor: '#161B26',
+    borderColor: COLORS.finance,
+    shadowColor: COLORS.finance,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  orderBtn: {
-    padding: 4,
-    backgroundColor: COLORS.bgCardSub,
+  iconWrap: {
+    width: 38,
+    height: 38,
     borderRadius: RADIUS.sm,
-    marginVertical: 1,
-  },
-  orderBtnDisabled: {
-    opacity: 0.3,
-  },
-  accInfo: {
-    flex: 1,
-    flexDirection: 'row',
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
     alignItems: 'center',
-  },
-  badge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: COLORS.borderLight,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
+    marginRight: 12,
   },
-  badgeText: {
-    color: COLORS.textPrimary,
-    fontSize: 11,
-    fontWeight: '700',
+  infoGroup: {
+    flex: 1,
+    marginRight: 10,
   },
   accName: {
     color: COLORS.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
-  accType: {
+  accSub: {
     color: COLORS.textMuted,
-    fontSize: 11,
+    fontSize: 11.5,
     marginTop: 2,
   },
-  accBal: {
-    color: COLORS.finance,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  addBtn: {
-    flexDirection: 'row',
+  dragHandle: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.finance,
-    paddingVertical: 14,
-    borderRadius: RADIUS.md,
-    marginTop: 8,
-    marginBottom: 4,
-    gap: 6,
   },
-  addBtnText: {
+  dragHandleActive: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+  },
+  doneBtn: {
+    backgroundColor: COLORS.finance,
+    borderRadius: RADIUS.md,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  doneBtnText: {
     color: '#08090C',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });

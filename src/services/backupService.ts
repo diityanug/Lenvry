@@ -4,7 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 
-export const APP_KEYS = [
+const APP_KEYS = [
   '@wakemove_user_name',
   '@finance_tx',
   '@finance_acc',

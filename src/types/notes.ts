@@ -1,3 +1,21 @@
+export type NoteCategory = 'General' | 'Personal' | 'Work' | 'Ideas' | 'Lists';
+
+export interface NoteCategoryConfig {
+  id: NoteCategory;
+  label: string;
+  icon: string;
+  color: string;
+  isSensitive?: boolean;
+}
+
+export const NOTE_CATEGORIES: Record<NoteCategory, NoteCategoryConfig> = {
+  General: { id: 'General', label: 'General Note', icon: 'document-text-outline', color: '#F59E0B' },
+  Personal: { id: 'Personal', label: 'Personal & Credentials', icon: 'shield-checkmark-outline', color: '#EC4899', isSensitive: true },
+  Work: { id: 'Work', label: 'Work & Study', icon: 'briefcase-outline', color: '#38BDF8' },
+  Ideas: { id: 'Ideas', label: 'Ideas & Thoughts', icon: 'bulb-outline', color: '#A855F7' },
+  Lists: { id: 'Lists', label: 'Lists & Shopping', icon: 'list-outline', color: '#10B981' },
+};
+
 export type StickyNoteColor = 'amber' | 'blue' | 'emerald' | 'rose' | 'purple';
 
 export interface ChecklistItem {
@@ -10,6 +28,7 @@ export interface StickyNote {
   id: string;
   title: string;
   type: 'text' | 'checklist';
+  category?: NoteCategory;
   description?: string;
   checklist?: ChecklistItem[];
   color?: StickyNoteColor;

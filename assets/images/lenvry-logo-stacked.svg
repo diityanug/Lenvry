@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 360" width="512" height="360" role="img" aria-label="Lenvry logo">
+  <defs>
+    <linearGradient id="ln-tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161922"/>
+      <stop offset="1" stop-color="#08090C"/>
+    </linearGradient>
+    <linearGradient id="ln-l" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#818CF8"/>
+      <stop offset="1" stop-color="#6366F1"/>
+    </linearGradient>
+    <radialGradient id="ln-glow" cx="0.5" cy="0.52" r="0.72">
+      <stop offset="0" stop-color="#6366F1" stop-opacity="0.16"/>
+      <stop offset="0.7" stop-color="#6366F1" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#6366F1" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- mark -->
+  <g transform="translate(156 8) scale(0.390625)">
+    <rect width="512" height="512" rx="115" fill="url(#ln-tile)"/>
+    <rect width="512" height="512" rx="115" fill="url(#ln-glow)"/>
+    <rect x="0.5" y="0.5" width="511" height="511" rx="114.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1"/>
+    <path d="M 192 108 L 192 404 L 320 404" fill="none" stroke="url(#ln-l)" stroke-width="92" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="380" y="112" width="36" height="36" rx="12" fill="#F59E0B"/>
+    <rect x="436" y="112" width="36" height="36" rx="12" fill="#10B981"/>
+    <rect x="380" y="168" width="36" height="36" rx="12" fill="#2DD4BF"/>
+    <rect x="436" y="168" width="36" height="36" rx="12" fill="#38BDF8"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="256" y="286" text-anchor="middle" dominant-baseline="central" font-family="'Segoe UI Variable Display', 'Segoe UI', -apple-system, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif" font-size="96" font-weight="700" letter-spacing="-0.01em" fill="#F8FAFC">Lenvry</text>
+</svg>

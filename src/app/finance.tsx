@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StatusBar, ScrollView, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 
 import { Account, Transaction, CategoryBudget, CategoryCustomIcon, RecurringBill, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, MONTHS } from '../types/finance';
 import { TransactionCard, AccountCard, AddAccountCard, HeroSummaryCard } from '../components/Finance/FinanceCards';
@@ -21,7 +22,7 @@ import { ManageAccountsModal } from '../components/Finance/ManageAccountsModal';
 import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
 import { TAB_BAR_HEIGHT } from '../constants/tabBar';
 import { financeStyles as styles } from '../styles/financeStyles';
-import { COLORS } from '../constants/theme';
+import { COLORS, RADIUS } from '../constants/theme';
 
 import { useFocusEffect } from 'expo-router';
 
@@ -33,6 +34,7 @@ export default function FinanceTracker() {
   const [incomeCategories, setIncomeCategories] = useState<string[]>(DEFAULT_INCOME_CATEGORIES);
 
   // In-Screen Quick Filter
+  const [financeViewMode, setFinanceViewMode] = useState<'overview' | 'insights'>('overview');
   const [homeTxFilter, setHomeTxFilter] = useState<'all' | 'expense' | 'income'>('all');
   const [activeCurrency, setActiveCurrency] = useState<'IDR' | 'USD'>('IDR');
 
@@ -141,6 +143,27 @@ export default function FinanceTracker() {
       console.error('Failed to load finance data', e);
     }
   }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        loadData();
+      }
+    });
+
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2);
+    const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
+
+    const timer = setTimeout(() => {
+      loadData();
+    }, msToMidnight);
+
+    return () => {
+      subscription.remove();
+      clearTimeout(timer);
+    };
+  }, [loadData]);
 
   useFocusEffect(
     useCallback(() => {
@@ -430,6 +453,14 @@ export default function FinanceTracker() {
     setAccModalVisible(false);
   };
 
+  const openAddSubAccount = (parentAccountId: string) => {
+    setAccFormType('sub');
+    setParentAccId(parentAccountId);
+    setNewAccName('');
+    setNewAccDesc('');
+    setAccModalVisible(true);
+  };
+
   const deleteAccount = (accId: string) => {
     showAlert(
       'danger',
@@ -629,14 +660,6 @@ export default function FinanceTracker() {
 
         <View style={styles.headerRightActions}>
           <TouchableOpacity
-            style={styles.headerHistoryBtn}
-            onPress={() => setCategoryBreakdownModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="pie-chart-outline" size={15} color={COLORS.finance} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={styles.headerAddBtn}
             onPress={() => openNewTransaction('expense')}
             activeOpacity={0.8}
@@ -672,165 +695,289 @@ export default function FinanceTracker() {
           onCurrencyChange={setActiveCurrency}
         />
 
-        {/* ACCOUNTS SECTION */}
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleRow}>
-            <Text style={styles.sectionTitle}>MY ACCOUNTS</Text>
-            <View style={styles.countBadge}>
-              <Text style={styles.countBadgeText}>{accounts.length}</Text>
-            </View>
-          </View>
-
+        {/* VIEW MODE SWITCHER TABS */}
+        <View
+          style={{
+            flexDirection: 'row',
+            backgroundColor: COLORS.bgCard,
+            borderRadius: RADIUS.md,
+            padding: 4,
+            marginTop: 4,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+          }}
+        >
           <TouchableOpacity
-            style={styles.seeAllBtn}
-            onPress={() => setManageAccModalVisible(true)}
-            activeOpacity={0.7}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            style={[
+              {
+                flex: 1,
+                paddingVertical: 9,
+                paddingHorizontal: 6,
+                borderRadius: RADIUS.sm,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'row',
+                gap: 8,
+              },
+              financeViewMode === 'overview' && { backgroundColor: COLORS.finance },
+            ]}
+            onPress={() => setFinanceViewMode('overview')}
+            activeOpacity={0.8}
           >
-            <Ionicons name="swap-vertical" size={14} color={COLORS.finance} style={{ marginRight: 4 }} />
-            <Text style={styles.seeAllText}>Manage</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Natural vertical flow for accounts (no nested scrollview or restrictive container) */}
-        <View style={{ gap: 10, marginBottom: 20 }}>
-          {accounts.map((item) => (
-            <AccountCard
-              key={item.id}
-              item={item}
-              balance={getAccBalance(item.id)}
-              onPress={(acc) => {
-                setSelectedAccountForDetail(acc);
-                setAccDetailModalVisible(true);
-              }}
+            <Ionicons
+              name="wallet-outline"
+              size={18}
+              color={financeViewMode === 'overview' ? '#08090C' : COLORS.textMuted}
             />
-          ))}
-          <AddAccountCard onPress={() => setAccModalVisible(true)} />
-        </View>
-
-        {/* RECURRING BILLS CARD */}
-        <RecurringBillsCard
-          bills={recurringBills}
-          monthlyTransactions={filteredMonthlyTransactions}
-          categories={expenseCategories}
-          currency={activeCurrency}
-          onAddBill={(bill) => {
-            const newBill = { ...bill, id: Date.now().toString() };
-            saveRecurringBills([...recurringBills, newBill]);
-          }}
-          onDeleteBill={(id) => {
-            saveRecurringBills(recurringBills.filter((b) => b.id !== id));
-          }}
-          onQuickLogBill={handleQuickLogBill}
-        />
-
-        {/* CATEGORY EXPENSE BREAKDOWN & BUDGETS */}
-        <CategoryBreakdownCard
-          transactions={filteredMonthlyTransactions}
-          budgets={categoryBudgets}
-          currency={activeCurrency}
-          customCategoryIcons={customCategoryIcons}
-          onOpenSetBudget={() => setBudgetModalVisible(true)}
-        />
-
-        {/* TRANSACTIONS SECTION */}
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleRow}>
-            <Text style={styles.sectionTitle}>
-              TRANSACTIONS • {MONTHS[selectedMonthFilter.getMonth()].toUpperCase()}
-            </Text>
-            <View style={styles.countBadge}>
-              <Text style={styles.countBadgeText}>{displayedHomeTransactions.length}</Text>
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Text
+                style={[
+                  { fontSize: 11.5, fontWeight: '700', color: COLORS.textMuted, lineHeight: 15, textAlign: 'center' },
+                  financeViewMode === 'overview' && { color: '#08090C', fontWeight: '800' },
+                ]}
+              >
+                Accounts
+              </Text>
+              <Text
+                style={[
+                  { fontSize: 11.5, fontWeight: '700', color: COLORS.textMuted, lineHeight: 15, textAlign: 'center' },
+                  financeViewMode === 'overview' && { color: '#08090C', fontWeight: '800' },
+                ]}
+              >
+                Transactions
+              </Text>
             </View>
-          </View>
-
-          <TouchableOpacity
-            style={styles.headerHistoryBtn}
-            onPress={() => setHistoryModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="search-outline" size={14} color={COLORS.textSecondary} />
-            <Text style={styles.headerHistoryBtnText}>History</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* QUICK FILTER SEGMENTED TABS */}
-        <View style={styles.filterTabRow}>
-          <TouchableOpacity
-            style={[styles.filterTabItem, homeTxFilter === 'all' && styles.filterTabItemActive]}
-            onPress={() => setHomeTxFilter('all')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.filterTabItemText, homeTxFilter === 'all' && styles.filterTabItemTextActive]}>
-              All ({sortedTransactions.length})
-            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.filterTabItem, homeTxFilter === 'expense' && styles.filterTabItemActive]}
-            onPress={() => setHomeTxFilter('expense')}
-            activeOpacity={0.7}
+            style={[
+              {
+                flex: 1,
+                paddingVertical: 9,
+                paddingHorizontal: 6,
+                borderRadius: RADIUS.sm,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'row',
+                gap: 8,
+              },
+              financeViewMode === 'insights' && { backgroundColor: COLORS.finance },
+            ]}
+            onPress={() => setFinanceViewMode('insights')}
+            activeOpacity={0.8}
           >
-            <Text
-              style={[
-                styles.filterTabItemText,
-                homeTxFilter === 'expense' && { color: COLORS.danger, fontWeight: '700' },
-              ]}
-            >
-              Expense
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.filterTabItem, homeTxFilter === 'income' && styles.filterTabItemActive]}
-            onPress={() => setHomeTxFilter('income')}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.filterTabItemText,
-                homeTxFilter === 'income' && { color: COLORS.success, fontWeight: '700' },
-              ]}
-            >
-              Income
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* NATURAL SCROLLABLE TRANSACTIONS LIST */}
-        {displayedHomeTransactions.length === 0 ? (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconBox}>
-              <Ionicons name="receipt-outline" size={26} color={COLORS.finance} />
+            <Ionicons
+              name="pie-chart-outline"
+              size={18}
+              color={financeViewMode === 'insights' ? '#08090C' : COLORS.textMuted}
+            />
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Text
+                style={[
+                  { fontSize: 11.5, fontWeight: '700', color: COLORS.textMuted, lineHeight: 15, textAlign: 'center' },
+                  financeViewMode === 'insights' && { color: '#08090C', fontWeight: '800' },
+                ]}
+              >
+                Budgets
+              </Text>
+              <Text
+                style={[
+                  { fontSize: 11.5, fontWeight: '700', color: COLORS.textMuted, lineHeight: 15, textAlign: 'center' },
+                  financeViewMode === 'insights' && { color: '#08090C', fontWeight: '800' },
+                ]}
+              >
+                Bills
+              </Text>
             </View>
-            <Text style={styles.emptyText}>No Transactions Recorded</Text>
-            <Text style={styles.emptySubText}>
-              {homeTxFilter === 'all'
-                ? `No transactions recorded for ${MONTHS[selectedMonthFilter.getMonth()]}. Tap below to record.`
-                : `No ${homeTxFilter} transactions for this period.`}
-            </Text>
-            <TouchableOpacity
-              style={[styles.emptyActionBtn, { backgroundColor: COLORS.finance, borderColor: COLORS.finance, marginTop: 16 }]}
-              onPress={() => openNewTransaction('expense')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="add" size={16} color="#08090C" />
-              <Text style={[styles.emptyActionBtnText, { color: '#08090C' }]}>Add Transaction</Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
+        </View>
+
+        {financeViewMode === 'overview' ? (
+          <Animated.View
+            key="overview_view"
+            entering={FadeIn.duration(260)}
+            exiting={FadeOut.duration(180)}
+            layout={LinearTransition.springify().damping(22).stiffness(180)}
+          >
+            {/* ACCOUNTS SECTION */}
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitle}>MY ACCOUNTS</Text>
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{accounts.length}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.seeAllBtn}
+                onPress={() => setManageAccModalVisible(true)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Ionicons name="swap-vertical" size={14} color={COLORS.finance} style={{ marginRight: 4 }} />
+                <Text style={styles.seeAllText}>Manage</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Natural vertical flow for accounts */}
+            <View style={{ gap: 10, marginBottom: 20 }}>
+              {accounts.map((item) => (
+                <AccountCard
+                  key={item.id}
+                  item={item}
+                  balance={getAccBalance(item.id)}
+                  onPress={(acc) => {
+                    setSelectedAccountForDetail(acc);
+                    setAccDetailModalVisible(true);
+                  }}
+                />
+              ))}
+              <AddAccountCard onPress={() => setAccModalVisible(true)} />
+            </View>
+
+            {/* TRANSACTIONS SECTION */}
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitle}>
+                  TRANSACTIONS • {MONTHS[selectedMonthFilter.getMonth()].toUpperCase()}
+                </Text>
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{displayedHomeTransactions.length}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.headerHistoryBtn}
+                onPress={() => setHistoryModalVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="search-outline" size={14} color={COLORS.textSecondary} />
+                <Text style={styles.headerHistoryBtnText}>History</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* QUICK FILTER SEGMENTED TABS */}
+            <View style={styles.filterTabRow}>
+              <TouchableOpacity
+                style={[styles.filterTabItem, homeTxFilter === 'all' && styles.filterTabItemActive]}
+                onPress={() => setHomeTxFilter('all')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.filterTabItemText, homeTxFilter === 'all' && styles.filterTabItemTextActive]}>
+                  All ({sortedTransactions.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.filterTabItem, homeTxFilter === 'expense' && styles.filterTabItemActive]}
+                onPress={() => setHomeTxFilter('expense')}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.filterTabItemText,
+                    homeTxFilter === 'expense' && { color: COLORS.danger, fontWeight: '700' },
+                  ]}
+                >
+                  Expense
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.filterTabItem, homeTxFilter === 'income' && styles.filterTabItemActive]}
+                onPress={() => setHomeTxFilter('income')}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.filterTabItemText,
+                    homeTxFilter === 'income' && { color: COLORS.success, fontWeight: '700' },
+                  ]}
+                >
+                  Income
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* NATURAL SCROLLABLE TRANSACTIONS LIST */}
+            {displayedHomeTransactions.length === 0 ? (
+              <Animated.View
+                key="empty_tx_state"
+                entering={FadeIn.duration(240)}
+                layout={LinearTransition.springify().damping(22).stiffness(180)}
+                style={styles.emptyState}
+              >
+                <View style={styles.emptyIconBox}>
+                  <Ionicons name="receipt-outline" size={26} color={COLORS.finance} />
+                </View>
+                <Text style={styles.emptyText}>No Transactions Recorded</Text>
+                <Text style={styles.emptySubText}>
+                  {homeTxFilter === 'all'
+                    ? `No transactions recorded for ${MONTHS[selectedMonthFilter.getMonth()]}. Tap below to record.`
+                    : `No ${homeTxFilter} transactions for this period.`}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.emptyActionBtn, { backgroundColor: COLORS.finance, borderColor: COLORS.finance, marginTop: 16 }]}
+                  onPress={() => openNewTransaction('expense')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="add" size={16} color="#08090C" />
+                  <Text style={[styles.emptyActionBtnText, { color: '#08090C' }]}>Add Transaction</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            ) : (
+              <Animated.View
+                key={`tx_list_${homeTxFilter}`}
+                entering={FadeIn.duration(240)}
+                layout={LinearTransition.springify().damping(22).stiffness(180)}
+                style={{ marginBottom: 14 }}
+              >
+                {displayedHomeTransactions.map((item) => (
+                  <TransactionCard
+                    key={item.id}
+                    item={item}
+                    accounts={accounts}
+                    onClone={cloneTransaction}
+                    onDelete={deleteTransaction}
+                    onEdit={editTransaction}
+                  />
+                ))}
+              </Animated.View>
+            )}
+          </Animated.View>
         ) : (
-          <View style={{ marginBottom: 14 }}>
-            {displayedHomeTransactions.map((item) => (
-              <TransactionCard
-                key={item.id}
-                item={item}
-                accounts={accounts}
-                onClone={cloneTransaction}
-                onDelete={deleteTransaction}
-                onEdit={editTransaction}
-              />
-            ))}
-          </View>
+          <Animated.View
+            key="insights_view"
+            entering={FadeIn.duration(260)}
+            exiting={FadeOut.duration(180)}
+            layout={LinearTransition.springify().damping(22).stiffness(180)}
+          >
+            {/* CATEGORY EXPENSE BREAKDOWN & BUDGETS */}
+            <CategoryBreakdownCard
+              transactions={filteredMonthlyTransactions}
+              budgets={categoryBudgets}
+              currency={activeCurrency}
+              customCategoryIcons={customCategoryIcons}
+              onOpenSetBudget={() => setBudgetModalVisible(true)}
+            />
+
+            {/* RECURRING BILLS CARD */}
+            <RecurringBillsCard
+              bills={recurringBills}
+              monthlyTransactions={filteredMonthlyTransactions}
+              categories={expenseCategories}
+              currency={activeCurrency}
+              onAddBill={(bill) => {
+                const newBill = { ...bill, id: Date.now().toString() };
+                saveRecurringBills([...recurringBills, newBill]);
+              }}
+              onDeleteBill={(id) => {
+                saveRecurringBills(recurringBills.filter((b) => b.id !== id));
+              }}
+              onQuickLogBill={handleQuickLogBill}
+            />
+          </Animated.View>
         )}
       </ScrollView>
 
@@ -923,6 +1070,12 @@ export default function FinanceTracker() {
           setRenameModalVisible(true);
         }}
         onDeleteSubAccount={deleteSubAccount}
+        onAddSubAccount={() => {
+          if (selectedAccountForDetail) {
+            setAccDetailModalVisible(false);
+            openAddSubAccount(selectedAccountForDetail.id);
+          }
+        }}
       />
 
       <HistoryModal
@@ -1026,11 +1179,6 @@ export default function FinanceTracker() {
         onReorderAccounts={async (newAccounts) => {
           setAccounts(newAccounts);
           await AsyncStorage.setItem('@finance_acc', JSON.stringify(newAccounts));
-        }}
-        onOpenAddAccount={() => setAccModalVisible(true)}
-        onSelectAccountDetail={(acc) => {
-          setSelectedAccountForDetail(acc);
-          setAccDetailModalVisible(true);
         }}
       />
 

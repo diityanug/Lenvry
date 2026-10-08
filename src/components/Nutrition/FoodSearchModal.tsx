@@ -335,7 +335,7 @@ function FoodSearchContent({
                     activeOpacity={0.7}
                   >
                     <View style={{ flex: 1, marginRight: 12 }}>
-                      <Text style={styles.foodSearchTitle} numberOfLines={1}>
+                      <Text style={styles.foodSearchTitle}>
                         {item.name}
                       </Text>
                       <Text style={styles.foodSearchServing}>

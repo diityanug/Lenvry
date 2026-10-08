@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Keyboard,
   ScrollView,
@@ -6,6 +6,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -121,10 +122,51 @@ export default function HabitTrackerScreen() {
     }
   }, []);
 
+  const lastTodayKeyRef = useRef(formatDateKey(new Date()));
+
+  const syncDateToTodayIfOnToday = useCallback(() => {
+    const now = new Date();
+    const newTodayKey = formatDateKey(now);
+    const oldTodayKey = lastTodayKeyRef.current;
+    lastTodayKeyRef.current = newTodayKey;
+
+    setSelectedDate((prevDate) => {
+      const prevKey = formatDateKey(prevDate);
+      if (prevKey === oldTodayKey) {
+        return now;
+      }
+      return prevDate;
+    });
+  }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        syncDateToTodayIfOnToday();
+        loadData();
+      }
+    });
+
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2);
+    const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
+
+    const timer = setTimeout(() => {
+      syncDateToTodayIfOnToday();
+      loadData();
+    }, msToMidnight);
+
+    return () => {
+      subscription.remove();
+      clearTimeout(timer);
+    };
+  }, [syncDateToTodayIfOnToday, loadData]);
+
   useFocusEffect(
     useCallback(() => {
+      syncDateToTodayIfOnToday();
       loadData();
-    }, [loadData])
+    }, [syncDateToTodayIfOnToday, loadData])
   );
 
   const showAlert = (

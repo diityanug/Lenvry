@@ -81,7 +81,7 @@ export const MealSectionList = ({
                       {/* Top Row: Food Name + Calories & Actions */}
                       <View style={mealStyles.logItemHeader}>
                         <View style={{ flex: 1, marginRight: 8 }}>
-                          <Text style={mealStyles.foodNameText} numberOfLines={2}>
+                          <Text style={mealStyles.foodNameText}>
                             {item.foodName}
                           </Text>
                           <Text style={mealStyles.portionSubText}>

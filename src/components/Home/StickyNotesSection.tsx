@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS } from '../../constants/theme';
-import { StickyNote, STICKY_COLORS } from '../../types/notes';
+import { StickyNote, STICKY_COLORS, NoteCategory, NOTE_CATEGORIES } from '../../types/notes';
 
 interface StickyNotesSectionProps {
   notes: StickyNote[];
@@ -15,6 +15,15 @@ export default function StickyNotesSection({
   onSelectNote,
   onCreateNote,
 }: StickyNotesSectionProps) {
+  const [activeCategory, setActiveCategory] = useState<string>('All');
+
+  const categoriesList = ['All', 'Personal', 'General', 'Work', 'Ideas', 'Lists'];
+
+  const filteredNotes =
+    activeCategory === 'All'
+      ? notes
+      : notes.filter((n) => (n.category || 'General') === activeCategory);
+
   return (
     <View style={styles.sectionContainer}>
       {/* Header Row */}
@@ -28,10 +37,73 @@ export default function StickyNotesSection({
             </View>
           )}
         </View>
+
+        <TouchableOpacity onPress={onCreateNote} style={styles.addNoteBtnHeader} activeOpacity={0.7}>
+          <Ionicons name="add" size={14} color={COLORS.accentHover} />
+          <Text style={styles.addNoteBtnHeaderText}>Add Note</Text>
+        </TouchableOpacity>
       </View>
 
+      {/* Category Filter Bar */}
+      {notes.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryFilterContainer}
+        >
+          {categoriesList.map((catKey) => {
+            const isAll = catKey === 'All';
+            const catConfig = !isAll ? NOTE_CATEGORIES[catKey as NoteCategory] : null;
+            const isSelected = activeCategory === catKey;
+
+            // Count notes per category
+            const count = isAll
+              ? notes.length
+              : notes.filter((n) => (n.category || 'General') === catKey).length;
+
+            if (count === 0 && !isAll && !isSelected) return null;
+
+            return (
+              <TouchableOpacity
+                key={catKey}
+                style={[
+                  styles.filterPill,
+                  isSelected && styles.filterPillActive,
+                  isSelected && catConfig && { borderColor: catConfig.color, backgroundColor: catConfig.color + '22' },
+                ]}
+                onPress={() => setActiveCategory(catKey)}
+                activeOpacity={0.7}
+              >
+                {catConfig ? (
+                  <Ionicons
+                    name={catConfig.icon as any}
+                    size={13}
+                    color={isSelected ? catConfig.color : COLORS.textMuted}
+                  />
+                ) : (
+                  <Ionicons
+                    name="grid-outline"
+                    size={13}
+                    color={isSelected ? COLORS.accentHover : COLORS.textMuted}
+                  />
+                )}
+                <Text
+                  style={[
+                    styles.filterPillText,
+                    isSelected && styles.filterPillTextActive,
+                    isSelected && catConfig && { color: catConfig.color },
+                  ]}
+                >
+                  {catKey === 'Personal' ? 'Personal & Pass' : catKey} ({count})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
+
       {/* Content */}
-      {notes.length === 0 ? (
+      {filteredNotes.length === 0 ? (
         <TouchableOpacity
           style={styles.emptyCard}
           onPress={onCreateNote}
@@ -40,9 +112,11 @@ export default function StickyNotesSection({
           <View style={styles.emptyIconWrap}>
             <Ionicons name="pencil" size={20} color="#F59E0B" />
           </View>
-          <Text style={styles.emptyTitle}>No pinned notes yet</Text>
+          <Text style={styles.emptyTitle}>
+            {notes.length === 0 ? 'No pinned notes yet' : `No notes in "${activeCategory}"`}
+          </Text>
           <Text style={styles.emptySub}>
-            Tap here to write shopping lists, casual ideas, or undated plans.
+            Tap here to write shopping lists, casual ideas, or personal credentials.
           </Text>
         </TouchableOpacity>
       ) : (
@@ -51,10 +125,11 @@ export default function StickyNotesSection({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {notes.map((note) => {
+          {filteredNotes.map((note) => {
             const colorKey = note.color || 'amber';
             const palette = STICKY_COLORS[colorKey] || STICKY_COLORS.amber;
             const isChecklist = note.type === 'checklist';
+            const catConfig = NOTE_CATEGORIES[note.category || 'General'] || NOTE_CATEGORIES.General;
             const totalItems = note.checklist?.length || 0;
             const completedItems = note.checklist?.filter((item) => item.done).length || 0;
             const pct = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
@@ -74,13 +149,21 @@ export default function StickyNotesSection({
                 {/* Top Accent Strip */}
                 <View style={[styles.topAccentStrip, { backgroundColor: palette.accent }]} />
 
-                {/* Card Header: Title on left, Pin on right */}
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>
-                    {note.title}
-                  </Text>
-                  <Ionicons name="pin" size={13} color={palette.accent} />
+                {/* Card Header: Category badge & Pin */}
+                <View style={styles.cardHeaderRow}>
+                  <View style={[styles.categoryBadge, { backgroundColor: catConfig.color + '22', borderColor: catConfig.color + '44' }]}>
+                    <Ionicons name={catConfig.icon as any} size={11} color={catConfig.color} />
+                    <Text style={[styles.categoryBadgeText, { color: catConfig.color }]}>
+                      {catConfig.id}
+                    </Text>
+                  </View>
+                  <Ionicons name="pin" size={12} color={palette.accent} />
                 </View>
+
+                {/* Title */}
+                <Text style={styles.cardTitle} numberOfLines={1}>
+                  {note.title}
+                </Text>
 
                 {/* Content Body Preview */}
                 <View style={styles.cardBody}>
@@ -90,9 +173,9 @@ export default function StickyNotesSection({
                         <View key={item.id} style={styles.checkItemRow}>
                           <Ionicons
                             name={item.done ? 'checkmark-circle' : 'ellipse-outline'}
-                            size={13}
+                            size={12}
                             color={item.done ? palette.accent : COLORS.textMuted}
-                            style={{ marginRight: 6 }}
+                            style={{ marginRight: 5 }}
                           />
                           <Text
                             style={[
@@ -115,13 +198,13 @@ export default function StickyNotesSection({
                       )}
                     </View>
                   ) : (
-                    <Text style={styles.descText} numberOfLines={4}>
+                    <Text style={styles.descText} numberOfLines={3}>
                       {note.description?.trim() ? note.description : 'No description'}
                     </Text>
                   )}
                 </View>
 
-                {/* Footer (No % symbol) */}
+                {/* Footer */}
                 <View style={styles.cardFooter}>
                   {isChecklist && totalItems > 0 ? (
                     <View style={styles.checklistFooter}>
@@ -142,7 +225,7 @@ export default function StickyNotesSection({
                     </View>
                   ) : (
                     <View style={styles.tapToOpenRow}>
-                      <Text style={styles.tapToOpenText}>Tap to open</Text>
+                      <Text style={styles.tapToOpenText}>Tap to view/copy</Text>
                       <Ionicons name="chevron-forward" size={11} color={COLORS.textMuted} />
                     </View>
                   )}
@@ -150,18 +233,6 @@ export default function StickyNotesSection({
               </TouchableOpacity>
             );
           })}
-
-          {/* Quick Add Sticky Button at end of scroll */}
-          <TouchableOpacity
-            style={styles.addMoreCard}
-            onPress={onCreateNote}
-            activeOpacity={0.7}
-          >
-            <View style={styles.addMoreIconWrap}>
-              <Ionicons name="add" size={22} color={COLORS.textSecondary} />
-            </View>
-            <Text style={styles.addMoreText}>Add Note</Text>
-          </TouchableOpacity>
         </ScrollView>
       )}
     </View>
@@ -176,7 +247,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -201,6 +272,51 @@ const styles = StyleSheet.create({
   countBadgeText: {
     color: COLORS.textSecondary,
     fontSize: 10,
+    fontWeight: '700',
+  },
+  addNoteBtnHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.xs,
+    backgroundColor: COLORS.bgCardSub,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  addNoteBtnHeaderText: {
+    color: COLORS.accentHover,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  categoryFilterContainer: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 10,
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.xs,
+    backgroundColor: COLORS.bgCardSub,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  filterPillActive: {
+    backgroundColor: COLORS.bgCard,
+    borderColor: COLORS.accentHover,
+  },
+  filterPillText: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontWeight: '600',
+  },
+  filterPillTextActive: {
+    color: COLORS.accentHover,
     fontWeight: '700',
   },
   emptyCard: {
@@ -244,18 +360,12 @@ const styles = StyleSheet.create({
   },
   stickyCard: {
     width: 195,
-    minHeight: 175,
+    minHeight: 180,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     backgroundColor: COLORS.bgCard,
-    padding: 13,
-    paddingTop: 11,
+    padding: 12,
     justifyContent: 'space-between',
-    elevation: 3,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
     overflow: 'hidden',
   },
   topAccentStrip: {
@@ -265,44 +375,55 @@ const styles = StyleSheet.create({
     right: 0,
     height: 3,
   },
-  cardHeader: {
+  cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    marginTop: 2,
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+  },
+  categoryBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
   },
   cardTitle: {
     color: COLORS.textPrimary,
     fontSize: 14,
-    fontWeight: '700',
-    flex: 1,
-    marginRight: 8,
+    fontWeight: '800',
     letterSpacing: -0.2,
+    marginBottom: 6,
   },
   cardBody: {
     flex: 1,
-    justifyContent: 'flex-start',
+    marginBottom: 8,
   },
   checklistPreview: {
-    gap: 6,
+    gap: 4,
   },
   checkItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   checkItemText: {
-    color: COLORS.textPrimary,
-    fontSize: 12.5,
-    fontWeight: '500',
+    color: COLORS.textSecondary,
+    fontSize: 11,
     flex: 1,
   },
   checkItemTextDone: {
-    color: COLORS.textMuted,
     textDecorationLine: 'line-through',
+    color: COLORS.textMuted,
   },
   moreText: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: '700',
     marginTop: 2,
   },
@@ -313,69 +434,40 @@ const styles = StyleSheet.create({
   },
   descText: {
     color: COLORS.textSecondary,
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 17,
   },
   cardFooter: {
-    marginTop: 10,
-    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+    paddingTop: 8,
+    marginTop: 4,
   },
   checklistFooter: {
-    gap: 6,
+    gap: 4,
   },
   progressTrack: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    height: 3,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: 1.5,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 2,
   },
   progressLabel: {
     color: COLORS.textMuted,
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: '600',
   },
   tapToOpenRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   tapToOpenText: {
     color: COLORS.textMuted,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
-  },
-  addMoreCard: {
-    width: 110,
-    minHeight: 175,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: COLORS.borderLight,
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 12,
-    gap: 8,
-  },
-  addMoreIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.bgCardSub,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  addMoreText: {
-    color: COLORS.textSecondary,
-    fontSize: 11,
-    fontWeight: '700',
   },
 });

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { alertModalStyles as styles } from '../../styles/alertModalStyles';
 import { COLORS } from '../../constants/theme';
 
-export type AlertType = 'success' | 'warning' | 'danger' | 'info';
+type AlertType = 'success' | 'warning' | 'danger' | 'info';
 
 export interface AppAlertConfig {
   visible: boolean;

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Text,
   View,
@@ -6,6 +6,7 @@ import {
   StatusBar,
   FlatList,
   Keyboard,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -27,9 +28,17 @@ import RoutinePresetsModal from '../components/Fitness/RoutinePresetsModal';
 import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
 import { fitnessStyles as styles } from '../styles/fitnessStyles';
 
+const formatDateKey = (d: Date): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function FitnessScreen() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const lastTodayKeyRef = useRef(formatDateKey(new Date()));
 
   const [modalVisible, setModalVisible] = useState(false);
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
@@ -45,6 +54,21 @@ export default function FitnessScreen() {
 
   const [activeFilter, setActiveFilter] = useState('All');
 
+  const syncDateToTodayIfOnToday = useCallback(() => {
+    const now = new Date();
+    const newTodayKey = formatDateKey(now);
+    const oldTodayKey = lastTodayKeyRef.current;
+    lastTodayKeyRef.current = newTodayKey;
+
+    setSelectedDate((prevDate) => {
+      const prevKey = formatDateKey(prevDate);
+      if (prevKey === oldTodayKey) {
+        return now;
+      }
+      return prevDate;
+    });
+  }, []);
+
   const loadWorkouts = useCallback(async () => {
     try {
       const storedWorkouts = await AsyncStorage.getItem('@fitness_workouts');
@@ -56,10 +80,34 @@ export default function FitnessScreen() {
     }
   }, []);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        syncDateToTodayIfOnToday();
+        loadWorkouts();
+      }
+    });
+
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2);
+    const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
+
+    const timer = setTimeout(() => {
+      syncDateToTodayIfOnToday();
+      loadWorkouts();
+    }, msToMidnight);
+
+    return () => {
+      subscription.remove();
+      clearTimeout(timer);
+    };
+  }, [syncDateToTodayIfOnToday, loadWorkouts]);
+
   useFocusEffect(
     useCallback(() => {
+      syncDateToTodayIfOnToday();
       loadWorkouts();
-    }, [loadWorkouts])
+    }, [syncDateToTodayIfOnToday, loadWorkouts])
   );
 
   const showAlert = (

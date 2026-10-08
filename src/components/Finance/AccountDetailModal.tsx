@@ -27,6 +27,7 @@ interface AccountDetailModalProps {
   onEditBalance: (accId: string, subId: string) => void;
   onRenameSubAccount: (accId: string, subId: string, currentName: string) => void;
   onDeleteSubAccount: (accId: string, subId: string) => void;
+  onAddSubAccount?: () => void;
   transactions?: Transaction[];
   accounts?: Account[];
   onEditTransaction?: (tx: Transaction) => void;
@@ -45,6 +46,7 @@ export const AccountDetailModal = ({
   onEditBalance,
   onRenameSubAccount,
   onDeleteSubAccount,
+  onAddSubAccount,
   transactions = [],
   accounts = [],
   onEditTransaction,
@@ -107,7 +109,7 @@ export const AccountDetailModal = ({
                 </TouchableOpacity>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+              <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled={true} contentContainerStyle={{ paddingBottom: 16 }}>
                 {/* SECTION: MAIN ACCOUNT */}
                 <Text style={modalStyles.sectionLabel}>MAIN ACCOUNT</Text>
                 <View style={modalStyles.mainAccountCard}>
@@ -150,9 +152,21 @@ export const AccountDetailModal = ({
                 </View>
 
                 {/* SECTION: SUB-ACCOUNTS */}
-                <View style={modalStyles.subSectionHeader}>
-                  <Text style={modalStyles.sectionLabel}>SUB-ACCOUNTS ({account.subAccounts.length})</Text>
-                  <Text style={modalStyles.subHelperText}>Adjust balance or manage sub-wallets</Text>
+                <View style={[modalStyles.subSectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={modalStyles.sectionLabel}>SUB-ACCOUNTS ({account.subAccounts.length})</Text>
+                    <Text style={modalStyles.subHelperText}>Adjust balance or manage sub-wallets</Text>
+                  </View>
+                  {onAddSubAccount && (
+                    <TouchableOpacity
+                      style={modalStyles.addPocketHeaderBtn}
+                      onPress={onAddSubAccount}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="add" size={14} color="#08090C" />
+                      <Text style={modalStyles.addPocketHeaderBtnText}>Add Pocket</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {account.subAccounts.map((sub) => {
@@ -223,6 +237,7 @@ export const AccountDetailModal = ({
                 {account.subAccounts.length > 1 && (
                   <ScrollView
                     horizontal
+                    nestedScrollEnabled={true}
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={modalStyles.historyChipRow}
                   >
@@ -360,6 +375,20 @@ const modalStyles = StyleSheet.create({
   subSectionHeader: {
     marginTop: 20,
     marginBottom: 8,
+  },
+  addPocketHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.finance,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.xs,
+    gap: 4,
+  },
+  addPocketHeaderBtnText: {
+    color: '#08090C',
+    fontSize: 11,
+    fontWeight: '800',
   },
   subHelperText: {
     color: COLORS.textMuted,

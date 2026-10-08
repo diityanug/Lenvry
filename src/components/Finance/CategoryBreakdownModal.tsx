@@ -16,7 +16,7 @@ import { COLORS, RADIUS } from '../../constants/theme';
 import { getCategoryTheme } from './CategoryBreakdownCard';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const FIXED_MODAL_HEIGHT = Math.round(SCREEN_HEIGHT * 0.85);
+const MAX_MODAL_HEIGHT = Math.round(SCREEN_HEIGHT * 0.85);
 
 interface CategoryBreakdownModalProps {
   visible: boolean;
@@ -143,9 +143,8 @@ export const CategoryBreakdownModal = ({
 
           {/* Scrollable Content */}
           <ScrollView
-            style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
+            contentContainerStyle={{ paddingBottom: 12, flexGrow: 0 }}
           >
             {mainTab === 'categories' ? (
               <View>
@@ -546,9 +545,9 @@ const modalStyles = StyleSheet.create({
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 28,
-    height: FIXED_MODAL_HEIGHT,
+    paddingTop: 14,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    maxHeight: MAX_MODAL_HEIGHT,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },

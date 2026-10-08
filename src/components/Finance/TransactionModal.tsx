@@ -113,17 +113,19 @@ export const TransactionModal = ({
   const isTransfer = type === 'transfer';
   const activeCategories = isExpense ? expenseCategories : incomeCategories;
 
-  // Previously used descriptions for the selected category (most frequent first)
+  // History suggestions specifically for the clicked/selected category
   const descriptionSuggestions = React.useMemo(() => {
-    if (isTransfer) return [];
+    if (isTransfer || !selectedCategory) return [];
     const counts = new Map<string, { text: string; count: number; last: number }>();
+    
     for (const t of transactions) {
-      if (t.category !== selectedCategory || t.type !== type) continue;
+      if (t.type !== type || t.category !== selectedCategory) continue;
       const text = (t.description || '').trim();
       if (!text) continue;
       const key = text.toLowerCase();
       const time = new Date(t.date).getTime();
       const prev = counts.get(key);
+
       if (prev) {
         prev.count += 1;
         prev.last = Math.max(prev.last, time);
@@ -131,6 +133,7 @@ export const TransactionModal = ({
         counts.set(key, { text, count: 1, last: time });
       }
     }
+
     return Array.from(counts.values())
       .sort((a, b) => b.count - a.count || b.last - a.last)
       .slice(0, 8)
@@ -199,6 +202,7 @@ export const TransactionModal = ({
               keyboardShouldPersistTaps="handled"
               automaticallyAdjustKeyboardInsets={true}
               showsVerticalScrollIndicator={false}
+              nestedScrollEnabled={true}
               contentContainerStyle={{ paddingBottom: Math.max(16, keyboardHeight + 16) }}
             >
             {/* 1. Transaction Type Toggle (Expense, Income, Transfer) */}
@@ -298,6 +302,7 @@ export const TransactionModal = ({
 
               <ScrollView
                 horizontal
+                nestedScrollEnabled={true}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingRight: 16 }}
                 keyboardShouldPersistTaps="handled"
@@ -323,7 +328,13 @@ export const TransactionModal = ({
               {selectedAccount && selectedAccount.subAccounts.length > 0 && (
                 <View style={{ marginTop: 10 }}>
                   <Text style={txStyles.subLabel}>POCKET</Text>
-                  <View style={txStyles.subAccountRow}>
+                  <ScrollView
+                    horizontal
+                    nestedScrollEnabled={true}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 6, paddingRight: 16 }}
+                    keyboardShouldPersistTaps="handled"
+                  >
                     {selectedAccount.subAccounts.map((sub) => {
                       const isSubSelected = selectedSubAccId === sub.id;
                       return (
@@ -339,7 +350,7 @@ export const TransactionModal = ({
                         </TouchableOpacity>
                       );
                     })}
-                  </View>
+                  </ScrollView>
                 </View>
               )}
             </View>
@@ -379,6 +390,7 @@ export const TransactionModal = ({
                 {/* Account Selection */}
                 <ScrollView
                   horizontal
+                  nestedScrollEnabled={true}
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{ paddingRight: 16 }}
                   keyboardShouldPersistTaps="handled"
@@ -410,7 +422,13 @@ export const TransactionModal = ({
                 {selectedToAccount && selectedToAccount.subAccounts.length > 0 && (
                   <View style={{ marginTop: 12 }}>
                     <Text style={txStyles.subLabel}>DESTINATION</Text>
-                    <View style={txStyles.subAccountRow}>
+                    <ScrollView
+                      horizontal
+                      nestedScrollEnabled={true}
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 6, paddingRight: 16 }}
+                      keyboardShouldPersistTaps="handled"
+                    >
                       {selectedToAccount.subAccounts.map((sub) => {
                         const isSubSelected = selectedToSubAccId === sub.id;
                         const isSameAsSourceSub = selectedToAccId === selectedAccId && sub.id === selectedSubAccId;
@@ -443,7 +461,7 @@ export const TransactionModal = ({
                           </TouchableOpacity>
                         );
                       })}
-                    </View>
+                    </ScrollView>
                   </View>
                 )}
 
@@ -461,7 +479,55 @@ export const TransactionModal = ({
               </View>
             )}
 
-            {/* 5. Description & Date */}
+            {/* 5. Categories (Only for Income / Expense) - 1:1 Aspect Ratio Symmetrical Grid */}
+            {!isTransfer && (
+              <View style={txStyles.sectionCard}>
+                <View style={txStyles.catHeaderRow}>
+                  <Text style={txStyles.sectionLabel}>CATEGORY</Text>
+                  <TouchableOpacity onPress={onOpenAddCategory} activeOpacity={0.7}>
+                    <Text style={txStyles.addCatText}>+ Add Category</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={txStyles.categoriesWrap}>
+                  {activeCategories.map((cat) => {
+                    const isSelected = selectedCategory === cat;
+                    const catTheme = getCategoryTheme(cat, type === 'income' ? 'income' : 'expense', customCategoryIcons);
+                    return (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[txStyles.catSquare, isSelected && txStyles.catSquareActive]}
+                        onPress={() => setSelectedCategory(cat)}
+                        onLongPress={() => onDeleteCategory?.(cat)}
+                        delayLongPress={400}
+                        activeOpacity={0.7}
+                      >
+                        <View
+                          style={[
+                            txStyles.catIconCircle,
+                            { backgroundColor: isSelected ? '#08090C' : catTheme.bg || 'rgba(255,255,255,0.06)' },
+                          ]}
+                        >
+                          <Ionicons
+                            name={catTheme.icon}
+                            size={18}
+                            color={isSelected ? COLORS.finance : catTheme.color}
+                          />
+                        </View>
+                        <Text
+                          style={[txStyles.catSquareText, isSelected && txStyles.catSquareTextActive]}
+                          numberOfLines={1}
+                        >
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* 6. Description & Date with Frequent Suggestions */}
             <View style={txStyles.sectionCard}>
               <Text style={txStyles.sectionLabel}>DESCRIPTION & NOTE</Text>
               <TextInput
@@ -475,19 +541,19 @@ export const TransactionModal = ({
               {!isTransfer && descriptionSuggestions.length > 0 && (
                 <View>
                   <Text style={txStyles.suggestLabel}>
-                    SAVED DESCRIPTIONS • {selectedCategory.toUpperCase()}
+                    SUGGESTIONS • {selectedCategory.toUpperCase()}
                   </Text>
                   <View style={txStyles.suggestWrap}>
-                    {descriptionSuggestions.map((s) => (
+                    {descriptionSuggestions.map((text) => (
                       <TouchableOpacity
-                        key={s}
+                        key={text}
                         style={txStyles.suggestChip}
-                        onPress={() => setDescription(s)}
+                        onPress={() => setDescription(text)}
                         activeOpacity={0.7}
                       >
                         <Ionicons name="time-outline" size={12} color={COLORS.finance} style={{ marginRight: 5 }} />
                         <Text style={txStyles.suggestChipText} numberOfLines={1}>
-                          {s}
+                          {text}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -533,45 +599,6 @@ export const TransactionModal = ({
               </View>
             </View>
 
-            {/* 6. Categories (Only for Income / Expense) */}
-            {!isTransfer && (
-              <View style={txStyles.sectionCard}>
-                <View style={txStyles.catHeaderRow}>
-                  <Text style={txStyles.sectionLabel}>CATEGORY</Text>
-                  <TouchableOpacity onPress={onOpenAddCategory} activeOpacity={0.7}>
-                    <Text style={txStyles.addCatText}>+ Add Category</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={txStyles.categoriesWrap}>
-                  {activeCategories.map((cat) => {
-                    const isSelected = selectedCategory === cat;
-                    const catTheme = getCategoryTheme(cat, type === 'income' ? 'income' : 'expense', customCategoryIcons);
-                    return (
-                      <TouchableOpacity
-                        key={cat}
-                        style={[txStyles.catChip, isSelected && txStyles.catChipActive]}
-                        onPress={() => setSelectedCategory(cat)}
-                        onLongPress={() => onDeleteCategory?.(cat)}
-                        delayLongPress={400}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons
-                          name={catTheme.icon}
-                          size={15}
-                          color={isSelected ? '#08090C' : catTheme.color}
-                          style={{ marginRight: 6 }}
-                        />
-                        <Text style={[txStyles.catChipText, isSelected && txStyles.catChipTextActive]}>
-                          {cat}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-
             {/* Save Button */}
             <TouchableOpacity style={txStyles.saveBtn} onPress={onSave} activeOpacity={0.85}>
               <Text style={txStyles.saveBtnText}>
@@ -611,7 +638,7 @@ const txStyles = StyleSheet.create({
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 14,
     maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
@@ -844,6 +871,39 @@ const txStyles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
+  catSquare: {
+    width: '31.5%',
+    aspectRatio: 1,
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+  },
+  catSquareActive: {
+    backgroundColor: COLORS.finance,
+    borderColor: COLORS.finance,
+  },
+  catIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  catSquareText: {
+    color: COLORS.textSecondary,
+    fontSize: 11.5,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  catSquareTextActive: {
+    color: '#08090C',
+    fontWeight: '800',
+  },
   catChip: {
     flexDirection: 'row',
     backgroundColor: COLORS.bgCard,
@@ -898,6 +958,12 @@ const txStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     flexShrink: 1,
+  },
+  suggestCatBadgeText: {
+    color: COLORS.finance,
+    fontSize: 10.5,
+    fontWeight: '700',
+    marginLeft: 4,
   },
   saveBtn: {
     backgroundColor: COLORS.finance,

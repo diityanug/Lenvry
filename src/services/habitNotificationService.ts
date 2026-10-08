@@ -90,7 +90,7 @@ export interface NotificationSettings {
 
 const SETTINGS_STORAGE_KEY = '@lenvry_habit_notification_settings';
 
-export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   enabled: true,
   defaultSound: 'chime',
   vibrate: true,
@@ -295,7 +295,7 @@ export async function initializeNotifications(): Promise<void> {
 /**
  * Parse reminder time string "HH:MM AM/PM" to 24h hour and minute
  */
-export function parseTimeString(timeStr?: string): { hour: number; minute: number } | null {
+function parseTimeString(timeStr?: string): { hour: number; minute: number } | null {
   if (!timeStr) return null;
   const clean = timeStr.trim().toUpperCase();
   const isPM = clean.includes('PM');

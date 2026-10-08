@@ -1,0 +1,4 @@
+{
+  "defaultModel": "bytedance/seedream-v5.0-pro",
+  "outputDir": ".tools/generated"
+}

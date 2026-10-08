@@ -6,6 +6,7 @@ node_modules/
 .agents
 skills-lock
 .vscode
+.tools
 
 # Expo
 .expo/

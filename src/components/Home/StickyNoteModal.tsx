@@ -10,16 +10,19 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
-  Alert,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { COLORS, RADIUS } from '../../constants/theme';
+import AppAlertModal, { AppAlertConfig } from '../Common/AppAlertModal';
 import {
   StickyNote,
   StickyNoteColor,
   ChecklistItem,
   STICKY_COLORS,
+  NoteCategory,
+  NOTE_CATEGORIES,
 } from '../../types/notes';
 
 interface StickyNoteModalProps {
@@ -70,17 +73,33 @@ function StickyNoteModalContent({
 
   const [title, setTitle] = useState(note?.title || '');
   const [type, setType] = useState<'text' | 'checklist'>(note?.type || 'checklist');
+  const [category, setCategory] = useState<NoteCategory>(note?.category || 'General');
   const [color, setColor] = useState<StickyNoteColor>(note?.color || 'amber');
   const [description, setDescription] = useState(note?.description || '');
   const [checklist, setChecklist] = useState<ChecklistItem[]>(note?.checklist || []);
   const [newItemText, setNewItemText] = useState('');
   const [error, setError] = useState('');
+  const [copiedToast, setCopiedToast] = useState('');
+
+  const [alertConfig, setAlertConfig] = useState<AppAlertConfig>({
+    visible: false,
+    title: '',
+    message: '',
+  });
 
   const palette = STICKY_COLORS[color] || STICKY_COLORS.amber;
+  const categoryConfig = NOTE_CATEGORIES[category] || NOTE_CATEGORIES.General;
 
   const handleDismiss = () => {
     Keyboard.dismiss();
     onClose();
+  };
+
+  const handleCopyText = async (textToCopy: string) => {
+    if (!textToCopy) return;
+    await Clipboard.setStringAsync(textToCopy);
+    setCopiedToast('Copied to clipboard!');
+    setTimeout(() => setCopiedToast(''), 2000);
   };
 
   // Toggle item in View mode or Edit mode
@@ -127,6 +146,7 @@ function StickyNoteModalContent({
       id: note?.id || Date.now().toString(),
       title: trimmedTitle,
       type,
+      category,
       color,
       description: description.trim(),
       checklist,
@@ -145,21 +165,18 @@ function StickyNoteModalContent({
 
   const handleDeletePrompt = () => {
     if (!note || !onDelete) return;
-    Alert.alert(
-      'Delete Note',
-      `Are you sure you want to delete "${note.title}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            onDelete(note.id);
-            onClose();
-          },
-        },
-      ]
-    );
+    setAlertConfig({
+      visible: true,
+      type: 'danger',
+      title: 'Delete Note',
+      message: `Are you sure you want to delete "${note.title}"?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        onDelete(note.id);
+        onClose();
+      },
+    });
   };
 
   const totalItems = checklist.length;
@@ -199,7 +216,7 @@ function StickyNoteModalContent({
                 </View>
 
                 <View style={styles.headerActions}>
-                  {isEditMode && isExisting && onDelete && (
+                  {isExisting && onDelete && (
                     <TouchableOpacity
                       onPress={handleDeletePrompt}
                       style={styles.iconBtn}
@@ -219,13 +236,28 @@ function StickyNoteModalContent({
                 </View>
               </View>
 
+              {/* Toast for Quick Copy */}
+              {Boolean(copiedToast) && (
+                <View style={styles.toastBox}>
+                  <Ionicons name="checkmark-circle" size={14} color={COLORS.success} />
+                  <Text style={styles.toastText}>{copiedToast}</Text>
+                </View>
+              )}
+
               {/* ======================================================== */}
               {/* VIEW ONLY MODE */}
               {/* ======================================================== */}
               {!isEditMode ? (
                 <View style={{ flexShrink: 1 }}>
-                  {/* Date & Title */}
+                  {/* Category & Date Header */}
                   <View style={styles.viewBadgeRow}>
+                    <View style={[styles.categoryTag, { backgroundColor: categoryConfig.color + '22', borderColor: categoryConfig.color + '55' }]}>
+                      <Ionicons name={categoryConfig.icon as any} size={13} color={categoryConfig.color} />
+                      <Text style={[styles.categoryTagText, { color: categoryConfig.color }]}>
+                        {categoryConfig.label}
+                      </Text>
+                    </View>
+
                     <Text style={styles.viewDateText}>
                       {note?.createdAt
                         ? new Date(note.createdAt).toLocaleDateString('en-US', {
@@ -243,10 +275,23 @@ function StickyNoteModalContent({
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={true}
                   >
-                    {/* Optional Note Description in View Mode */}
+                    {/* Note Description in View Mode */}
                     {Boolean(description?.trim()) && (
                       <View style={styles.viewDescBox}>
-                        <Text style={styles.viewDescText}>{description}</Text>
+                        <View style={styles.descBoxHeader}>
+                          <Text style={styles.viewDescHeaderLabel}>Content</Text>
+                          <TouchableOpacity
+                            style={styles.copyBtn}
+                            onPress={() => handleCopyText(description.trim())}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="copy-outline" size={13} color={palette.accent} />
+                            <Text style={[styles.copyBtnText, { color: palette.accent }]}>Copy</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={styles.viewDescText} selectable={true}>
+                          {description}
+                        </Text>
                       </View>
                     )}
 
@@ -274,26 +319,35 @@ function StickyNoteModalContent({
 
                         <View style={styles.checklistContainer}>
                           {checklist.map((item) => (
-                            <TouchableOpacity
-                              key={item.id}
-                              style={styles.viewCheckItemRow}
-                              onPress={() => handleToggleChecklistItem(item.id)}
-                              activeOpacity={0.7}
-                            >
-                              <Ionicons
-                                name={item.done ? 'checkbox' : 'square-outline'}
-                                size={20}
-                                color={item.done ? palette.accent : COLORS.textMuted}
-                              />
-                              <Text
-                                style={[
-                                  styles.itemText,
-                                  item.done && styles.itemTextDone,
-                                ]}
+                            <View key={item.id} style={styles.viewCheckItemWrapper}>
+                              <TouchableOpacity
+                                style={styles.viewCheckItemRow}
+                                onPress={() => handleToggleChecklistItem(item.id)}
+                                activeOpacity={0.7}
                               >
-                                {item.text}
-                              </Text>
-                            </TouchableOpacity>
+                                <Ionicons
+                                  name={item.done ? 'checkbox' : 'square-outline'}
+                                  size={20}
+                                  color={item.done ? palette.accent : COLORS.textMuted}
+                                />
+                                <Text
+                                  style={[
+                                    styles.itemText,
+                                    item.done && styles.itemTextDone,
+                                  ]}
+                                >
+                                  {item.text}
+                                </Text>
+                              </TouchableOpacity>
+
+                              <TouchableOpacity
+                                onPress={() => handleCopyText(item.text)}
+                                style={styles.copyItemIconBtn}
+                                activeOpacity={0.6}
+                              >
+                                <Ionicons name="copy-outline" size={14} color={COLORS.textMuted} />
+                              </TouchableOpacity>
+                            </View>
                           ))}
 
                           {totalItems === 0 && (
@@ -335,7 +389,48 @@ function StickyNoteModalContent({
                 /* EDIT MODE */
                 /* ======================================================== */
                 <View style={{ flexShrink: 1 }}>
+                  {/* Category Picker Selector */}
+                  <Text style={styles.inputLabel}>CATEGORY</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.categoryPickerRow}
+                  >
+                    {(Object.keys(NOTE_CATEGORIES) as NoteCategory[]).map((catKey) => {
+                      const cfg = NOTE_CATEGORIES[catKey];
+                      const isSel = category === catKey;
+                      return (
+                        <TouchableOpacity
+                          key={catKey}
+                          style={[
+                            styles.categoryPill,
+                            { borderColor: isSel ? cfg.color : COLORS.border },
+                            isSel && { backgroundColor: cfg.color + '22' },
+                          ]}
+                          onPress={() => setCategory(catKey)}
+                          activeOpacity={0.75}
+                        >
+                          <Ionicons
+                            name={cfg.icon as any}
+                            size={14}
+                            color={isSel ? cfg.color : COLORS.textMuted}
+                          />
+                          <Text
+                            style={[
+                              styles.categoryPillText,
+                              { color: isSel ? cfg.color : COLORS.textMuted },
+                              isSel && { fontWeight: '700' },
+                            ]}
+                          >
+                            {cfg.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
                   {/* Color Picker Palette */}
+                  <Text style={[styles.inputLabel, { marginTop: 10 }]}>CARD COLOR</Text>
                   <View style={styles.colorPickerRow}>
                     {(['amber', 'blue', 'emerald', 'rose', 'purple'] as StickyNoteColor[]).map((c) => {
                       const p = STICKY_COLORS[c];
@@ -410,7 +505,7 @@ function StickyNoteModalContent({
                   <Text style={styles.inputLabel}>NOTE TITLE</Text>
                   <TextInput
                     style={[styles.titleInput, Boolean(error) && { borderColor: COLORS.danger }]}
-                    placeholder="e.g. Monthly Grocery etc."
+                    placeholder={category === 'Personal' ? 'e.g. WiFi Password, Email Credentials' : 'e.g. Monthly Grocery, Project Ideas'}
                     placeholderTextColor={COLORS.textMuted}
                     value={title}
                     onChangeText={(val) => {
@@ -437,7 +532,9 @@ function StickyNoteModalContent({
                         type === 'text' && { minHeight: 110 },
                       ]}
                       placeholder={
-                        type === 'checklist'
+                        category === 'Personal'
+                          ? 'e.g. Email: user@email.com\nPass: **********'
+                          : type === 'checklist'
                           ? 'e.g. store name, budget, or any notes...'
                           : 'Write your thoughts, plans, or notes here...'
                       }
@@ -571,6 +668,12 @@ function StickyNoteModalContent({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
+
+      {/* Custom Alert Modal for Delete */}
+      <AppAlertModal
+        config={alertConfig}
+        onClose={() => setAlertConfig((prev) => ({ ...prev, visible: false }))}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -635,6 +738,55 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
+  toastBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: COLORS.success,
+    borderRadius: RADIUS.xs,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 10,
+  },
+  toastText: {
+    color: COLORS.success,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  categoryPickerRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  categoryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    backgroundColor: COLORS.bgCardSub,
+  },
+  categoryPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  categoryTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+  },
+  categoryTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
   viewBadgeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -664,6 +816,34 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
   },
+  descBoxHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  viewDescHeaderLabel: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  copyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.bgCard,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  copyBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
   viewDescText: {
     color: COLORS.textSecondary,
     fontSize: 13,
@@ -678,11 +858,20 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 10,
   },
+  viewCheckItemWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
   viewCheckItemRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 6,
+  },
+  copyItemIconBtn: {
+    padding: 4,
   },
   viewActionRow: {
     flexDirection: 'row',
@@ -717,32 +906,24 @@ const styles = StyleSheet.create({
   },
   colorPickerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    marginBottom: 12,
-    paddingVertical: 2,
+    gap: 10,
+    marginBottom: 14,
   },
   colorCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     justifyContent: 'center',
     alignItems: 'center',
   },
   colorCircleSelected: {
     borderWidth: 2,
     borderColor: '#FFFFFF',
-    transform: [{ scale: 1.15 }],
   },
   typeSwitcher: {
     flexDirection: 'row',
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.md,
-    padding: 3,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    gap: 10,
+    marginBottom: 14,
   },
   typeBtn: {
     flex: 1,
@@ -750,10 +931,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 7,
-    borderRadius: RADIUS.sm,
+    paddingVertical: 10,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bgCardSub,
   },
   typeBtnActive: {
     backgroundColor: COLORS.bgCard,
@@ -761,136 +943,126 @@ const styles = StyleSheet.create({
   typeBtnText: {
     fontSize: 12,
     color: COLORS.textMuted,
-    fontWeight: '600',
   },
   inputLabel: {
+    color: COLORS.textMuted,
     fontSize: 10,
     fontWeight: '800',
-    color: COLORS.textMuted,
     letterSpacing: 0.8,
     marginBottom: 6,
-    textTransform: 'uppercase',
   },
   titleInput: {
     backgroundColor: COLORS.bgCardSub,
-    color: COLORS.textPrimary,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
     borderRadius: RADIUS.md,
-    fontSize: 14,
-    fontWeight: '700',
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 12,
   },
   errorText: {
     color: COLORS.danger,
     fontSize: 11,
-    marginTop: -6,
-    marginBottom: 8,
-    fontWeight: '600',
+    marginTop: -8,
+    marginBottom: 10,
   },
   scrollArea: {
-    maxHeight: 250,
+    maxHeight: 220,
   },
   scrollContent: {
-    paddingBottom: 12,
+    paddingBottom: 4,
   },
   descInput: {
     backgroundColor: COLORS.bgCardSub,
-    color: COLORS.textPrimary,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
     borderRadius: RADIUS.md,
-    fontSize: 13,
-    lineHeight: 18,
     borderWidth: 1,
     borderColor: COLORS.border,
-    minHeight: 50,
-    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    marginBottom: 14,
+    minHeight: 60,
   },
   checklistSection: {
-    marginTop: 2,
+    marginBottom: 10,
   },
   checklistHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 4,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
   },
   progressText: {
     fontSize: 11,
     fontWeight: '700',
   },
-  progressTrack: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.bgCardSub,
-    overflow: 'hidden',
-    marginBottom: 10,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
   checklistContainer: {
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 10,
-    marginBottom: 10,
-    gap: 6,
+    gap: 4,
+    marginVertical: 8,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 3,
+    backgroundColor: COLORS.bgCardSub,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   checkboxTouch: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
     gap: 8,
   },
   itemText: {
-    color: COLORS.textPrimary,
     fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
+    color: COLORS.textPrimary,
   },
   itemTextDone: {
-    color: COLORS.textMuted,
     textDecorationLine: 'line-through',
+    color: COLORS.textMuted,
   },
   deleteItemBtn: {
     padding: 2,
   },
   emptyItemsNotice: {
-    color: COLORS.textMuted,
     fontSize: 12,
+    color: COLORS.textMuted,
     fontStyle: 'italic',
     textAlign: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   addItemRow: {
     flexDirection: 'row',
     gap: 8,
-    alignItems: 'center',
+    marginTop: 4,
   },
   addItemInput: {
     flex: 1,
     backgroundColor: COLORS.bgCardSub,
-    color: COLORS.textPrimary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
     borderRadius: RADIUS.md,
-    fontSize: 13,
     borderWidth: 1,
     borderColor: COLORS.border,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: COLORS.textPrimary,
+    fontSize: 13,
   },
   addItemBtn: {
     width: 36,
@@ -902,32 +1074,20 @@ const styles = StyleSheet.create({
   editActionRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 12,
+    marginTop: 14,
   },
   btnCancelEdit: {
-    flex: 1,
-    backgroundColor: COLORS.bgCardSub,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: RADIUS.md,
-    alignItems: 'center',
-    justifyContent: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   btnCancelEditText: {
-    color: COLORS.textPrimary,
+    color: COLORS.textMuted,
     fontSize: 13,
     fontWeight: '700',
-  },
-  typeBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: RADIUS.xs,
-  },
-  typeBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
   },
 });

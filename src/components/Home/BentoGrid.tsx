@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Href, router } from 'expo-router';
 import { Text, TouchableOpacity, View } from 'react-native';
-import { COLORS, RADIUS } from '../../constants/theme';
+import { COLORS } from '../../constants/theme';
 import { homeStyles as styles } from '../../styles/homeStyles';
 
 interface BentoGridProps {

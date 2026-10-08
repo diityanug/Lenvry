@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Href, useFocusEffect } from 'expo-router';
@@ -168,6 +168,27 @@ export default function HomeScreen() {
       console.error('Failed to sync dashboard metrics:', e);
     }
   };
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        fetchDashboardData();
+      }
+    });
+
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2);
+    const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
+
+    const timer = setTimeout(() => {
+      fetchDashboardData();
+    }, msToMidnight);
+
+    return () => {
+      subscription.remove();
+      clearTimeout(timer);
+    };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {

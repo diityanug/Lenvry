@@ -17,20 +17,34 @@ const slug = (s: string) =>
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
+function isDrinkName(name: string): boolean {
+  const n = name.toLowerCase();
+  return (
+    n.startsWith('es ') ||
+    n.startsWith('jus ') ||
+    n.includes('milkshake') ||
+    n.includes('float') ||
+    n.includes('kopi') ||
+    n.includes('teh') ||
+    n.includes('smoothie')
+  );
+}
+
 function build(brand: string, category: FoodCategory, rows: Row[]): FoodItem[] {
   return rows.map(([name, grams, kcal, protein, carbs, fat]) => {
     const f = 100 / grams;
-    const isDrink = category === 'Dairy & Drinks';
+    const itemIsDrink = category === 'Dairy & Drinks' || isDrinkName(name);
+    const itemCategory: FoodCategory = itemIsDrink ? 'Dairy & Drinks' : category;
     return {
       id: `brand_${slug(brand)}_${slug(name)}`,
       name: `${brand} ${name}`,
       indonesianName: `${brand} ${name}`,
-      category,
+      category: itemCategory,
       calories: Math.round(kcal * f),
       protein: round1(protein * f),
       carbs: round1(carbs * f),
       fat: round1(fat * f),
-      defaultServingText: isDrink ? `1 Gelas (${grams}ml)` : `1 Porsi (${grams}g)`,
+      defaultServingText: itemIsDrink ? `1 Gelas (${grams}ml)` : `1 Porsi (${grams}g)`,
       defaultServingGrams: grams,
     };
   });
@@ -39,105 +53,177 @@ function build(brand: string, category: FoodCategory, rows: Row[]): FoodItem[] {
 // ===================== FAST FOOD =====================
 
 const KFC_MAINS: Row[] = [
+  // Ayam
   ['Original Recipe Ayam (Paha Atas)', 120, 320, 22, 10, 21],
   ['Original Recipe Ayam (Paha Bawah)', 90, 220, 17, 7, 14],
   ['Original Recipe Ayam (Dada)', 150, 390, 32, 13, 24],
   ['Original Recipe Ayam (Sayap)', 60, 180, 11, 7, 12],
   ['Crispy Ayam (Paha Atas)', 130, 360, 22, 14, 24],
+  ['Crispy Ayam (Paha Bawah)', 95, 240, 17, 8, 15],
   ['Crispy Ayam (Dada)', 160, 420, 31, 16, 26],
+  ['Crispy Ayam (Sayap)', 65, 190, 12, 8, 13],
+  ['Hot & Spicy Ayam (Paha Atas)', 120, 330, 21, 11, 22],
   ['Hot & Spicy Ayam (Dada)', 150, 380, 31, 13, 23],
+  // Hot Wings & Strips
   ['Hot Wings (3 pcs)', 120, 330, 20, 14, 21],
+  ['Hot Wings (6 pcs)', 240, 660, 40, 28, 42],
   ['Chicken Strips (3 pcs)', 110, 300, 18, 18, 17],
-  ['Chicken Popcorn Medium', 100, 270, 15, 17, 16],
+  ['Chicken Strips (5 pcs)', 180, 490, 29, 29, 28],
+  ['Chicken Popcorn Regular', 75, 200, 11, 13, 12],
+  ['Chicken Popcorn Large', 135, 360, 20, 23, 21],
+  // Burger & Twister
   ['Zinger Burger', 190, 470, 22, 40, 24],
+  ['Zinger Stacker (Double Beef)', 250, 620, 34, 48, 32],
   ['Twister', 220, 460, 18, 45, 22],
   ['Longer Burger', 150, 360, 17, 33, 18],
   ['Colonel Burger', 170, 400, 20, 35, 20],
-  ['Snack Plate (Ayam + Nasi)', 280, 520, 24, 62, 20],
+  ['OR Burger', 160, 380, 18, 34, 20],
+  // Rice Bowl & Paket
   ['Rice Bowl Chicken Teriyaki', 330, 560, 26, 72, 18],
   ['Rice Bowl Chicken Spicy BBQ', 330, 570, 25, 74, 19],
   ['Rice Bowl Chicken Butter', 330, 580, 25, 71, 21],
   ['Rice Bowl Chicken Gulai Padang', 330, 600, 24, 73, 23],
+  ['Rice Bowl Chicken Lada Hitam', 330, 575, 25, 72, 20],
+  ['Rice Bowl Chicken Saus Mentega', 330, 590, 25, 71, 22],
   ['Oriental Bento Nasi Ayam', 380, 640, 30, 80, 22],
   ['Oriental Bento Nasi Ayam Teriyaki', 380, 620, 29, 82, 20],
-  ['Fiesta Bucket Paket Ayam (1 pcs)', 120, 320, 22, 10, 21],
+  ['Snack Plate (Ayam + Nasi)', 280, 520, 24, 62, 20],
   ['Paket Nasi Ayam Original', 330, 560, 27, 68, 20],
   ['Paket Nasi Ayam Crispy', 340, 600, 26, 70, 24],
   ['Paket Nasi Ayam Hot & Spicy', 330, 560, 27, 68, 20],
   ['Paket Hemat 1 (Ayam + Nasi + Minum)', 450, 680, 28, 90, 22],
   ['Paket Hemat 2 (Ayam + Fries + Minum)', 400, 740, 26, 85, 32],
+  ['Fiesta Bucket 4pcs Ayam', 480, 1280, 88, 40, 84],
+  ['Fiesta Bucket 6pcs Ayam', 720, 1920, 132, 60, 126],
+  // Other mains
   ['Spaghetti Bolognese', 250, 420, 14, 60, 14],
+  ['McSpaghetti Saus Tomat Ayam KFC', 250, 410, 15, 62, 12],
+  ['Bubur Ayam KFC', 280, 240, 10, 38, 6],
   ['Egg Tart', 70, 190, 3, 20, 11],
+  ['Cheese Tart', 70, 200, 4, 19, 12],
 ];
 
 const KFC_SIDES: Row[] = [
   ['French Fries Regular', 100, 300, 4, 38, 15],
   ['French Fries Large', 150, 450, 6, 57, 22],
   ['Mashed Potato', 120, 120, 2, 18, 5],
-  ['Coleslaw', 100, 150, 1, 11, 11],
+  ['Mashed Potato + Gravy', 140, 155, 2, 22, 7],
+  ['Coleslaw Regular', 100, 150, 1, 11, 11],
+  ['Coleslaw Large', 180, 270, 2, 20, 20],
   ['Corn on the Cob', 100, 90, 3, 20, 1],
   ['Nasi Putih KFC', 150, 195, 4, 43, 0.5],
   ['Perkedel Kentang', 50, 90, 2, 11, 4],
-  ['Bubur Ayam', 250, 230, 9, 38, 4],
+  ['Dinner Roll', 40, 120, 3, 22, 2],
+  ['Mac & Cheese KFC', 140, 300, 10, 36, 12],
 ];
 
+
+
 const KFC_DRINKS: Row[] = [
+  ['Pepsi Regular', 250, 100, 0, 28, 0],
   ['Pepsi Medium', 360, 150, 0, 41, 0],
-  ['Lipton Iced Tea', 360, 110, 0, 28, 0],
+  ['Pepsi Large', 450, 190, 0, 51, 0],
+  ['Lipton Iced Tea Medium', 360, 110, 0, 28, 0],
   ['Float Pepsi', 300, 240, 3, 45, 5],
+  ['Float Taro', 300, 250, 3, 46, 5],
+  ['Float Milo', 300, 260, 5, 46, 6],
   ['Es Krim Sundae Coklat', 150, 230, 4, 36, 8],
+  ['Es Krim Sundae Karamel', 150, 240, 4, 38, 8],
   ['Es Krim Cone', 90, 140, 3, 22, 5],
+  ['Es Krim Twister Cone', 100, 160, 3, 24, 6],
 ];
 
 const MCD_BURGERS: Row[] = [
+  // Daging Sapi
   ['Big Mac', 215, 550, 25, 45, 30],
-  ['Big Mac Double', 300, 760, 40, 46, 43],
+  ['Double Big Mac', 295, 760, 42, 46, 43],
+  ['Triple Cheeseburger', 255, 680, 41, 43, 35],
+  ['Double Cheeseburger', 175, 440, 26, 34, 24],
+  ['Cheeseburger Deluxe', 155, 430, 22, 40, 22],
   ['Cheeseburger', 119, 300, 15, 33, 12],
-  ['Double Cheeseburger', 165, 440, 25, 34, 24],
-  ['Hamburger', 105, 250, 12, 31, 9],
-  ['McChicken', 150, 400, 14, 40, 21],
-  ['McSpicy Chicken Burger', 190, 460, 21, 40, 23],
-  ['Filet-O-Fish', 140, 340, 15, 38, 14],
-  ['Quarter Pounder with Cheese', 200, 520, 30, 41, 26],
   ['Beef Burger Deluxe', 190, 480, 22, 42, 25],
-  ['Egg McMuffin', 135, 300, 17, 30, 12],
+  ['Beef Burger', 105, 260, 13, 31, 10],
+  // Ayam
+  ['McSpicy Chicken Burger', 190, 460, 21, 40, 23],
+  ['McChicken', 150, 400, 14, 40, 21],
+  // Ikan
+  ['Filet-O-Fish', 140, 340, 15, 38, 14],
+  // Breakfast
+  ['Chicken Muffin', 120, 300, 17, 30, 12],
+  ['Chicken Muffin with Egg', 140, 370, 22, 31, 18],
+  ['Sausage McMuffin', 120, 370, 14, 28, 22],
   ['Sausage McMuffin with Egg', 165, 450, 21, 30, 27],
-  ['Hotcakes with Sausage', 220, 600, 14, 70, 29],
-  ['Hotcakes', 170, 340, 8, 60, 7],
-  ['Burger McMuffin', 125, 310, 14, 29, 15],
+  ['Sausage Wrap', 100, 310, 12, 28, 17],
+  ['Big Breakfast', 250, 620, 28, 50, 38],
+  ['Hotcakes 3 pcs', 170, 340, 8, 58, 7],
+  ['Hotcakes 2 pcs', 125, 250, 6, 44, 6],
+  ['Hashbrown', 55, 150, 2, 15, 9],
+  ['Nasi Uduk McD', 230, 290, 9, 38, 10],
+  ['Bubur Ayam McD', 280, 230, 10, 36, 6],
 ];
 
 const MCD_CHICKEN_SIDES: Row[] = [
-  ['Ayam Goreng McD (1 pcs Paha Bawah)', 100, 250, 17, 10, 16],
-  ['Ayam Goreng McD (1 pcs Dada)', 150, 340, 26, 12, 22],
-  ['Ayam Goreng McD Spicy (1 pcs Dada)', 150, 340, 26, 12, 22],
-  ['Ayam Goreng McD Spicy (1 pcs Paha)', 100, 250, 17, 10, 16],
+  // Ayam Krispy
+  ['Ayam Krispy McD Dada', 140, 310, 24, 10, 20],
+  ['Ayam Krispy McD Paha Atas', 120, 270, 19, 9, 17],
+  ['Ayam Krispy McD Paha Bawah', 90, 200, 14, 7, 13],
+  ['Ayam Krispy McD Sayap', 65, 170, 11, 6, 11],
+  ['Ayam Spicy McD Dada', 140, 320, 24, 10, 21],
+  ['Ayam Spicy McD Paha', 120, 280, 19, 9, 18],
+  ['Ayam McD Sambal Matah Spesial Krispy + Nasi', 340, 620, 28, 72, 22],
+  ['Panas 1 Sambal Matah Krispy + Nasi', 340, 610, 27, 71, 22],
+  ['PaNas 1 Ayam + Nasi + Minuman', 420, 680, 28, 85, 22],
+  ['PaNas 2 Ayam + Nasi + Minuman', 550, 960, 48, 104, 36],
+  // Wings
+  ['Korean Soy Garlic Wings 6 pcs', 180, 450, 28, 24, 27],
+  ['Korean Soy Garlic Wings 3 pcs', 90, 225, 14, 12, 14],
+  ['McWings 2 pcs', 100, 260, 15, 12, 17],
+  ['McWings 4 pcs', 200, 520, 30, 24, 34],
+  // Nuggets & Strips
   ['Chicken McNuggets 6 pcs', 100, 280, 15, 17, 18],
   ['Chicken McNuggets 9 pcs', 150, 420, 22, 25, 26],
-  ['McWings 2 pcs', 100, 260, 15, 12, 17],
+  ['Chicken McNuggets 20 pcs', 340, 940, 50, 57, 57],
+  // Pasta
+  ['McSpaghetti Ayam Krispy', 250, 500, 20, 66, 18],
+  ['McSpaghetti Ayam Spicy', 250, 510, 20, 66, 19],
+  // Sides
   ['Fries Regular', 100, 300, 4, 38, 15],
+  ['Fries Medium', 120, 360, 5, 46, 18],
   ['Fries Large', 150, 450, 6, 57, 22],
   ['Nasi Putih McD', 150, 195, 4, 43, 0.5],
   ['Apple Pie', 80, 230, 2, 29, 12],
-  ['McFlurry Oreo', 200, 340, 7, 50, 12],
-  ['McFlurry Choco', 200, 350, 7, 52, 12],
+  // Dessert
+  ['McFlurry Oreo Regular', 200, 340, 7, 50, 12],
+  ['McFlurry Oreo Mini', 115, 195, 4, 28, 7],
+  ['McFlurry Choco Regular', 200, 350, 7, 52, 12],
   ['Sundae Strawberry', 150, 220, 4, 38, 6],
   ['Sundae Chocolate', 150, 240, 4, 40, 7],
   ['Cone Vanilla', 90, 150, 4, 24, 4],
-  ['Paket Hemat Ayam + Nasi + Minum', 420, 650, 28, 85, 21],
-  ['Paket Burger + Fries + Minum', 480, 900, 28, 100, 40],
+  ['Happy Meal (Ayam + Fries + Minuman)', 330, 560, 22, 68, 20],
 ];
 
 const MCD_DRINKS: Row[] = [
+  ['Coca-Cola Small', 250, 100, 0, 28, 0],
   ['Coca-Cola Medium', 360, 150, 0, 40, 0],
+  ['Coca-Cola Large', 500, 210, 0, 56, 0],
   ['Sprite Medium', 360, 140, 0, 36, 0],
-  ['Fanta Medium', 360, 150, 0, 40, 0],
-  ['Iced Lemon Tea', 360, 100, 0, 25, 0],
-  ['Milo', 300, 180, 6, 28, 5],
+  ['Fanta Strawberry Medium', 360, 150, 0, 40, 0],
+  ['Iced Lemon Tea Medium', 360, 100, 0, 25, 0],
+  ['Milo Ice', 300, 180, 6, 28, 5],
   ['Fruit Tea Lychee', 360, 120, 0, 30, 0],
-  ['Latte', 250, 140, 8, 12, 7],
-  ['Iced Coffee', 360, 110, 3, 20, 2],
+  // McCafe
+  ['McCafe Latte', 250, 140, 8, 12, 7],
+  ['McCafe Cappuccino', 250, 130, 7, 11, 6],
+  ['McCafe Americano', 250, 10, 1, 2, 0],
+  ['McCafe Caramel Frappé', 400, 380, 5, 58, 15],
+  ['McCafe Mocha Frappé', 400, 420, 6, 62, 17],
+  ['McCafe Vanilla Frappé', 400, 360, 5, 55, 14],
+  ['McCafe Chocolate Milkshake', 400, 620, 12, 92, 21],
+  ['McCafe Strawberry Milkshake', 400, 570, 12, 86, 18],
+  ['McCafe Vanilla Milkshake', 400, 570, 12, 85, 18],
 ];
+
+
 
 const BK_ROWS: Row[] = [
   ['Whopper', 270, 660, 28, 49, 40],
@@ -179,54 +265,154 @@ const BK_DRINKS: Row[] = [
 ];
 
 const SOLARIA_ROWS: Row[] = [
-  ['Nasi Goreng Special', 350, 620, 22, 80, 22],
+  // ---- NASI GORENG ----
+  ['Nasi Goreng Biasa', 330, 540, 16, 76, 18],
+  ['Nasi Goreng Special Solaria', 350, 620, 22, 80, 22],
   ['Nasi Goreng Seafood', 350, 590, 24, 78, 19],
-  ['Nasi Goreng Kampung', 330, 560, 18, 78, 19],
   ['Nasi Goreng Ayam', 350, 580, 24, 76, 18],
+  ['Nasi Goreng Sapi', 350, 620, 25, 78, 22],
+  ['Nasi Goreng Sapi Cabe Ijo', 350, 610, 23, 78, 21],
+  ['Nasi Goreng Kambing', 350, 640, 26, 76, 24],
+  ['Nasi Goreng Tom Yum', 350, 590, 20, 78, 20],
+  ['Nasi Goreng Kampung', 330, 560, 18, 78, 19],
+  ['Nasi Goreng Pete', 330, 560, 18, 76, 19],
+  ['Nasi Goreng Sosis', 340, 570, 19, 78, 20],
+  ['Nasi Goreng Bakso', 340, 575, 20, 78, 20],
+  ['Nasi Goreng Teri Medan', 330, 550, 21, 76, 18],
+  ['Nasi Goreng Italian', 340, 580, 20, 76, 21],
+  ['Nasi Goreng Modern (Smoked Beef & Cheese)', 350, 630, 23, 75, 25],
+
+  // ---- MIE, KWETIAU & BIHUN ----
   ['Mie Goreng Special', 350, 600, 20, 82, 21],
   ['Mie Goreng Seafood', 350, 580, 22, 78, 19],
-  ['Bakmie Ayam Jamur', 350, 480, 20, 70, 14],
-  ['Bakmie Pangsit', 380, 520, 21, 72, 17],
+  ['Mie Goreng Ayam', 330, 560, 18, 78, 18],
+  ['Mie Goreng Sapi', 350, 590, 22, 78, 20],
+  ['Mie Kuah Ayam', 400, 420, 18, 62, 12],
+  ['Mie Kuah Seafood', 400, 440, 20, 62, 13],
+  ['Bakmie Ayam Solaria', 350, 480, 20, 70, 14],
+  ['Bakmie Ayam Bakso', 380, 530, 23, 72, 16],
+  ['Bakmie Ayam Pangsit Goreng', 380, 540, 21, 74, 18],
+  ['Bakmie Ayam Cah Jamur', 350, 490, 20, 68, 15],
+  ['Lo Mie Solaria', 420, 540, 22, 75, 17],
+  ['Kwetiau Goreng Special', 350, 610, 22, 82, 21],
   ['Kwetiau Goreng Seafood', 350, 590, 22, 80, 20],
-  ['Kwetiau Siram Seafood', 400, 520, 23, 68, 18],
-  ['Nasi Ayam Hainan', 380, 640, 30, 78, 22],
-  ['Nasi Ayam Bakar', 380, 600, 30, 76, 19],
-  ['Nasi Ayam Goreng Kremes', 380, 650, 28, 76, 25],
+  ['Kwetiau Goreng Sapi', 350, 600, 24, 80, 21],
+  ['Kwetiau Goreng Ayam', 350, 570, 20, 80, 18],
+  ['Kwetiau Siram Seafood', 420, 520, 23, 68, 18],
+  ['Kwetiau Siram Sapi', 420, 540, 26, 68, 20],
+  ['Kwetiau Siram Ayam', 420, 500, 22, 68, 16],
+  ['Bihun Goreng Special', 340, 550, 20, 80, 17],
+  ['Bihun Goreng Seafood', 330, 540, 20, 78, 17],
+  ['Bihun Goreng Ayam', 330, 530, 18, 78, 16],
+  ['Bihun Siram Seafood', 400, 480, 21, 66, 15],
+
+  // ---- EXPRESS BOWL ----
+  ['Express Bowl Ayam Saus Mentega', 300, 520, 26, 64, 20],
+  ['Express Bowl Ayam Rica-Rica', 300, 510, 25, 64, 19],
+  ['Express Bowl Ayam Teriyaki', 300, 500, 25, 68, 17],
+  ['Express Bowl Ayam Asam Manis', 300, 515, 24, 66, 18],
+  ['Express Bowl Fillet Ikan Saus Mentega', 300, 500, 22, 66, 17],
+  ['Express Bowl Fillet Ikan Rica-Rica', 300, 490, 22, 65, 16],
+  ['Express Bowl Fillet Ikan Asam Manis', 300, 495, 21, 67, 16],
+  ['Express Bowl Mix (Ayam & Udang Saus Mentega)', 310, 530, 25, 65, 19],
+
+  // ---- PAKET NASI AYAM ----
+  ['Chicken Cordon Bleu + Nasi / Fries', 350, 680, 32, 64, 34],
+  ['Chicken Mozzarella + Nasi / Fries', 350, 690, 33, 64, 35],
+  ['Chicken Steak Solaria + Nasi / Fries', 340, 580, 34, 52, 26],
+  ['Nasi Ayam Goreng Mentega', 380, 630, 27, 78, 22],
+  ['Nasi Ayam Goreng Tepung', 380, 640, 28, 76, 24],
+  ['Nasi Ayam Rica-Rica', 380, 610, 27, 76, 21],
+  ['Nasi Ayam Saus Asam Manis', 380, 620, 26, 80, 20],
+  ['Nasi Ayam Saus Tiram', 380, 600, 28, 76, 19],
   ['Nasi Ayam Lada Hitam', 380, 610, 28, 78, 20],
-  ['Nasi Ayam Saus Mentega', 380, 630, 27, 78, 22],
-  ['Nasi Ayam Sambal Matah', 380, 620, 29, 77, 21],
-  ['Nasi Ikan Dori Goreng Tepung', 380, 620, 24, 80, 22],
-  ['Nasi Ikan Dori Saus Asam Manis', 380, 600, 24, 82, 19],
+  ['Nasi Ayam Cah Jamur', 380, 570, 27, 74, 18],
+  ['Nasi Ayam Cah Kembang Kol', 380, 560, 26, 74, 17],
+  ['Nasi Ayam Hainan', 380, 640, 30, 78, 22],
+  ['Nasi Ayam Bakar Kecap', 380, 600, 30, 76, 19],
+  ['Nasi Ayam Goreng Kremes', 380, 650, 28, 76, 25],
+  ['Nasi Ayam Sambal Terasi / Matah', 380, 620, 29, 77, 21],
+
+  // ---- PAKET NASI SAPI & IGA ----
+  ['Beef Steak Solaria + Nasi / Fries', 350, 660, 38, 54, 32],
+  ['Nasi Bistik Sapi Solaria', 380, 650, 30, 76, 24],
   ['Nasi Sapi Lada Hitam', 380, 640, 28, 77, 24],
   ['Nasi Sapi Rica-Rica', 380, 630, 28, 76, 23],
-  ['Nasi Rawon', 420, 560, 28, 70, 18],
-  ['Nasi Campur Solaria', 400, 620, 26, 78, 22],
-  ['Nasi Timbel Komplit', 400, 680, 30, 78, 27],
-  ['Nasi Sup Iga', 450, 600, 30, 68, 22],
-  ['Soto Ayam', 350, 280, 20, 28, 9],
-  ['Soto Betawi', 380, 420, 20, 24, 28],
-  ['Iga Bakar Madu', 300, 560, 35, 25, 34],
+  ['Nasi Sapi Cabe Ijo', 380, 620, 26, 76, 22],
+  ['Nasi Sapi Saus Tiram', 380, 630, 28, 76, 22],
+  ['Nasi Sapi Cah Cabai', 380, 620, 27, 75, 22],
+  ['Iga Bakar Madu + Nasi', 420, 720, 38, 75, 30],
+
+  // ---- PAKET NASI SEAFOOD ----
+  ['Fish & Chips Solaria', 350, 680, 26, 68, 33],
+  ['Nasi Ikan Dori Goreng Tepung', 380, 620, 24, 80, 22],
+  ['Nasi Ikan Dori Saus Asam Manis', 380, 600, 24, 82, 19],
+  ['Nasi Ikan Dori Saus Mentega', 380, 610, 24, 80, 21],
+  ['Nasi Ikan Dori Lada Hitam', 380, 610, 24, 80, 21],
+  ['Nasi Udang Goreng Tepung', 380, 620, 22, 82, 22],
+  ['Nasi Udang Saus Asam Manis', 380, 600, 22, 82, 19],
+  ['Nasi Udang Saus Tiram', 380, 610, 22, 80, 21],
+  ['Nasi Udang Saus Mentega', 380, 620, 22, 80, 22],
+  ['Nasi Cumi Goreng Tepung', 380, 610, 23, 80, 21],
+  ['Nasi Cumi Saus Mentega', 380, 620, 23, 80, 22],
+  ['Nasi Cumi Saus Tiram', 380, 600, 23, 78, 20],
+
+  // ---- SOP, SOTO & SAYURAN ----
+  ['Nasi Rawon Solaria', 420, 560, 28, 70, 18],
+  ['Nasi Sup Iga Sapi', 450, 600, 30, 68, 22],
+  ['Soto Ayam + Nasi', 450, 480, 24, 68, 12],
+  ['Soto Betawi + Nasi', 450, 620, 24, 64, 30],
+  ['Sapo Tahu Seafood', 350, 340, 18, 28, 14],
+  ['Sapo Tahu Ayam', 350, 310, 18, 26, 12],
+  ['Cap Cay Seafood', 350, 290, 16, 30, 11],
+  ['Cap Cay Ayam', 350, 270, 16, 28, 10],
+  ['Sup Ayam Asparagus', 300, 190, 14, 18, 7],
+  ['Sup Ayam Corn (Jagung)', 300, 180, 12, 20, 6],
+  ['Sup Kepiting Asparagus', 300, 200, 15, 18, 7],
+
+  // ---- PASTA ----
   ['Spaghetti Bolognese', 300, 500, 20, 70, 15],
   ['Spaghetti Carbonara', 300, 620, 22, 66, 30],
+  ['Spaghetti Aglio Olio', 280, 540, 14, 70, 22],
   ['Fettuccine Chicken Mushroom', 320, 610, 24, 68, 27],
-  ['Chicken Cordon Bleu', 250, 520, 28, 28, 33],
-  ['Beef Steak Solaria', 300, 580, 38, 30, 33],
-  ['Chicken Steak', 280, 500, 32, 28, 28],
-  ['Fish & Chips', 320, 650, 26, 62, 32],
-  ['Siomay Ayam', 150, 220, 11, 22, 9],
+  ['Fettuccine Carbonara', 320, 640, 23, 66, 32],
+
+  // ---- CEMILAN / APPETIZERS ----
+  ['Siomay Ayam Solaria (4 pcs)', 150, 220, 11, 22, 9],
   ['Dimsum Hakau (4 pcs)', 100, 140, 7, 18, 4],
   ['Lumpia Goreng (3 pcs)', 120, 270, 6, 28, 14],
-  ['Kentang Goreng Solaria', 120, 360, 4, 46, 18],
+  ['Kentang Goreng Solaria', 140, 380, 5, 48, 19],
+  ['Potato Wedges Solaria', 150, 350, 5, 46, 16],
+  ['Calamari Goreng Tepung', 140, 360, 15, 29, 21],
+  ['Chicken Wings Solaria (4 pcs)', 160, 420, 22, 18, 30],
+  ['Fish Cake / Otak-Otak Goreng', 120, 240, 10, 22, 12],
+  ['Garlic Bread (4 pcs)', 100, 310, 7, 36, 15],
+  ['Roti Bakar Coklat Keju', 150, 420, 9, 58, 17],
+
+  // ---- DESSERTS & DRINKS ----
   ['Es Teler Solaria', 300, 280, 3, 48, 9],
   ['Es Campur Solaria', 300, 260, 3, 52, 6],
   ['Es Cendol Durian', 300, 340, 4, 54, 12],
   ['Es Kacang Merah', 300, 240, 4, 48, 4],
-  ['Es Jeruk', 300, 110, 0, 27, 0],
-  ['Es Teh Manis', 300, 90, 0, 22, 0],
-  ['Es Teh Tawar', 300, 3, 0, 1, 0],
   ['Jus Alpukat', 300, 280, 4, 34, 15],
   ['Jus Mangga', 300, 180, 2, 42, 1],
+  ['Jus Jeruk', 300, 130, 1, 32, 0],
+  ['Jus Melon', 300, 140, 1, 34, 0],
+  ['Jus Strawberi', 300, 150, 1, 36, 0],
+  ['Es Jeruk / Jeruk Hangat', 300, 110, 0, 27, 0],
+  ['Es Teh Manis / Teh Manis Hangat', 300, 90, 0, 22, 0],
+  ['Es Teh Tawar / Teh Tawar Hangat', 300, 3, 0, 1, 0],
+  ['Es Lemon Tea', 300, 110, 0, 27, 0],
+  ['Milkshake Cokelat', 360, 410, 10, 60, 14],
+  ['Milkshake Strawberi', 360, 380, 9, 58, 12],
+  ['Milkshake Vanilla', 360, 390, 10, 58, 13],
+  ['Avocado Float', 350, 360, 5, 52, 15],
+  ['Coffee Float Solaria', 350, 280, 4, 44, 10],
+  ['Kopi Susu Solaria', 250, 160, 4, 24, 5],
+  ['Kopi Hitam Solaria', 250, 10, 1, 2, 0],
 ];
+
+
 
 const PH_PIZZA: Row[] = [
   ['Pizza Pepperoni Pan Medium (1 slice)', 110, 270, 11, 29, 12],
@@ -861,6 +1047,157 @@ const OTHER_DRINKS: { brand: string; rows: Row[] }[] = [
   },
 ];
 
+// ===================== UMKM & STREET FOOD BRANDS =====================
+
+const UMKM_FOOD_BRANDS: { brand: string; cat: FoodCategory; rows: Row[] }[] = [
+  {
+    brand: 'Republik Kebab',
+    cat: 'Snacks',
+    rows: [
+      ['Kebab Beef Black Pepper Big', 210, 470, 21, 44, 23],
+      ['Kebab Beef Black Pepper Small', 150, 340, 14, 35, 16],
+      ['Kebab Daging Sapi Original (Big)', 200, 450, 20, 42, 22],
+      ['Kebab Daging Sapi Original (Small)', 140, 320, 13, 33, 15],
+      ['Kebab Creamy Cheese (Big)', 210, 480, 21, 43, 25],
+      ['Kebab Creamy Cheese (Small)', 150, 350, 14, 34, 18],
+      ['Kebab Spicy Garlic / BBQ (Big)', 210, 460, 20, 45, 23],
+      ['Zuper Beef Kebab Big (Full Beef + Cheese)', 230, 530, 26, 40, 30],
+      ['Cheese Fusion Kebab Big (3 Cheese)', 220, 510, 22, 42, 28],
+      ['Kebab Jumbo Beef', 250, 550, 25, 50, 28],
+      ['Kebab Ayam Crispy', 160, 360, 15, 38, 17],
+      ['Roti John Original Beef', 220, 480, 20, 48, 22],
+      ['Roti John Supreme (Sosis + Egg)', 260, 560, 24, 52, 28],
+      ['Hotdog Kebab Sosis', 150, 350, 13, 34, 18],
+      ['Roti Maryam Coklat Keju', 100, 310, 6, 42, 13],
+      ['Roti Maryam Daging Sapi', 120, 330, 11, 38, 15],
+      ['Burger Kebab Beef', 140, 330, 14, 32, 16],
+    ],
+  },
+  {
+    brand: 'Kebab Baba Rafi',
+    cat: 'Snacks',
+    rows: [
+      ['Kebab Sapi Regular', 150, 330, 14, 34, 15],
+      ['Kebab Full Meat Special', 180, 420, 22, 30, 24],
+      ['Kebab Cheese Supreme', 165, 380, 16, 35, 19],
+      ['Black Kebab Beef', 175, 410, 17, 38, 21],
+      ['Kebab Chicken Crispy', 160, 350, 14, 37, 16],
+      ['Kebab Mini (3 pcs)', 150, 320, 12, 32, 16],
+    ],
+  },
+  {
+    brand: 'Mie Gacoan',
+    cat: 'Staples',
+    rows: [
+      ['Mie Suit (Gurih Tidak Pedas)', 200, 380, 12, 56, 12],
+      ['Mie Hompimpa Level 1-4', 200, 390, 12, 57, 13],
+      ['Mie Hompimpa Level 6-8', 200, 410, 12, 58, 14],
+      ['Mie Gacoan Level 1-4 (Manis Pedas)', 210, 420, 12, 62, 14],
+      ['Mie Gacoan Level 6-8 (Manis Pedas)', 210, 440, 12, 64, 15],
+      ['Udang Keju (3 pcs)', 100, 260, 14, 18, 15],
+      ['Udang Rambutan (3 pcs)', 100, 270, 12, 22, 15],
+      ['Pangsit Goreng (2 pcs)', 90, 240, 8, 20, 14],
+      ['Lumpia Udang (3 pcs)', 90, 220, 11, 18, 12],
+      ['Es Gobet / Es Tecik', 300, 160, 1, 38, 1],
+      ['Es Sluke / Es Petruk', 300, 170, 1, 40, 1],
+    ],
+  },
+  {
+    brand: 'Sabana Fried Chicken',
+    cat: 'Proteins',
+    rows: [
+      ['Dada Ayam Sabana', 130, 340, 26, 12, 21],
+      ['Paha Atas Sabana', 120, 320, 20, 11, 22],
+      ['Paha Bawah Sabana', 90, 210, 14, 8, 14],
+      ['Sayap Ayam Sabana', 70, 180, 11, 7, 12],
+      ['Paket Ayam Geprek + Nasi', 320, 580, 28, 65, 23],
+    ],
+  },
+  {
+    brand: "d'BestO",
+    cat: 'Proteins',
+    rows: [
+      ['Ayam Dada dBestO', 130, 350, 27, 13, 21],
+      ['Ayam Paha Atas dBestO', 120, 330, 21, 12, 22],
+      ['Ayam Sadas Pedas Spesial', 130, 370, 26, 15, 23],
+      ['Burger dBestO Crispy', 140, 330, 14, 32, 16],
+    ],
+  },
+  {
+    brand: 'Rocket Chicken',
+    cat: 'Proteins',
+    rows: [
+      ['Ayam Dada Rocket', 130, 345, 26, 13, 21],
+      ['Ayam Geprek Rocket + Nasi', 320, 575, 27, 65, 22],
+      ['Chicken Strips Rocket (3 pcs)', 110, 290, 17, 18, 16],
+    ],
+  },
+  {
+    brand: 'Olive Fried Chicken',
+    cat: 'Proteins',
+    rows: [
+      ['Ayam Dada Olive', 130, 340, 26, 12, 21],
+      ['Ayam Paha Atas Olive', 120, 320, 20, 11, 22],
+      ['Ayam Geprek Olive', 140, 370, 25, 14, 23],
+    ],
+  },
+  {
+    brand: 'Martabak UMKM',
+    cat: 'Snacks',
+    rows: [
+      ['Martabak Telur Daging Sapi (2 Telur)', 250, 580, 24, 36, 38],
+      ['Martabak Telur Daging Ayam (2 Telur)', 250, 520, 22, 36, 32],
+      ['Martabak Manis Coklat Keju Wijen', 200, 620, 12, 74, 30],
+      ['Martabak Manis Keju Susu Spesial', 180, 540, 14, 62, 26],
+      ['Martabak Tipker Coklat Keju', 100, 380, 6, 50, 17],
+    ],
+  },
+  {
+    brand: 'Roti O & Roti Boy',
+    cat: 'Snacks',
+    rows: [
+      ['Roti O Coffee Bun', 80, 280, 6, 36, 12],
+      ['Roti Boy Coffee Bun', 80, 275, 6, 35, 12],
+      ['Pastry Chocolate Roti O', 90, 320, 5, 38, 16],
+      ['Pastry Cheese Roti O', 90, 310, 6, 36, 15],
+    ],
+  },
+  {
+    brand: 'Tahu Go! & Tahu Jeletot',
+    cat: 'Snacks',
+    rows: [
+      ['Tahu Go Crispy (5 pcs)', 120, 260, 10, 18, 16],
+      ['Tahu Jeletot Pedas (2 pcs)', 130, 290, 11, 22, 18],
+      ['Tahu Walik Goreng (4 pcs)', 120, 280, 12, 20, 17],
+    ],
+  },
+  {
+    brand: 'Seblak Bandung UMKM',
+    cat: 'Staples',
+    rows: [
+      ['Seblak Komplit (Ceker, Sosis, Telur, Kerupuk)', 350, 480, 18, 52, 22],
+      ['Seblak Mie Makaroni Bakso Pedas', 300, 420, 14, 55, 16],
+    ],
+  },
+  {
+    brand: 'Siomay & Batagor Bandung',
+    cat: 'Snacks',
+    rows: [
+      ['Siomay Ikan Bumbu Kacang (4 pcs)', 200, 340, 16, 30, 17],
+      ['Batagor Goreng Bumbu Kacang (4 pcs)', 220, 420, 14, 38, 24],
+    ],
+  },
+  {
+    brand: 'Es Teh Solo & Teh Poci UMKM',
+    cat: 'Dairy & Drinks',
+    rows: [
+      ['Es Teh Solo Manis Jumbo', 400, 110, 0, 28, 0],
+      ['Teh Poci Es Manis Jumbo', 400, 120, 0, 30, 0],
+      ['Es Teh Kampul Solo', 400, 125, 0, 31, 0],
+    ],
+  },
+];
+
 // ===================== BUILD =====================
 
 export const BRAND_FOOD_DATABASE: FoodItem[] = [
@@ -890,4 +1227,5 @@ export const BRAND_FOOD_DATABASE: FoodItem[] = [
   ...build('Tomoro', 'Dairy & Drinks', TOMORO),
   ...COFFEE_CHAINS.flatMap((g) => build(g.brand, 'Dairy & Drinks', g.rows)),
   ...OTHER_DRINKS.flatMap((g) => build(g.brand, 'Dairy & Drinks', g.rows)),
+  ...UMKM_FOOD_BRANDS.flatMap((g) => build(g.brand, g.cat, g.rows)),
 ];

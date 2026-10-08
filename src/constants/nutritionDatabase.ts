@@ -1,7 +1,7 @@
 import { FoodItem } from '../types/nutrition';
 import { BRAND_FOOD_DATABASE } from './brandFoodDatabase';
 
-export const BUILTIN_FOOD_DATABASE: FoodItem[] = [
+const BUILTIN_FOOD_DATABASE: FoodItem[] = [
   // --- STAPLES & KARBOHIDRAT ---
   {
     id: 'food_nasi_putih',

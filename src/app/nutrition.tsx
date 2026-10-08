@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Text,
   View,
   StatusBar,
   ScrollView,
   TouchableOpacity,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -37,6 +38,13 @@ const NUTRITION_TARGETS_KEY = '@wakemove_nutrition_targets';
 const CUSTOM_FOODS_KEY = '@wakemove_custom_foods';
 const WATER_LOGS_KEY = '@wakemove_water_logs';
 
+const formatDateKey = (d: Date): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function NutritionScreen() {
   const [logs, setLogs] = useState<NutritionLog[]>([]);
   const [customFoods, setCustomFoods] = useState<FoodItem[]>([]);
@@ -44,6 +52,7 @@ export default function NutritionScreen() {
   const [waterLogs, setWaterLogs] = useState<WaterLog[]>([]);
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const lastTodayKeyRef = useRef(formatDateKey(new Date()));
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [customModalVisible, setCustomModalVisible] = useState(false);
@@ -57,6 +66,21 @@ export default function NutritionScreen() {
     title: '',
     message: '',
   });
+
+  const syncDateToTodayIfOnToday = useCallback(() => {
+    const now = new Date();
+    const newTodayKey = formatDateKey(now);
+    const oldTodayKey = lastTodayKeyRef.current;
+    lastTodayKeyRef.current = newTodayKey;
+
+    setSelectedDate((prevDate) => {
+      const prevKey = formatDateKey(prevDate);
+      if (prevKey === oldTodayKey) {
+        return now;
+      }
+      return prevDate;
+    });
+  }, []);
 
   const showAlert = (
     type: AppAlertConfig['type'],
@@ -116,18 +140,35 @@ export default function NutritionScreen() {
     }
   }, []);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        syncDateToTodayIfOnToday();
+        loadNutritionData();
+      }
+    });
+
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2);
+    const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
+
+    const timer = setTimeout(() => {
+      syncDateToTodayIfOnToday();
+      loadNutritionData();
+    }, msToMidnight);
+
+    return () => {
+      subscription.remove();
+      clearTimeout(timer);
+    };
+  }, [syncDateToTodayIfOnToday, loadNutritionData]);
+
   useFocusEffect(
     useCallback(() => {
+      syncDateToTodayIfOnToday();
       loadNutritionData();
-    }, [loadNutritionData])
+    }, [syncDateToTodayIfOnToday, loadNutritionData])
   );
-
-  const formatDateKey = (d: Date): string => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
 
   const currentDateKey = formatDateKey(selectedDate);
   const todayKey = formatDateKey(new Date());
