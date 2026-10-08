@@ -5,7 +5,6 @@ import { Account, Transaction, formatMoney, getAccountIcon, MONTHS, ACCOUNT_TYPE
 import { financeStyles as styles } from '../../styles/financeStyles';
 import { COLORS } from '../../constants/theme';
 
-// Helper: Rich category icon mapping for visually pleasant transactions
 const getCategoryIconInfo = (
   category: string,
   type: 'income' | 'expense' | 'transfer'
@@ -56,7 +55,6 @@ const getCategoryIconInfo = (
   return { name: iconMap[category] || 'pricetag-outline', ...getCategoryTheme(category) };
 };
 
-// Helper: Human-friendly date formatting
 const formatTxDate = (dateIso: string): string => {
   const d = new Date(dateIso);
   const now = new Date();
@@ -78,7 +76,7 @@ const formatTxDate = (dateIso: string): string => {
   return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
 };
 
-// --- TRANSACTION CARD ---
+// TRANSACTION CARD
 interface TransactionCardProps {
   item: Transaction;
   accounts: Account[];
@@ -122,7 +120,7 @@ export const TransactionCard = ({ item, accounts, onClone, onDelete, onEdit }: T
         </View>
 
         <View style={styles.txBody}>
-          {/* Row 1: Title (Left) + Amount (Right) */}
+          {/* Title (Left) + Amount (Right) */}
           <View style={styles.txMainRow}>
             <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
               {displayTitle}
@@ -145,7 +143,7 @@ export const TransactionCard = ({ item, accounts, onClone, onDelete, onEdit }: T
             </Text>
           </View>
 
-          {/* Row 2: Category Badge (Left) + Date (Right) */}
+          {/* Category Badge (Left) + Date (Right) */}
           <View style={styles.txMetaRow}>
             <View style={styles.txCategoryBadgeWrap}>
               <View
@@ -170,7 +168,7 @@ export const TransactionCard = ({ item, accounts, onClone, onDelete, onEdit }: T
         </View>
       </View>
 
-      {/* FOOTER ROW: ACCOUNT SOURCE PILL + ACTION BUTTONS */}
+      {/* ACCOUNT SOURCE PILL + ACTION BUTTONS */}
       <View style={styles.txBottomRow}>
         <View style={styles.txAccountPill}>
           <Ionicons
@@ -210,7 +208,7 @@ export const TransactionCard = ({ item, accounts, onClone, onDelete, onEdit }: T
   );
 };
 
-// --- ACCOUNT CARD ---
+// ACCOUNT CARD
 interface AccountCardProps {
   item: Account;
   balance: number;
@@ -235,7 +233,6 @@ export const AccountCard = ({ item, balance, onPress }: AccountCardProps) => {
       <View style={[styles.accTopBar, { backgroundColor: theme.color }]} />
 
       <View style={styles.accCardBody}>
-        {/* TOP ROW: Icon + Name & Type on left, Currency Pill & Chevron on right */}
         <View style={styles.accHeaderRow}>
           <View style={styles.accHeaderLeft}>
             <View style={[styles.accIconBox, { backgroundColor: theme.bg, borderColor: theme.border }]}>
@@ -272,7 +269,7 @@ export const AccountCard = ({ item, balance, onPress }: AccountCardProps) => {
           </View>
         </View>
 
-        {/* MIDDLE: Balance Block */}
+        {/* Balance Block */}
         <View style={styles.accBalanceRow}>
           <Text style={styles.accBalanceLabel}>TOTAL BALANCE</Text>
           <Text style={styles.accBalanceAmount} numberOfLines={1}>
@@ -280,7 +277,7 @@ export const AccountCard = ({ item, balance, onPress }: AccountCardProps) => {
           </Text>
         </View>
 
-        {/* BOTTOM: Pockets Row */}
+        {/* Pockets Row */}
         {pocketsCount > 0 ? (
           <View style={styles.accBottomRow}>
             <View style={styles.accPocketBadge}>
@@ -316,7 +313,7 @@ export const AccountCard = ({ item, balance, onPress }: AccountCardProps) => {
   );
 };
 
-// --- ADD ACCOUNT COMPACT BUTTON ---
+// ADD ACCOUNT
 export const AddAccountCard = ({ onPress }: { onPress: () => void }) => (
   <TouchableOpacity style={styles.addAccountDashedCard} activeOpacity={0.75} onPress={onPress}>
     <View style={styles.addAccIconWrap}>
@@ -330,7 +327,7 @@ export const AddAccountCard = ({ onPress }: { onPress: () => void }) => (
   </TouchableOpacity>
 );
 
-// --- HERO SUMMARY & CASHFLOW CARD ---
+// HERO SUMMARY & CASHFLOW CARD
 interface HeroSummaryProps {
   totalIDR: number;
   totalUSD: number;
@@ -385,7 +382,7 @@ export const HeroSummaryCard = ({
 
   return (
     <View>
-      {/* 1. Executive Total Net Worth Card (Colorful & Integrated) */}
+      {/* Executive Total Net Worth Card */}
       <View style={[styles.heroCard, isIDR ? styles.heroCardIDR : styles.heroCardUSD]}>
         <View style={styles.heroTopRow}>
           <View style={styles.heroLabelGroup}>
@@ -420,7 +417,7 @@ export const HeroSummaryCard = ({
           {formatMoney(currentTotal, selectedCurrency)}
         </Text>
 
-        {/* Integrated Bottom Stats Row */}
+        {/* Bottom Stats Row */}
         <View style={styles.heroSubRow}>
           <View style={[styles.heroSubBadge, { backgroundColor: isIDR ? 'rgba(56, 189, 248, 0.16)' : 'rgba(16, 185, 129, 0.16)', borderColor: isIDR ? 'rgba(56, 189, 248, 0.35)' : 'rgba(16, 185, 129, 0.35)' }]}>
             <Ionicons
@@ -435,7 +432,7 @@ export const HeroSummaryCard = ({
         </View>
       </View>
 
-      {/* 2. Month Navigator Bar */}
+      {/* Month Navigator Bar */}
       <View style={styles.monthNavRow}>
         <TouchableOpacity
           onPress={onPrevMonth}
@@ -472,7 +469,7 @@ export const HeroSummaryCard = ({
         </TouchableOpacity>
       </View>
 
-      {/* 3. Monthly Cash Flow Bento Grid */}
+      {/* Monthly Cash Flow Bento Grid */}
       <View style={styles.cashflowSection}>
         <View style={styles.cashflowRow}>
           {/* Income Card */}

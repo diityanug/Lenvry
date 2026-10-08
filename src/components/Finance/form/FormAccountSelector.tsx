@@ -27,7 +27,7 @@ export const FormAccountSelector = ({
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>{label.toUpperCase()}</Text>
 
-      {/* Main Accounts Grid (No Horizontal Scroll, Colorful Full-Surface Cards) */}
+      {/* Main Accounts Grid */}
       <View style={styles.accountGrid}>
         {accounts.map((acc) => {
           const isSelected = acc.id === selectedAccId;
@@ -84,7 +84,7 @@ export const FormAccountSelector = ({
         })}
       </View>
 
-      {/* Sub-Accounts / Pockets (Prominent, Colorful & Big) */}
+      {/* Sub-Accounts / Pockets */}
       {selectedAccount && selectedAccount.subAccounts && selectedAccount.subAccounts.length > 0 && (
         <View style={styles.subAccountsContainer}>
           <View style={styles.subHeaderRow}>

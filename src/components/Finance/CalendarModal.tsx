@@ -143,7 +143,6 @@ const CalendarModalContent = ({
                 </TouchableOpacity>
               </View>
 
-              {/* 12 Months Grid — three fixed 4-column rows, equal cell sizes */}
               <View style={styles.monthGrid}>
                 {[0, 1, 2].map((rowIdx) => (
                   <View key={`month-row-${rowIdx}`} style={styles.monthRow}>
@@ -151,7 +150,6 @@ const CalendarModalContent = ({
                       const idx = rowIdx * 4 + colIdx;
                       const isSelected = selectedMonthIndex === idx && selectedYearVal === internalYear;
                       const isTodayMonth = currentActualMonth === idx && currentActualYear === internalYear;
-                      // Rotate a hue across the grid so the period picker stays colourful.
                       const cellTheme = MONTH_COLORS[idx % MONTH_COLORS.length];
 
                       return (

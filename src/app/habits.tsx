@@ -87,8 +87,6 @@ export default function HabitTrackerScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      // Row shapes (frequency, completedDates, subtasks, priority, ...) are
-      // normalised by the storage schema, so no patching is needed here.
       const stored = await readManyStored(['habits', 'habitCategories', 'habitCategoryIcons']);
 
       if (stored.habits) {

@@ -41,7 +41,6 @@ const CalculatorModalContent = ({
     return sanitized || '0';
   });
 
-  // Evaluasi perhitungan matematika sederhana secara aman
   const evaluateMath = (expr: string): number => {
     try {
       const sanitized = expr.replace(/×/g, '*').replace(/÷/g, '/');
@@ -171,7 +170,6 @@ const CalculatorModalContent = ({
 
               {/* Calculator Keypad */}
               <View style={calcStyles.grid}>
-                {/* Row 1 */}
                 <View style={calcStyles.row}>
                   <TouchableOpacity
                     style={[calcStyles.btn, { backgroundColor: hexToRgba(EXPENSE, 0.14), borderColor: hexToRgba(EXPENSE, 0.34) }]}
@@ -203,7 +201,6 @@ const CalculatorModalContent = ({
                   </TouchableOpacity>
                 </View>
 
-                {/* Row 2 */}
                 <View style={calcStyles.row}>
                   <TouchableOpacity style={calcStyles.btn} onPress={() => handleInput('7')} activeOpacity={0.7}>
                     <Text style={calcStyles.btnText}>7</Text>
@@ -223,7 +220,6 @@ const CalculatorModalContent = ({
                   </TouchableOpacity>
                 </View>
 
-                {/* Row 3 */}
                 <View style={calcStyles.row}>
                   <TouchableOpacity style={calcStyles.btn} onPress={() => handleInput('4')} activeOpacity={0.7}>
                     <Text style={calcStyles.btnText}>4</Text>
@@ -243,7 +239,6 @@ const CalculatorModalContent = ({
                   </TouchableOpacity>
                 </View>
 
-                {/* Row 4 */}
                 <View style={calcStyles.row}>
                   <TouchableOpacity style={calcStyles.btn} onPress={() => handleInput('1')} activeOpacity={0.7}>
                     <Text style={calcStyles.btnText}>1</Text>
@@ -263,7 +258,6 @@ const CalculatorModalContent = ({
                   </TouchableOpacity>
                 </View>
 
-                {/* Row 5 */}
                 <View style={calcStyles.row}>
                   <TouchableOpacity style={calcStyles.btn} onPress={() => handleInput('0')} activeOpacity={0.7}>
                     <Text style={calcStyles.btnText}>0</Text>

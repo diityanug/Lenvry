@@ -117,7 +117,6 @@ export const HistoryModal = ({
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
       <View style={modalStyles.overlay}>
-        {/* Dismiss Backdrop */}
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={StyleSheet.absoluteFill} />
         </TouchableWithoutFeedback>
@@ -126,7 +125,7 @@ export const HistoryModal = ({
         <View style={modalStyles.content}>
           <View style={modalStyles.handle} />
 
-          {/* FIXED HEADER SECTION */}
+          {/* HEADER SECTION */}
           <View style={modalStyles.fixedHeaderSection}>
             <View style={modalStyles.headerRow}>
               <View style={modalStyles.headerTitleWrap}>
@@ -266,7 +265,7 @@ export const HistoryModal = ({
             </View>
           </View>
 
-          {/* SCROLLABLE TRANSACTION LIST */}
+          {/* TRANSACTION LIST */}
           <FlatList
             data={filteredList}
             keyExtractor={(item) => item.id}

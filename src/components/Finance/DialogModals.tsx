@@ -17,11 +17,10 @@ import { formatMoney, hexToRgba } from '../../types/finance';
 import { CalculatorModal } from './CalculatorModal';
 import { COLORS, RADIUS } from '../../constants/theme';
 
-// Shared accents used by these dialogs (alpha tints come from hexToRgba)
 const SKY = '#38BDF8';
 const VIOLET = '#818CF8';
 
-// --- EDIT BALANCE MODAL ---
+// EDIT BALANCE MODAL
 interface EditBalanceModalProps {
   visible: boolean;
   value: string;
@@ -53,8 +52,7 @@ export const EditBalanceModal = ({
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-        keyboardVerticalOffset={Platform.OS === 'android' ? 20 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         <TouchableWithoutFeedback onPress={handleDismiss}>
@@ -75,7 +73,7 @@ export const EditBalanceModal = ({
                   Set the corrected total balance for this sub-account.
                 </Text>
 
-                {/* Amount Box (Tap to open Calculator Keypad) */}
+                {/* Amount Box */}
                 <TouchableOpacity
                   style={dialogStyles.amountHeroBox}
                   onPress={() => setCalcVisible(true)}
@@ -132,7 +130,7 @@ export const EditBalanceModal = ({
   );
 };
 
-// --- RENAME MODAL ---
+// RENAME MODAL
 interface RenameModalProps {
   visible: boolean;
   value: string;
@@ -165,8 +163,7 @@ export const RenameModal = ({
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-        keyboardVerticalOffset={Platform.OS === 'android' ? 20 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         <TouchableWithoutFeedback onPress={handleDismiss}>
@@ -270,7 +267,7 @@ const AVAILABLE_CATEGORY_ICONS = [
   { icon: 'sparkles-outline', label: 'Special', color: '#FBBF24', bg: 'rgba(251, 191, 36, 0.16)' },
 ];
 
-// --- ADD CATEGORY MODAL ---
+// ADD CATEGORY MODAL
 interface AddCategoryModalProps {
   visible: boolean;
   value: string;
@@ -311,8 +308,7 @@ export const AddCategoryModal = ({
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-        keyboardVerticalOffset={Platform.OS === 'android' ? 20 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         <TouchableWithoutFeedback onPress={handleDismiss}>

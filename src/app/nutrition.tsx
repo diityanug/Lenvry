@@ -114,7 +114,6 @@ export default function NutritionScreen() {
       if (stored.nutritionTargets) setTarget(stored.nutritionTargets);
       if (stored.waterLogs) setWaterLogs(stored.waterLogs);
     } catch {
-      // Ignored
     }
   }, []);
 
@@ -361,7 +360,7 @@ export default function NutritionScreen() {
           onResetWater={handleResetWater}
         />
 
-        {/* 4 Meal Category Sections */}
+        {/* Meal Category Sections */}
         <MealSectionList
           logs={currentDayLogs}
           onOpenAddForMeal={openAddForMeal}

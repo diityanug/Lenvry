@@ -168,9 +168,7 @@ export const RecurringBillsCard = ({
   const currentDay = today.getDate();
   const daysInCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
 
-  // Determine status for each bill based on payment record and due date
   const processedBills = filteredBills.map((bill) => {
-    // Check if this bill has been paid in current month transactions
     const matchingTx = monthlyTransactions.find((t) => {
       if (t.type !== 'expense') return false;
       const desc = t.description.toLowerCase();
@@ -210,7 +208,6 @@ export const RecurringBillsCard = ({
         statusText = `In ${daysUntil} days`;
       }
     } else {
-      // Overdue / passed this month without payment recorded
       daysUntil = daysInCurrentMonth - currentDay + bill.dueDateDay;
       statusType = 'overdue';
       statusText = 'Unpaid this month';
@@ -300,7 +297,7 @@ export const RecurringBillsCard = ({
 
   return (
     <View style={cardStyles.containerCard}>
-      {/* 1. Header with Title & Add Action */}
+      {/* Header with Title & Add Action */}
       <View style={cardStyles.headerRow}>
         <View style={cardStyles.titleGroup}>
           <View style={cardStyles.iconWrap}>
@@ -328,7 +325,7 @@ export const RecurringBillsCard = ({
         </TouchableOpacity>
       </View>
 
-      {/* 2. Monthly Payment Health Tracker Banner */}
+      {/* Monthly Payment Health Tracker Banner */}
       {filteredBills.length > 0 && (
         <View style={cardStyles.summaryBox}>
           <View style={cardStyles.summaryTopRow}>
@@ -389,7 +386,7 @@ export const RecurringBillsCard = ({
         </View>
       )}
 
-      {/* 3. Segmented Filter Tabs: All / Unpaid / Paid */}
+      {/* Segmented Filter Tabs: All / Unpaid / Paid */}
       {filteredBills.length > 0 && (
         <View style={cardStyles.tabFilterRow}>
           <TouchableOpacity
@@ -445,7 +442,7 @@ export const RecurringBillsCard = ({
         </View>
       )}
 
-      {/* 4. Bills Cards List */}
+      {/* Bills Cards List */}
       {displayedBills.length === 0 ? (
         <View style={cardStyles.emptyBox}>
           <View style={cardStyles.emptyIconWrap}>
@@ -489,10 +486,10 @@ export const RecurringBillsCard = ({
                   isToday && cardStyles.billCardToday,
                 ]}
               >
-                {/* Colourful category accent rail */}
+                {/* Category accent rail */}
                 <View style={[cardStyles.billAccentRail, { backgroundColor: theme.color }]} />
 
-                {/* Header Row: Brand Icon + Title & Category + Trash Button */}
+                {/* Brand Icon + Title & Category + Trash Button */}
                 <View style={cardStyles.billTopRow}>
                   {/* Visual Brand Icon */}
                   <View style={[cardStyles.brandIconBox, { backgroundColor: theme.bg, borderColor: hexToRgba(theme.color, 0.34) }]}>
@@ -509,7 +506,7 @@ export const RecurringBillsCard = ({
                     </Text>
                   </View>
 
-                  {/* Delete Button with generous hit area */}
+                  {/* Delete Button */}
                   <TouchableOpacity
                     style={cardStyles.trashBtn}
                     onPress={() => confirmDeleteBill(bill)}
@@ -520,7 +517,7 @@ export const RecurringBillsCard = ({
                   </TouchableOpacity>
                 </View>
 
-                {/* Middle Info Row: Amount + Status Badge */}
+                {/* Amount + Status Badge */}
                 <View style={cardStyles.billMiddleRow}>
                   <View style={cardStyles.billAmountCol}>
                     <Text style={cardStyles.billAmountLabel} numberOfLines={1}>
@@ -602,7 +599,6 @@ export const RecurringBillsCard = ({
                   </TouchableOpacity>
                 )}
 
-                {/* Category chip keeps the palette honest even when the pay CTA changes shade */}
                 <View style={cardStyles.billFooterRow}>
                   <View
                     style={[
@@ -625,7 +621,7 @@ export const RecurringBillsCard = ({
         </View>
       )}
 
-      {/* 5. Add Recurring Bill Modal */}
+      {/* Add Recurring Bill Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -669,7 +665,7 @@ export const RecurringBillsCard = ({
               keyboardDismissMode="on-drag"
               contentContainerStyle={cardStyles.modalScrollContent}
             >
-              {/* Popular Quick Templates */}
+              {/* Quick Templates */}
               <View style={cardStyles.presetHeaderRow}>
                 <Text style={cardStyles.formSectionLabel} numberOfLines={1}>
                   SUGGESTIONS / PRESETS
@@ -884,7 +880,7 @@ export const RecurringBillsCard = ({
         </View>
       </Modal>
 
-      {/* Custom Alert Modal matching app theme */}
+      {/* Custom Alert Modal */}
       <AppAlertModal
         config={alertConfig}
         onClose={() => setAlertConfig((prev) => ({ ...prev, visible: false }))}

@@ -50,10 +50,10 @@ function build(brand: string, category: FoodCategory, rows: Row[]): FoodItem[] {
   });
 }
 
-// ===================== FAST FOOD =====================
+// Fast Food Chains
 
 const KFC_MAINS: Row[] = [
-  // Ayam
+  // Fried Chicken
   ['Original Recipe Ayam (Paha Atas)', 120, 320, 22, 10, 21],
   ['Original Recipe Ayam (Paha Bawah)', 90, 220, 17, 7, 14],
   ['Original Recipe Ayam (Dada)', 150, 390, 32, 13, 24],
@@ -78,7 +78,7 @@ const KFC_MAINS: Row[] = [
   ['Longer Burger', 150, 360, 17, 33, 18],
   ['Colonel Burger', 170, 400, 20, 35, 20],
   ['OR Burger', 160, 380, 18, 34, 20],
-  // Rice Bowl & Paket
+  // Rice Bowls & Combos
   ['Rice Bowl Chicken Teriyaki', 330, 560, 26, 72, 18],
   ['Rice Bowl Chicken Spicy BBQ', 330, 570, 25, 74, 19],
   ['Rice Bowl Chicken Butter', 330, 580, 25, 71, 21],
@@ -134,7 +134,7 @@ const KFC_DRINKS: Row[] = [
 ];
 
 const MCD_BURGERS: Row[] = [
-  // Daging Sapi
+  // Beef
   ['Big Mac', 215, 550, 25, 45, 30],
   ['Double Big Mac', 295, 760, 42, 46, 43],
   ['Triple Cheeseburger', 255, 680, 41, 43, 35],
@@ -143,10 +143,10 @@ const MCD_BURGERS: Row[] = [
   ['Cheeseburger', 119, 300, 15, 33, 12],
   ['Beef Burger Deluxe', 190, 480, 22, 42, 25],
   ['Beef Burger', 105, 260, 13, 31, 10],
-  // Ayam
+  // Chicken
   ['McSpicy Chicken Burger', 190, 460, 21, 40, 23],
   ['McChicken', 150, 400, 14, 40, 21],
-  // Ikan
+  // Fish
   ['Filet-O-Fish', 140, 340, 15, 38, 14],
   // Breakfast
   ['Chicken Muffin', 120, 300, 17, 30, 12],
@@ -265,7 +265,7 @@ const BK_DRINKS: Row[] = [
 ];
 
 const SOLARIA_ROWS: Row[] = [
-  // ---- NASI GORENG ----
+  // Fried Rice
   ['Nasi Goreng Biasa', 330, 540, 16, 76, 18],
   ['Nasi Goreng Special Solaria', 350, 620, 22, 80, 22],
   ['Nasi Goreng Seafood', 350, 590, 24, 78, 19],
@@ -282,7 +282,7 @@ const SOLARIA_ROWS: Row[] = [
   ['Nasi Goreng Italian', 340, 580, 20, 76, 21],
   ['Nasi Goreng Modern (Smoked Beef & Cheese)', 350, 630, 23, 75, 25],
 
-  // ---- MIE, KWETIAU & BIHUN ----
+  // Noodles & Vermicelli
   ['Mie Goreng Special', 350, 600, 20, 82, 21],
   ['Mie Goreng Seafood', 350, 580, 22, 78, 19],
   ['Mie Goreng Ayam', 330, 560, 18, 78, 18],
@@ -306,7 +306,7 @@ const SOLARIA_ROWS: Row[] = [
   ['Bihun Goreng Ayam', 330, 530, 18, 78, 16],
   ['Bihun Siram Seafood', 400, 480, 21, 66, 15],
 
-  // ---- EXPRESS BOWL ----
+  // Express Bowls
   ['Express Bowl Ayam Saus Mentega', 300, 520, 26, 64, 20],
   ['Express Bowl Ayam Rica-Rica', 300, 510, 25, 64, 19],
   ['Express Bowl Ayam Teriyaki', 300, 500, 25, 68, 17],
@@ -316,7 +316,7 @@ const SOLARIA_ROWS: Row[] = [
   ['Express Bowl Fillet Ikan Asam Manis', 300, 495, 21, 67, 16],
   ['Express Bowl Mix (Ayam & Udang Saus Mentega)', 310, 530, 25, 65, 19],
 
-  // ---- PAKET NASI AYAM ----
+  // Chicken Rice Combos
   ['Chicken Cordon Bleu + Nasi / Fries', 350, 680, 32, 64, 34],
   ['Chicken Mozzarella + Nasi / Fries', 350, 690, 33, 64, 35],
   ['Chicken Steak Solaria + Nasi / Fries', 340, 580, 34, 52, 26],
@@ -333,7 +333,7 @@ const SOLARIA_ROWS: Row[] = [
   ['Nasi Ayam Goreng Kremes', 380, 650, 28, 76, 25],
   ['Nasi Ayam Sambal Terasi / Matah', 380, 620, 29, 77, 21],
 
-  // ---- PAKET NASI SAPI & IGA ----
+  // Beef & Ribs Combos
   ['Beef Steak Solaria + Nasi / Fries', 350, 660, 38, 54, 32],
   ['Nasi Bistik Sapi Solaria', 380, 650, 30, 76, 24],
   ['Nasi Sapi Lada Hitam', 380, 640, 28, 77, 24],
@@ -343,7 +343,7 @@ const SOLARIA_ROWS: Row[] = [
   ['Nasi Sapi Cah Cabai', 380, 620, 27, 75, 22],
   ['Iga Bakar Madu + Nasi', 420, 720, 38, 75, 30],
 
-  // ---- PAKET NASI SEAFOOD ----
+  // Seafood Combos
   ['Fish & Chips Solaria', 350, 680, 26, 68, 33],
   ['Nasi Ikan Dori Goreng Tepung', 380, 620, 24, 80, 22],
   ['Nasi Ikan Dori Saus Asam Manis', 380, 600, 24, 82, 19],
@@ -357,7 +357,7 @@ const SOLARIA_ROWS: Row[] = [
   ['Nasi Cumi Saus Mentega', 380, 620, 23, 80, 22],
   ['Nasi Cumi Saus Tiram', 380, 600, 23, 78, 20],
 
-  // ---- SOP, SOTO & SAYURAN ----
+  // Soups & Vegetables
   ['Nasi Rawon Solaria', 420, 560, 28, 70, 18],
   ['Nasi Sup Iga Sapi', 450, 600, 30, 68, 22],
   ['Soto Ayam + Nasi', 450, 480, 24, 68, 12],
@@ -370,14 +370,14 @@ const SOLARIA_ROWS: Row[] = [
   ['Sup Ayam Corn (Jagung)', 300, 180, 12, 20, 6],
   ['Sup Kepiting Asparagus', 300, 200, 15, 18, 7],
 
-  // ---- PASTA ----
+  // Pasta
   ['Spaghetti Bolognese', 300, 500, 20, 70, 15],
   ['Spaghetti Carbonara', 300, 620, 22, 66, 30],
   ['Spaghetti Aglio Olio', 280, 540, 14, 70, 22],
   ['Fettuccine Chicken Mushroom', 320, 610, 24, 68, 27],
   ['Fettuccine Carbonara', 320, 640, 23, 66, 32],
 
-  // ---- CEMILAN / APPETIZERS ----
+  // Appetizers & Snacks
   ['Siomay Ayam Solaria (4 pcs)', 150, 220, 11, 22, 9],
   ['Dimsum Hakau (4 pcs)', 100, 140, 7, 18, 4],
   ['Lumpia Goreng (3 pcs)', 120, 270, 6, 28, 14],
@@ -389,7 +389,7 @@ const SOLARIA_ROWS: Row[] = [
   ['Garlic Bread (4 pcs)', 100, 310, 7, 36, 15],
   ['Roti Bakar Coklat Keju', 150, 420, 9, 58, 17],
 
-  // ---- DESSERTS & DRINKS ----
+  // Desserts & Drinks
   ['Es Teler Solaria', 300, 280, 3, 48, 9],
   ['Es Campur Solaria', 300, 260, 3, 52, 6],
   ['Es Cendol Durian', 300, 340, 4, 54, 12],
@@ -674,7 +674,7 @@ const OTHER_FAST_FOOD: { brand: string; cat: FoodCategory; rows: Row[] }[] = [
   },
 ];
 
-// ===================== MINUMAN =====================
+// Beverages & Cafes
 
 const STARBUCKS: Row[] = [
   ['Caffe Americano Tall', 355, 15, 1, 3, 0],
@@ -1047,7 +1047,7 @@ const OTHER_DRINKS: { brand: string; rows: Row[] }[] = [
   },
 ];
 
-// ===================== UMKM & STREET FOOD BRANDS =====================
+// Street Food & Local Eateries
 
 const UMKM_FOOD_BRANDS: { brand: string; cat: FoodCategory; rows: Row[] }[] = [
   {
@@ -1198,7 +1198,7 @@ const UMKM_FOOD_BRANDS: { brand: string; cat: FoodCategory; rows: Row[] }[] = [
   },
 ];
 
-// ===================== BUILD =====================
+// Exported Combined Database
 
 export const BRAND_FOOD_DATABASE: FoodItem[] = [
   ...build('KFC', 'Proteins', KFC_MAINS),

@@ -2,7 +2,7 @@ import { FoodItem } from '../types/nutrition';
 import { BRAND_FOOD_DATABASE } from './brandFoodDatabase';
 
 const BUILTIN_FOOD_DATABASE: FoodItem[] = [
-  // --- STAPLES & KARBOHIDRAT ---
+  // Staples & Carbohydrates
   {
     id: 'food_nasi_putih',
     name: 'Nasi Putih (White Rice)',
@@ -194,7 +194,7 @@ const BUILTIN_FOOD_DATABASE: FoodItem[] = [
     defaultServingGrams: 150,
   },
 
-  // --- PROTEINS (LAUK PAUK & DAGING) ---
+  // Proteins & Meats
   {
     id: 'food_dada_ayam_rebus',
     name: 'Dada Ayam Rebus / Kukus (Skinless)',
@@ -484,7 +484,7 @@ const BUILTIN_FOOD_DATABASE: FoodItem[] = [
     defaultServingGrams: 30,
   },
 
-  // --- VEGETABLES & SOUPS ---
+  // Vegetables & Soups
   {
     id: 'food_sayur_sop',
     name: 'Sayur Sop Bening Ayam / Sayur',
@@ -559,7 +559,7 @@ const BUILTIN_FOOD_DATABASE: FoodItem[] = [
     defaultServingGrams: 250,
   },
 
-  // --- FRUITS ---
+  // Fruits
   {
     id: 'food_pisang',
     name: 'Pisang Cavendish / Ambon',
@@ -756,7 +756,7 @@ const BUILTIN_FOOD_DATABASE: FoodItem[] = [
     defaultServingGrams: 80,
   },
 
-  // --- DAIRY & DRINKS ---
+  // Dairy & Drinks
   {
     id: 'food_kopi_hitam',
     name: 'Kopi Hitam / Americano (Tanpa Gula)',
@@ -818,7 +818,7 @@ const BUILTIN_FOOD_DATABASE: FoodItem[] = [
     defaultServingGrams: 120,
   },
 
-  // --- SNACKS & FAST FOOD ---
+  // Snacks & Local Street Food
   {
     id: 'food_bakso_sapi',
     name: 'Bakso Sapi Kuah Lengkap',
@@ -1004,7 +1004,7 @@ const BUILTIN_FOOD_DATABASE: FoodItem[] = [
     defaultServingGrams: 250,
   },
 
-  // --- SNACKS KEMASAN INDONESIA (CHIPS, BISKUIT & KERIPIK) ---
+  // Packaged Indonesian Snacks & Chips
   {
     id: 'snack_qtela_singkong_balado',
     name: 'Qtela Keripik Singkong Balado',
@@ -1482,7 +1482,7 @@ const BUILTIN_FOOD_DATABASE: FoodItem[] = [
     defaultServingGrams: 70,
   },
 
-  // --- MINUMAN KEMASAN POPULER (DAIRY & DRINKS) ---
+  // Popular Packaged Beverages & Dairy
   {
     id: 'drink_ultra_milk_full_cream',
     name: 'Ultra Milk UHT Full Cream Putih',
@@ -1628,7 +1628,7 @@ const BUILTIN_FOOD_DATABASE: FoodItem[] = [
     defaultServingGrams: 240,
   },
 
-  // --- MIE INSTAN & FAST FOOD POPULER ---
+  // Instant Noodles & Fast Food
   {
     id: 'food_indomie_goreng_original',
     name: 'Indomie Mi Goreng Spesial Original',
@@ -1728,7 +1728,7 @@ const BUILTIN_FOOD_DATABASE: FoodItem[] = [
     defaultServingGrams: 115,
   },
 
-  // --- SEREAL, MUESLI & GRANOLA ---
+  // Cereals, Muesli & Granola
   {
     id: 'food_syifa_muesli_choco_milk',
     name: 'Syifa Muesli Choco Milk',
@@ -1860,7 +1860,7 @@ const BUILTIN_FOOD_DATABASE: FoodItem[] = [
     defaultServingGrams: 40,
   },
 
-  // --- SUSU UHT REGULAR / FULL CREAM (ULTRA, GREENFIELDS, DIAMOND, DLL) ---
+  // UHT Regular & Full Cream Milk
   {
     id: 'food_ultra_milk_full_cream',
     name: 'Ultra Milk UHT Full Cream Putih',
@@ -2006,7 +2006,7 @@ const BUILTIN_FOOD_DATABASE: FoodItem[] = [
     defaultServingGrams: 200,
   },
 
-  // --- SUSU LOW FAT / SKIM / BEBAS LEMAK BERBAGAI MERK ---
+  // Low Fat & Skim Milk
   {
     id: 'food_ultra_milk_low_fat_hi_calcium',
     name: 'Ultra Milk Low Fat Hi-Cal Tinggi Kalsium',
@@ -2140,7 +2140,7 @@ const BUILTIN_FOOD_DATABASE: FoodItem[] = [
     defaultServingGrams: 300,
   },
 
-  // --- ANEKA DONAT & BOMBOLONI POPULER (J.CO, LUNA DOUGHNUTS, DUNKIN, KRISPY KREME, DONAT KENTANG, DLL) ---
+  // Popular Donuts & Pastries
   // J.CO Donuts & Coffee
   {
     id: 'food_donut_jco_alcapone',
@@ -2643,7 +2643,7 @@ const BUILTIN_FOOD_DATABASE: FoodItem[] = [
     defaultServingGrams: 85,
   },
 
-  // Donat Tradisional Indonesia & UMKM (Donat Kentang, Donat Kampung, Donat Madu, dll)
+  // Traditional Donuts & Local Bakeries
   {
     id: 'food_donut_kentang_gula_halus',
     name: 'Donat Kentang Tabur Gula Halus Tradisional',

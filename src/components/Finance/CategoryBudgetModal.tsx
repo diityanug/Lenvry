@@ -133,7 +133,6 @@ export const CategoryBudgetModal = ({
             contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Category Horizontal Chips */}
             <View style={styles.sectionCard}>
               <Text style={styles.label} numberOfLines={1}>
                 SELECT CATEGORY

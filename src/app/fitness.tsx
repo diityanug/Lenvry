@@ -146,8 +146,6 @@ export default function FitnessScreen() {
     weight: string;
   }) => {
     try {
-      // updateStored re-reads the row first, so logging a workout can never
-      // clobber one saved from the routine/history flows in between.
       const saved = await updateStored('fitnessWorkouts', (current) => {
         if (data.id) {
           // Edit existing workout

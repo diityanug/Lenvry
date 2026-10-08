@@ -31,10 +31,7 @@ const DatePickerModalContent = ({
   const currentYear = viewDate.getFullYear();
   const currentMonth = viewDate.getMonth();
   const today = new Date();
-
-  // First day of month (0 = Sun, 1 = Mon, ..., 6 = Sat)
   const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
-  // Number of days in current month
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
   const daysArray: (number | null)[] = [];
@@ -189,7 +186,7 @@ const DatePickerModalContent = ({
                 </TouchableOpacity>
               </View>
 
-              {/* Day of Week Headers — even 7-column rail */}
+              {/* Day of Week Headers */}
               <View style={styles.weekDaysRow}>
                 {DAYS_OF_WEEK.map((d, index) => (
                   <View key={`wd-${index}`} style={styles.weekDayCell}>
@@ -205,7 +202,7 @@ const DatePickerModalContent = ({
                 ))}
               </View>
 
-              {/* Days Grid — six fixed 7-column rows so cells never cramp or collide */}
+              {/* Days Grid */}
               <View style={styles.daysGrid}>
                 {[0, 1, 2, 3, 4, 5].map((rowIdx) => (
                   <View key={`day-row-${rowIdx}`} style={styles.dayRow}>

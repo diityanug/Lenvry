@@ -702,12 +702,12 @@ export const fitnessStyles = StyleSheet.create({
   metricPresetsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    flexWrap: 'wrap', // <-- Tambahkan ini agar tidak bocor
+    flexWrap: 'wrap',
     gap: 6,
   },
   metricPresetChip: {
     backgroundColor: COLORS.bgCard,
-    paddingHorizontal: 6, // <-- Kurangi sedikit (sebelumnya 8) agar lebih pas di dalam card
+    paddingHorizontal: 6,
     paddingVertical: 4,
     borderRadius: RADIUS.xs,
     borderWidth: 1,

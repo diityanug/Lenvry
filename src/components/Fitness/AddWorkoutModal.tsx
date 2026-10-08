@@ -315,8 +315,8 @@ function AddWorkoutContent({
                   ref={suggestionScrollRef}
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  style={[styles.suggestionSelectionScroll, { marginHorizontal: -20 }]} // <-- Tambahkan margin negatif
-                  contentContainerStyle={{ paddingHorizontal: 20 }} // <-- Ubah menjadi paddingHorizontal
+                  style={[styles.suggestionSelectionScroll, { marginHorizontal: -20 }]}
+                  contentContainerStyle={{ paddingHorizontal: 20 }}
                 >
                   {EXERCISE_SUGGESTIONS[selectedCategory].map((name) => {
                     const isChosen = exercise.toLowerCase() === name.toLowerCase();

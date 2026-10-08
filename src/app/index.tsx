@@ -118,7 +118,7 @@ export default function HomeScreen() {
         setCalorieTarget(data.nutritionTargets.calories);
       }
 
-      // General Sticky Notes & Plans — already normalised by the storage schema.
+      // General Sticky Notes & Plans
       setNotes(data.generalNotes ?? []);
     } catch (e) {
       console.error('Failed to sync dashboard metrics:', e);
@@ -190,8 +190,6 @@ export default function HomeScreen() {
     try {
       const habitKey = formatDateKey(new Date());
 
-      // updateStored re-reads the row first, so toggling here can no longer
-      // overwrite a change made on the Habits tab (and vice versa).
       await updateStored('habits', (current) =>
         current.map((h) => {
           if (h.id !== id) return h;
@@ -234,7 +232,6 @@ export default function HomeScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
 
-      {/* Ambient top halo */}
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <Svg width="100%" height="100%">
           <Defs>
@@ -255,13 +252,20 @@ export default function HomeScreen() {
             <Text style={styles.avatarText}>{userName.charAt(0).toUpperCase()}</Text>
           </View>
           <View style={{ flex: 1, marginRight: 10 }}>
-            <Text style={styles.greetingText} numberOfLines={1}>
-              {greeting}, {userName}
-            </Text>
             <View style={styles.dateRow}>
-              <Ionicons name="calendar-outline" size={12} color={COLORS.textMuted} />
+              <Text style={styles.greetingSubtext}>{greeting}</Text>
+              <Text style={styles.bulletDot}>•</Text>
+              <Ionicons name="calendar-outline" size={11} color={COLORS.textMuted} />
               <Text style={styles.dateText}>{today}</Text>
             </View>
+            <Text
+              style={styles.userNameHeading}
+              numberOfLines={1}
+              adjustsFontSizeToFit={true}
+              minimumFontScale={0.75}
+            >
+              {userName}
+            </Text>
           </View>
         </View>
         <TouchableOpacity
@@ -277,7 +281,7 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_HEIGHT + 36 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Daily Overview hero */}
+        {/* Daily Overview */}
         <DailyOverviewCard
           habitCompletedCount={habitCompletedCount}
           habitTotalCount={habitTotalCount}
@@ -287,7 +291,7 @@ export default function HomeScreen() {
           calorieTarget={calorieTarget}
         />
 
-        {/* Pinned Sticky Notes (Daftar Belanja, Ide, Wishlist) */}
+        {/* Pinned Sticky Notes */}
         <StickyNotesSection
           notes={notes}
           onSelectNote={handleSelectNote}
@@ -377,7 +381,7 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* Settings Modal Hosted Full on Home */}
+      {/* Settings Modal */}
       <HomeSettingsModal
         visible={isSettingsVisible}
         onClose={() => setIsSettingsVisible(false)}

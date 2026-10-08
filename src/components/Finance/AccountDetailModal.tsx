@@ -89,7 +89,7 @@ export const AccountDetailModal = ({
       if (tx.type === 'income') delta = tx.amount;
       else if (tx.type === 'expense') delta = -tx.amount;
       else {
-        // Transfer: money out of the source, into the destination (nets to 0 when both are in view)
+        // Transfer: money out of the source, into the destination
         delta = (dstMatches ? tx.amount : 0) - (srcMatches ? tx.amount : 0);
       }
       rows.push({ tx, delta });
@@ -137,7 +137,7 @@ export const AccountDetailModal = ({
                 nestedScrollEnabled={true}
                 contentContainerStyle={modalStyles.scrollContent}
               >
-                {/* SECTION: MAIN ACCOUNT */}
+                {/* MAIN ACCOUNT */}
                 <Text style={modalStyles.sectionLabel}>MAIN ACCOUNT</Text>
                 <View style={[modalStyles.mainAccountCard, { borderColor: accountTheme.border }]}>
                   <View style={modalStyles.mainCardHeader}>
@@ -215,7 +215,7 @@ export const AccountDetailModal = ({
                   </View>
                 </View>
 
-                {/* SECTION: SUB-ACCOUNTS */}
+                {/* SUB-ACCOUNTS */}
                 <View style={modalStyles.subSectionHeader}>
                   <View style={modalStyles.subSectionTitleWrap}>
                     <Text style={modalStyles.sectionLabel}>SUB-ACCOUNTS ({account.subAccounts.length})</Text>
@@ -306,7 +306,7 @@ export const AccountDetailModal = ({
                   );
                 })}
 
-                {/* SECTION: ACCOUNT HISTORY */}
+                {/* ACCOUNT HISTORY */}
                 <View style={modalStyles.subSectionHeader}>
                   <View style={modalStyles.subSectionTitleWrap}>
                     <Text style={modalStyles.sectionLabel}>HISTORY ({history.length})</Text>

@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
 import {
-  Text,
-  View,
+  Keyboard,
   Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  Platform,
-  Keyboard,
-  ScrollView,
   TouchableWithoutFeedback,
-  StyleSheet,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { COLORS, RADIUS } from '../../constants/theme';
 import {
   Account,
   CategoryCustomIcon,
@@ -20,10 +21,9 @@ import {
   formatMoney,
 } from '../../types/finance';
 import { CalculatorModal } from './CalculatorModal';
-import { FormCategorySelector } from './form/FormCategorySelector';
-import { FormAccountSelector } from './form/FormAccountSelector';
 import { getCategoryTheme as getCategoryVisualTheme } from './CategoryBreakdownCard';
-import { COLORS, RADIUS } from '../../constants/theme';
+import { FormAccountSelector } from './form/FormAccountSelector';
+import { FormCategorySelector } from './form/FormCategorySelector';
 
 interface TransactionModalProps {
   visible: boolean;
@@ -122,7 +122,7 @@ export const TransactionModal = ({
   const typeTheme = TX_TYPE_THEME[type];
   const typeIcon = isExpense ? 'arrow-up-circle' : isTransfer ? 'swap-horizontal' : 'arrow-down-circle';
 
-  // Smart suggestions from previous transactions
+  // Suggestions from previous transactions
   const descriptionSuggestions = React.useMemo(() => {
     if (isTransfer || !selectedCategory) return [];
     const counts = new Map<string, { text: string; count: number; last: number }>();
@@ -227,7 +227,7 @@ export const TransactionModal = ({
               { paddingBottom: Math.max(28, keyboardHeight + 28) },
             ]}
           >
-            {/* 1. Transaction Type Toggle */}
+            {/* Transaction Type Toggle */}
             {!hideTypeSwitcher && (
               <View style={txStyles.typeSwitcher}>
                 <TouchableOpacity
@@ -301,7 +301,7 @@ export const TransactionModal = ({
               </View>
             )}
 
-            {/* 2. Amount Input & Calculator */}
+            {/* Amount Input & Calculator */}
             <View style={txStyles.amountCard}>
               <Text style={txStyles.amountLabel}>AMOUNT</Text>
               <View style={txStyles.amountInputRow}>
@@ -332,7 +332,7 @@ export const TransactionModal = ({
               )}
             </View>
 
-            {/* 3. Account Selectors */}
+            {/* Account Selectors */}
             <FormAccountSelector
               label={isTransfer ? 'From Account' : 'Account'}
               accounts={accounts}
@@ -353,7 +353,7 @@ export const TransactionModal = ({
               />
             )}
 
-            {/* 4. Category Selector (Only for Income / Expense) */}
+            {/* Category Selector */}
             {!isTransfer && (
               <FormCategorySelector
                 categories={activeCategories}
@@ -365,7 +365,7 @@ export const TransactionModal = ({
               />
             )}
 
-            {/* 5. Description Input & Suggestions */}
+            {/* Description Input & Suggestions */}
             <View style={txStyles.fieldSection}>
               <Text style={txStyles.sectionTitle}>DESCRIPTION</Text>
               <TextInput
@@ -392,7 +392,7 @@ export const TransactionModal = ({
               )}
             </View>
 
-            {/* 6. Date Picker Trigger */}
+            {/* Date Picker Trigger */}
             <View style={txStyles.fieldSection}>
               <Text style={txStyles.sectionTitle}>DATE</Text>
               <TouchableOpacity
@@ -415,7 +415,7 @@ export const TransactionModal = ({
               </TouchableOpacity>
             </View>
 
-            {/* 7. Save Button */}
+            {/* Save Button */}
             <TouchableOpacity
               style={[txStyles.saveBtn, { backgroundColor: typeTheme.color }]}
               onPress={onSave}

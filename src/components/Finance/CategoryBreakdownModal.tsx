@@ -439,7 +439,7 @@ export const CategoryBreakdownModal = ({
                 )}
               </View>
             ) : (
-              /* ==================== MONTHLY BUDGET TAB ==================== */
+              /* MONTHLY BUDGET TAB */
               <View>
                 {budgetedCategories.length === 0 ? (
                   <View style={modalStyles.emptyBox}>
@@ -545,7 +545,6 @@ export const CategoryBreakdownModal = ({
                         const theme = getCategoryTheme(b.category, customCategoryIcons);
                         const icon = getCategoryIcon(b.category, 'expense', customCategoryIcons);
 
-                        // Each budget bar uses its own category colour; red only when over.
                         const barColor = isOver ? COLORS.danger : theme.color;
                         const percentColor = isOver ? COLORS.danger : theme.color;
 

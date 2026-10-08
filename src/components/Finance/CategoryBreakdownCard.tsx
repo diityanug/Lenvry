@@ -23,8 +23,6 @@ type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 type CategoryVisual = { icon: IoniconName; color: string; bg: string; border: string };
 
-// Icon-only lookup. Colours always come from the shared finance colour system so
-// every surface shows the same vivid colour for a given category.
 const INCOME_ICON_MAP: Record<string, IoniconName> = {
   Salary: 'cash-outline',
   Allowance: 'wallet-outline',
@@ -72,8 +70,6 @@ export const getCategoryIcon = (
   return EXPENSE_ICON_MAP[category] || 'pricetag-outline';
 };
 
-// Category visual mapping: icon comes from the lookup above, colours come from
-// the shared finance theme helper (respecting user-picked custom colours).
 export const getCategoryTheme = (
   category: string,
   type: 'expense' | 'income' = 'expense',
@@ -95,7 +91,6 @@ export const CategoryBreakdownCard = ({
   customCategoryIcons,
   onOpenSetBudget,
 }: CategoryBreakdownCardProps) => {
-  // Group Expense Transactions
   const expenseTx = transactions.filter((t) => t.type === 'expense');
   const totalExpense = expenseTx.reduce((sum, t) => sum + t.amount, 0);
   const expenseCatTotals: Record<string, { amount: number; count: number }> = {};
@@ -129,7 +124,7 @@ export const CategoryBreakdownCard = ({
 
   return (
     <View style={cardStyles.card}>
-      {/* 1. Header with title and action button */}
+      {/* Header with title and action button */}
       <View style={cardStyles.headerRow}>
         <View style={cardStyles.titleGroup}>
           <View style={cardStyles.iconWrap}>
@@ -159,7 +154,7 @@ export const CategoryBreakdownCard = ({
         </View>
       </View>
 
-      {/* 2. Colourful spending split bar */}
+      {/* Spending split bar */}
       {topExpenseCats.length > 0 && (
         <View style={cardStyles.splitBarRow}>
           {topExpenseCats.map(([category, data]) => {
@@ -178,12 +173,12 @@ export const CategoryBreakdownCard = ({
         </View>
       )}
 
-      {/* 3. Budget Health Mini Progress (if budgets are configured) */}
+      {/* Budget Health Mini Progress (if budgets are configured) */}
       {budgetedCategories.length > 0 && (
         <View style={[cardStyles.budgetHealthMiniBox, { borderColor: hexToRgba(budgetStatusColor, 0.28) }]}>
           <View style={cardStyles.budgetHealthRow}>
             <Text style={cardStyles.budgetHealthLabel} numberOfLines={1}>
-              MONTHLY BUDGET LIMIT
+              BUDGET LIMIT
             </Text>
             <Text style={cardStyles.budgetHealthValues} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
               <Text style={{ color: isOverallOver ? COLORS.danger : COLORS.textPrimary, fontWeight: '800' }}>
@@ -224,7 +219,7 @@ export const CategoryBreakdownCard = ({
         </View>
       )}
 
-      {/* 4. Top 3 Categories Mini Breakdown */}
+      {/* Top 3 Categories Mini Breakdown */}
       {topExpenseCats.length === 0 ? (
         <View style={cardStyles.emptyMiniBox}>
           <View style={cardStyles.emptyMiniIconWrap}>
@@ -286,7 +281,7 @@ export const CategoryBreakdownCard = ({
                     </View>
                   </View>
 
-                  {/* Progress bar (its own row, never overlapped by labels) */}
+                  {/* Progress bar */}
                   <View style={cardStyles.miniItemBarTrack}>
                     <View
                       style={[
@@ -376,7 +371,7 @@ const cardStyles = StyleSheet.create({
     borderColor: COLORS.border,
   },
 
-  // Colourful spending split bar
+  // Spending split bar
   splitBarRow: {
     flexDirection: 'row',
     height: 10,

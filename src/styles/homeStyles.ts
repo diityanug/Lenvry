@@ -49,23 +49,32 @@ export const homeStyles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
   },
-  greetingText: {
+  greetingSubtext: {
+    color: COLORS.textMuted,
+    fontSize: 12.5,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  bulletDot: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+  },
+  userNameHeading: {
     color: COLORS.textPrimary,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '800',
-    letterSpacing: -0.6,
+    letterSpacing: -0.4,
+    marginTop: 2,
   },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 5,
     gap: 6,
   },
   dateText: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    fontWeight: '500',
-    letterSpacing: -0.1,
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
   },
   settingsBtn: {
     width: 42,
