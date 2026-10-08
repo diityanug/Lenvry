@@ -1,7 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CategoryBudget, Transaction, CategoryCustomIcon, formatMoney } from '../../types/finance';
+import {
+  CategoryBudget,
+  Transaction,
+  CategoryCustomIcon,
+  formatMoney,
+  getCategoryTheme as getSharedCategoryTheme,
+  hexToRgba,
+} from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
 
 interface CategoryBreakdownCardProps {
@@ -12,93 +19,73 @@ interface CategoryBreakdownCardProps {
   onOpenSetBudget: () => void;
 }
 
-// Category visual mapping for distinctive colors and icons
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+type CategoryVisual = { icon: IoniconName; color: string; bg: string; border: string };
+
+// Icon-only lookup. Colours always come from the shared finance colour system so
+// every surface shows the same vivid colour for a given category.
+const INCOME_ICON_MAP: Record<string, IoniconName> = {
+  Salary: 'cash-outline',
+  Allowance: 'wallet-outline',
+  Interest: 'trending-up-outline',
+  Investments: 'stats-chart-outline',
+  Bonus: 'trophy-outline',
+  Gift: 'gift-outline',
+};
+
+const EXPENSE_ICON_MAP: Record<string, IoniconName> = {
+  'Food & Beverages': 'restaurant-outline',
+  Snacks: 'cafe-outline',
+  Transportation: 'car-outline',
+  Fuel: 'speedometer-outline',
+  Parking: 'car-sport-outline',
+  'Vehicle Services': 'construct-outline',
+  Shopping: 'cart-outline',
+  'Bills & Utilities': 'flash-outline',
+  Subscriptions: 'apps-outline',
+  'Housing / Rent': 'home-outline',
+  'Internet & Phone': 'wifi-outline',
+  Insurance: 'shield-checkmark-outline',
+  'Fitness & Gym': 'barbell-outline',
+  'Cloud & Storage': 'cloud-outline',
+  Entertainment: 'game-controller-outline',
+  'Health & Medical': 'medkit-outline',
+  Education: 'school-outline',
+  Travel: 'airplane-outline',
+  Personal: 'person-outline',
+  'Home Services': 'home-outline',
+  Furnisings: 'home-outline',
+  Social: 'people-outline',
+  'Public Services': 'business-outline',
+  Others: 'ellipsis-horizontal-circle-outline',
+};
+
+export const getCategoryIcon = (
+  category: string,
+  type: 'expense' | 'income' = 'expense',
+  customIcons?: CategoryCustomIcon[]
+): IoniconName => {
+  const custom = customIcons?.find((c) => c.category.toLowerCase() === category.toLowerCase());
+  if (custom?.icon) return custom.icon as IoniconName;
+  if (type === 'income') return INCOME_ICON_MAP[category] || 'arrow-down-circle-outline';
+  return EXPENSE_ICON_MAP[category] || 'pricetag-outline';
+};
+
+// Category visual mapping: icon comes from the lookup above, colours come from
+// the shared finance theme helper (respecting user-picked custom colours).
 export const getCategoryTheme = (
   category: string,
   type: 'expense' | 'income' = 'expense',
   customIcons?: CategoryCustomIcon[]
-): { icon: any; color: string; bg: string } => {
-  if (customIcons && customIcons.length > 0) {
-    const match = customIcons.find((c) => c.category.toLowerCase() === category.toLowerCase());
-    if (match) {
-      return {
-        icon: match.icon,
-        color: match.color || COLORS.finance,
-        bg: match.bg || 'rgba(56, 189, 248, 0.16)',
-      };
-    }
-  }
-
-  if (type === 'income') {
-    switch (category) {
-      case 'Salary':
-        return { icon: 'cash-outline', color: '#10B981', bg: 'rgba(16, 185, 129, 0.16)' };
-      case 'Allowance':
-        return { icon: 'wallet-outline', color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.16)' };
-      case 'Interest':
-        return { icon: 'trending-up-outline', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.16)' };
-      case 'Investments':
-        return { icon: 'stats-chart-outline', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.16)' };
-      case 'Bonus':
-        return { icon: 'trophy-outline', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.16)' };
-      case 'Gift':
-        return { icon: 'gift-outline', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.16)' };
-      default:
-        return { icon: 'arrow-down-circle-outline', color: '#10B981', bg: 'rgba(16, 185, 129, 0.16)' };
-    }
-  }
-
-  switch (category) {
-    case 'Food & Beverages':
-      return { icon: 'restaurant-outline', color: '#F97316', bg: 'rgba(249, 115, 22, 0.16)' };
-    case 'Snacks':
-      return { icon: 'cafe-outline', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.16)' };
-    case 'Transportation':
-      return { icon: 'car-outline', color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.16)' };
-    case 'Fuel':
-      return { icon: 'speedometer-outline', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.16)' };
-    case 'Parking':
-      return { icon: 'car-sport-outline', color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.16)' };
-    case 'Vehicle Services':
-      return { icon: 'construct-outline', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.16)' };
-    case 'Shopping':
-      return { icon: 'cart-outline', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.16)' };
-    case 'Bills & Utilities':
-      return { icon: 'flash-outline', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.16)' };
-    case 'Subscriptions':
-      return { icon: 'apps-outline', color: '#A855F7', bg: 'rgba(168, 85, 247, 0.16)' };
-    case 'Housing / Rent':
-      return { icon: 'home-outline', color: '#EAB308', bg: 'rgba(234, 179, 8, 0.16)' };
-    case 'Internet & Phone':
-      return { icon: 'wifi-outline', color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.16)' };
-    case 'Insurance':
-      return { icon: 'shield-checkmark-outline', color: '#10B981', bg: 'rgba(16, 185, 129, 0.16)' };
-    case 'Fitness & Gym':
-      return { icon: 'barbell-outline', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.16)' };
-    case 'Cloud & Storage':
-      return { icon: 'cloud-outline', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.16)' };
-    case 'Entertainment':
-      return { icon: 'game-controller-outline', color: '#A855F7', bg: 'rgba(168, 85, 247, 0.16)' };
-    case 'Health & Medical':
-      return { icon: 'medkit-outline', color: '#10B981', bg: 'rgba(16, 185, 129, 0.16)' };
-    case 'Education':
-      return { icon: 'school-outline', color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.16)' };
-    case 'Travel':
-      return { icon: 'airplane-outline', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.16)' };
-    case 'Personal':
-      return { icon: 'person-outline', color: '#14B8A6', bg: 'rgba(20, 184, 166, 0.16)' };
-    case 'Home Services':
-    case 'Furnisings':
-      return { icon: 'home-outline', color: '#EAB308', bg: 'rgba(234, 179, 8, 0.16)' };
-    case 'Social':
-      return { icon: 'people-outline', color: '#F43F5E', bg: 'rgba(244, 63, 94, 0.16)' };
-    case 'Public Services':
-      return { icon: 'business-outline', color: '#64748B', bg: 'rgba(100, 116, 139, 0.16)' };
-    case 'Others':
-      return { icon: 'ellipsis-horizontal-circle-outline', color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.16)' };
-    default:
-      return { icon: 'pricetag-outline', color: COLORS.finance, bg: COLORS.financeLight };
-  }
+): CategoryVisual => {
+  const shared = getSharedCategoryTheme(category, customIcons);
+  return {
+    icon: getCategoryIcon(category, type, customIcons),
+    color: shared.color,
+    bg: shared.bg,
+    border: shared.border,
+  };
 };
 
 export const CategoryBreakdownCard = ({
@@ -121,6 +108,10 @@ export const CategoryBreakdownCard = ({
   });
   const sortedExpenseCats = Object.entries(expenseCatTotals).sort((a, b) => b[1].amount - a[1].amount);
   const topExpenseCats = sortedExpenseCats.slice(0, 3);
+  const topShare = topExpenseCats.reduce(
+    (sum, [, data]) => sum + (totalExpense > 0 ? (data.amount / totalExpense) * 100 : 0),
+    0
+  );
 
   // Budgets Calculations
   const budgetedCategories = budgets.filter((b) => b.limit > 0);
@@ -130,17 +121,25 @@ export const CategoryBreakdownCard = ({
   const isOverallOver = totalBudgetSpent > totalBudgetLimit && totalBudgetLimit > 0;
   const remainingBudget = totalBudgetLimit - totalBudgetSpent;
 
+  const budgetStatusColor = isOverallOver
+    ? COLORS.danger
+    : overallBudgetPercent > 85
+    ? COLORS.warning
+    : COLORS.finance;
+
   return (
     <View style={cardStyles.card}>
-      {/* 1. Header with Compact Title and Action Buttons */}
+      {/* 1. Header with title and action button */}
       <View style={cardStyles.headerRow}>
         <View style={cardStyles.titleGroup}>
           <View style={cardStyles.iconWrap}>
-            <Ionicons name="pie-chart-outline" size={17} color={COLORS.finance} />
+            <Ionicons name="pie-chart-outline" size={19} color={COLORS.finance} />
           </View>
-          <View>
-            <Text style={cardStyles.title}>Spending & Budget</Text>
-            <Text style={cardStyles.subtitle}>
+          <View style={cardStyles.titleTextCol}>
+            <Text style={cardStyles.title} numberOfLines={1}>
+              Spending &amp; Budget
+            </Text>
+            <Text style={cardStyles.subtitle} numberOfLines={1}>
               {budgetedCategories.length > 0
                 ? `${overallBudgetPercent}% of budget used`
                 : `${sortedExpenseCats.length} active categories`}
@@ -153,18 +152,40 @@ export const CategoryBreakdownCard = ({
             style={cardStyles.headerActionBtn}
             onPress={onOpenSetBudget}
             activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="options-outline" size={13} color={COLORS.finance} />
+            <Ionicons name="options-outline" size={18} color={COLORS.finance} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* 2. Budget Health Mini Progress (if budgets are configured) */}
+      {/* 2. Colourful spending split bar */}
+      {topExpenseCats.length > 0 && (
+        <View style={cardStyles.splitBarRow}>
+          {topExpenseCats.map(([category, data]) => {
+            const share = totalExpense > 0 ? (data.amount / totalExpense) * 100 : 0;
+            const theme = getCategoryTheme(category, 'expense', customCategoryIcons);
+            return (
+              <View
+                key={category}
+                style={[cardStyles.splitSeg, { flex: Math.max(share, 3), backgroundColor: theme.color }]}
+              />
+            );
+          })}
+          {topShare < 99.5 && (
+            <View style={[cardStyles.splitSeg, cardStyles.splitSegRest, { flex: Math.max(100 - topShare, 3) }]} />
+          )}
+        </View>
+      )}
+
+      {/* 3. Budget Health Mini Progress (if budgets are configured) */}
       {budgetedCategories.length > 0 && (
-        <View style={cardStyles.budgetHealthMiniBox}>
+        <View style={[cardStyles.budgetHealthMiniBox, { borderColor: hexToRgba(budgetStatusColor, 0.28) }]}>
           <View style={cardStyles.budgetHealthRow}>
-            <Text style={cardStyles.budgetHealthLabel}>MONTHLY BUDGET LIMIT</Text>
-            <Text style={cardStyles.budgetHealthValues}>
+            <Text style={cardStyles.budgetHealthLabel} numberOfLines={1}>
+              MONTHLY BUDGET LIMIT
+            </Text>
+            <Text style={cardStyles.budgetHealthValues} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
               <Text style={{ color: isOverallOver ? COLORS.danger : COLORS.textPrimary, fontWeight: '800' }}>
                 {formatMoney(totalBudgetSpent, currency)}
               </Text>
@@ -179,75 +200,108 @@ export const CategoryBreakdownCard = ({
                 cardStyles.miniBarFill,
                 {
                   width: `${Math.min(100, Math.max(3, overallBudgetPercent))}%`,
-                  backgroundColor: isOverallOver
-                    ? COLORS.danger
-                    : overallBudgetPercent > 85
-                    ? '#F59E0B'
-                    : COLORS.finance,
+                  backgroundColor: budgetStatusColor,
                 },
               ]}
             />
           </View>
 
           <View style={cardStyles.budgetHealthSubRow}>
-            <Text style={[cardStyles.budgetHealthSubText, isOverallOver && { color: COLORS.danger }]}>
+            <Text
+              style={[cardStyles.budgetHealthSubText, isOverallOver && { color: COLORS.danger }]}
+              numberOfLines={1}
+            >
               {remainingBudget >= 0
                 ? `${formatMoney(remainingBudget, currency)} left`
                 : `Over by ${formatMoney(Math.abs(remainingBudget), currency)}`}
             </Text>
-            <Text style={cardStyles.budgetHealthPercentText}>
-              {overallBudgetPercent}%
-            </Text>
+            <View style={[cardStyles.budgetHealthPercentBadge, { backgroundColor: hexToRgba(budgetStatusColor, 0.16) }]}>
+              <Text style={[cardStyles.budgetHealthPercentText, { color: budgetStatusColor }]} numberOfLines={1}>
+                {overallBudgetPercent}%
+              </Text>
+            </View>
           </View>
         </View>
       )}
 
-      {/* 3. Top 3 Categories Mini Breakdown */}
+      {/* 4. Top 3 Categories Mini Breakdown */}
       {topExpenseCats.length === 0 ? (
         <View style={cardStyles.emptyMiniBox}>
-          <Text style={cardStyles.emptyMiniText}>No expense transactions this month</Text>
+          <View style={cardStyles.emptyMiniIconWrap}>
+            <Ionicons name="receipt-outline" size={20} color={COLORS.textMuted} />
+          </View>
+          <Text style={cardStyles.emptyMiniText} numberOfLines={1}>
+            No expense transactions this month
+          </Text>
         </View>
       ) : (
-        <View style={cardStyles.miniList}>
-          {topExpenseCats.map(([category, data]) => {
-            const percent = totalExpense > 0 ? Math.round((data.amount / totalExpense) * 100) : 0;
-            const theme = getCategoryTheme(category, 'expense', customCategoryIcons);
+        <View>
+          <View style={cardStyles.listHeaderRow}>
+            <Text style={cardStyles.listHeaderText} numberOfLines={1}>
+              TOP CATEGORIES
+            </Text>
+            <Text style={cardStyles.listHeaderMeta} numberOfLines={1}>
+              {sortedExpenseCats.length} total
+            </Text>
+          </View>
 
-            return (
-              <View key={category} style={cardStyles.miniItem}>
-                <View style={cardStyles.miniItemTop}>
-                  <View style={cardStyles.miniItemLeft}>
-                    <View style={[cardStyles.miniIconBox, { backgroundColor: theme.bg }]}>
-                      <Ionicons name={theme.icon} size={14} color={theme.color} />
+          <View style={cardStyles.miniList}>
+            {topExpenseCats.map(([category, data]) => {
+              const percent = totalExpense > 0 ? Math.round((data.amount / totalExpense) * 100) : 0;
+              const theme = getCategoryTheme(category, 'expense', customCategoryIcons);
+
+              return (
+                <View key={category} style={[cardStyles.miniItem, { borderLeftColor: theme.color }]}>
+                  <View style={cardStyles.miniItemTop}>
+                    <View style={cardStyles.miniItemLeft}>
+                      <View
+                        style={[cardStyles.miniIconBox, { backgroundColor: theme.bg, borderColor: theme.border }]}
+                      >
+                        <Ionicons name={theme.icon} size={16} color={theme.color} />
+                      </View>
+                      <Text style={cardStyles.miniCategoryName} numberOfLines={1}>
+                        {category}
+                      </Text>
                     </View>
-                    <Text style={cardStyles.miniCategoryName} numberOfLines={1}>
-                      {category}
-                    </Text>
+
+                    <View style={cardStyles.miniItemRight}>
+                      <Text
+                        style={cardStyles.miniAmountText}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
+                      >
+                        -{formatMoney(data.amount, currency)}
+                      </Text>
+                      <View
+                        style={[
+                          cardStyles.miniPercentBadge,
+                          { backgroundColor: hexToRgba(theme.color, 0.16), borderColor: theme.border },
+                        ]}
+                      >
+                        <Text style={[cardStyles.miniPercentText, { color: theme.color }]} numberOfLines={1}>
+                          {percent}%
+                        </Text>
+                      </View>
+                    </View>
                   </View>
 
-                  <View style={cardStyles.miniItemRight}>
-                    <Text style={cardStyles.miniAmountText} numberOfLines={1}>
-                      -{formatMoney(data.amount, currency)}
-                    </Text>
-                    <Text style={cardStyles.miniPercentText}>{percent}%</Text>
+                  {/* Progress bar (its own row, never overlapped by labels) */}
+                  <View style={cardStyles.miniItemBarTrack}>
+                    <View
+                      style={[
+                        cardStyles.miniItemBarFill,
+                        {
+                          width: `${Math.max(3, Math.min(100, percent))}%`,
+                          backgroundColor: theme.color,
+                        },
+                      ]}
+                    />
                   </View>
                 </View>
-
-                {/* Progress bar */}
-                <View style={cardStyles.miniItemBarTrack}>
-                  <View
-                    style={[
-                      cardStyles.miniItemBarFill,
-                      {
-                        width: `${Math.max(3, Math.min(100, percent))}%`,
-                        backgroundColor: theme.color,
-                      },
-                    ]}
-                  />
-                </View>
-              </View>
-            );
-          })}
+              );
+            })}
+          </View>
         </View>
       )}
     </View>
@@ -257,75 +311,96 @@ export const CategoryBreakdownCard = ({
 const cardStyles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.xl,
-    padding: 16,
-    marginBottom: 20,
+    borderRadius: RADIUS.xxl,
+    padding: 20,
+    marginBottom: 24,
     borderWidth: 1,
     borderColor: COLORS.border,
+    overflow: 'hidden',
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 18,
+    gap: 12,
   },
   titleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     flex: 1,
-    marginRight: 8,
+    minWidth: 0,
   },
   iconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.financeLight,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderColor: 'rgba(56, 189, 248, 0.28)',
+    flexShrink: 0,
+  },
+  titleTextCol: {
+    flex: 1,
+    minWidth: 0,
   },
   title: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     color: COLORS.textPrimary,
     letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    marginTop: 1,
-    fontWeight: '500',
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+    fontWeight: '600',
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+    flexShrink: 0,
   },
   headerActionBtn: {
-    flexDirection: 'row',
+    width: 44,
+    height: 44,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: COLORS.bgCardSub,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: RADIUS.sm,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    gap: 4,
   },
-  headerActionBtnText: {
-    color: COLORS.textSecondary,
-    fontSize: 11,
-    fontWeight: '700',
+
+  // Colourful spending split bar
+  splitBarRow: {
+    flexDirection: 'row',
+    height: 10,
+    borderRadius: RADIUS.full,
+    overflow: 'hidden',
+    gap: 3,
+    marginBottom: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  splitSeg: {
+    height: '100%',
+    borderRadius: RADIUS.full,
+    minWidth: 6,
+  },
+  splitSegRest: {
+    backgroundColor: 'rgba(148, 163, 184, 0.35)',
   },
 
   // Budget Health Mini Box
   budgetHealthMiniBox: {
     backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.md,
-    padding: 11,
-    marginBottom: 10,
+    borderRadius: RADIUS.lg,
+    padding: 16,
+    marginBottom: 18,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -333,22 +408,25 @@ const cardStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    gap: 10,
+    marginBottom: 10,
   },
   budgetHealthLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
     color: COLORS.textMuted,
-    letterSpacing: 0.7,
+    letterSpacing: 0.8,
+    flexShrink: 1,
   },
   budgetHealthValues: {
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.textSecondary,
-    fontWeight: '600',
+    fontWeight: '700',
     fontVariant: ['tabular-nums'],
+    flexShrink: 0,
   },
   miniBarTrack: {
-    height: 5,
+    height: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: RADIUS.full,
     overflow: 'hidden',
@@ -361,78 +439,116 @@ const cardStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 6,
+    gap: 10,
+    marginTop: 10,
   },
   budgetHealthSubText: {
-    fontSize: 10,
-    color: COLORS.textMuted,
+    fontSize: 12,
+    color: COLORS.textSecondary,
     fontWeight: '600',
+    flexShrink: 1,
+  },
+  budgetHealthPercentBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+    flexShrink: 0,
   },
   budgetHealthPercentText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
-    color: COLORS.textSecondary,
+    fontVariant: ['tabular-nums'],
   },
 
   // Mini List
+  listHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 12,
+  },
+  listHeaderText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.textMuted,
+    letterSpacing: 0.8,
+    flexShrink: 1,
+  },
+  listHeaderMeta: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    flexShrink: 0,
+  },
   miniList: {
-    gap: 8,
+    gap: 12,
   },
   miniItem: {
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.md,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    padding: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderLeftWidth: 3,
+    overflow: 'hidden',
   },
   miniItemTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    gap: 10,
+    marginBottom: 12,
   },
   miniItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     flex: 1,
-    marginRight: 8,
+    minWidth: 0,
   },
   miniIconBox: {
-    width: 26,
-    height: 26,
-    borderRadius: RADIUS.xs,
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    flexShrink: 0,
   },
   miniCategoryName: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: COLORS.textPrimary,
     flexShrink: 1,
+    minWidth: 0,
   },
   miniItemRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+    flexShrink: 0,
   },
   miniAmountText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
     color: COLORS.danger,
     fontVariant: ['tabular-nums'],
+    maxWidth: 130,
+  },
+  miniPercentBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
   },
   miniPercentText: {
     fontSize: 11,
-    color: COLORS.textMuted,
-    fontWeight: '600',
+    fontWeight: '800',
     fontVariant: ['tabular-nums'],
-    minWidth: 26,
-    textAlign: 'right',
   },
   miniItemBarTrack: {
-    height: 3,
+    height: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: RADIUS.full,
     overflow: 'hidden',
@@ -443,13 +559,27 @@ const cardStyles = StyleSheet.create({
   },
 
   emptyMiniBox: {
-    paddingVertical: 14,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 10,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  emptyMiniIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   emptyMiniText: {
     fontSize: 12,
     color: COLORS.textMuted,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });

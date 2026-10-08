@@ -13,7 +13,13 @@ import DraggableFlatList, {
   RenderItemParams,
 } from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Account, formatMoney, getAccountIcon } from '../../types/finance';
+import {
+  Account,
+  formatMoney,
+  getAccountIcon,
+  ACCOUNT_TYPE_THEME,
+  hexToRgba,
+} from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
 
 interface ManageAccountsModalProps {
@@ -34,6 +40,7 @@ export const ManageAccountsModal = ({
   const renderItem = ({ item, drag, isActive }: RenderItemParams<Account>) => {
     const balance = getAccBalance(item.id);
     const typeIcon = getAccountIcon(item.type);
+    const theme = ACCOUNT_TYPE_THEME[item.type] ?? ACCOUNT_TYPE_THEME.Bank;
 
     return (
       <ScaleDecorator activeScale={1.03}>
@@ -44,35 +51,57 @@ export const ManageAccountsModal = ({
           disabled={isActive}
           style={[
             modalStyles.rowCard,
-            isActive && modalStyles.rowCardActive,
+            { borderColor: isActive ? theme.border : hexToRgba(theme.color, 0.22) },
+            isActive && [
+              modalStyles.rowCardActive,
+              { shadowColor: theme.color, backgroundColor: theme.bg },
+            ],
           ]}
         >
           {/* Icon */}
-          <View style={modalStyles.iconWrap}>
-            <FontAwesome5 name={typeIcon} size={15} color={COLORS.finance} />
+          <View style={[modalStyles.iconWrap, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+            <FontAwesome5 name={typeIcon} size={16} color={theme.color} />
           </View>
 
           {/* Info Akun */}
           <View style={modalStyles.infoGroup}>
-            <Text style={modalStyles.accName} numberOfLines={1}>
+            <Text style={modalStyles.accName} numberOfLines={1} ellipsizeMode="tail">
               {item.name}
             </Text>
-            <Text style={modalStyles.accSub} numberOfLines={1}>
-              {item.type} • {formatMoney(balance, item.currency)}
-            </Text>
+            <View style={modalStyles.metaRow}>
+              <View
+                style={[modalStyles.typeChip, { backgroundColor: theme.bg, borderColor: theme.border }]}
+              >
+                <Text
+                  style={[modalStyles.typeChipText, { color: theme.color }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {item.type}
+                </Text>
+              </View>
+              <Text
+                style={[modalStyles.accBalance, { color: theme.color }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                ellipsizeMode="tail"
+              >
+                {formatMoney(balance, item.currency)}
+              </Text>
+            </View>
           </View>
 
           {/* Drag Handle Icon - Bisa disentuh/ditarik langsung */}
           <TouchableOpacity
             onPressIn={drag}
             hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-            style={[modalStyles.dragHandle, isActive && modalStyles.dragHandleActive]}
+            style={[
+              modalStyles.dragHandle,
+              isActive && { backgroundColor: theme.bg, borderColor: theme.border },
+            ]}
           >
-            <Ionicons
-              name="reorder-three"
-              size={26}
-              color={isActive ? COLORS.finance : COLORS.textMuted}
-            />
+            <Ionicons name="reorder-three" size={24} color={isActive ? theme.color : COLORS.textMuted} />
           </TouchableOpacity>
         </TouchableOpacity>
       </ScaleDecorator>
@@ -92,18 +121,21 @@ export const ManageAccountsModal = ({
 
             {/* Header */}
             <View style={modalStyles.headerRow}>
-              <View>
-                <Text style={modalStyles.headerTitle}>Atur Posisi Akun</Text>
-                <Text style={modalStyles.headerSubtitle}>
+              <View style={modalStyles.headerTextWrap}>
+                <Text style={modalStyles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+                  Atur Posisi Akun
+                </Text>
+                <Text style={modalStyles.headerSubtitle} numberOfLines={2} ellipsizeMode="tail">
                   Tahan & geser ikon garis tiga untuk mengubah urutan
                 </Text>
               </View>
               <TouchableOpacity
                 onPress={onClose}
                 activeOpacity={0.7}
+                style={modalStyles.closeBtn}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <Ionicons name="close-circle" size={26} color={COLORS.textMuted} />
+                <Ionicons name="close" size={18} color={COLORS.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -127,7 +159,12 @@ export const ManageAccountsModal = ({
                 dragItemOverflow={true}
                 ListEmptyComponent={
                   <View style={modalStyles.emptyState}>
-                    <Text style={modalStyles.emptyText}>Tidak ada akun.</Text>
+                    <View style={modalStyles.emptyIconWrap}>
+                      <Ionicons name="wallet-outline" size={30} color={COLORS.finance} />
+                    </View>
+                    <Text style={modalStyles.emptyText} numberOfLines={2}>
+                      Tidak ada akun.
+                    </Text>
                   </View>
                 }
               />
@@ -135,7 +172,10 @@ export const ManageAccountsModal = ({
 
             {/* Tombol Selesai */}
             <TouchableOpacity style={modalStyles.doneBtn} onPress={onClose} activeOpacity={0.8}>
-              <Text style={modalStyles.doneBtnText}>Selesai</Text>
+              <Ionicons name="checkmark" size={17} color="#08090C" style={modalStyles.btnIcon} />
+              <Text style={modalStyles.doneBtnText} numberOfLines={1} ellipsizeMode="tail">
+                Selesai
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -159,114 +199,181 @@ const modalStyles = StyleSheet.create({
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 24,
-    maxHeight: '85%',
+    paddingBottom: 28,
+    maxHeight: '90%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
   handle: {
-    width: 36,
+    width: 40,
     height: 4,
-    backgroundColor: COLORS.borderLight,
-    borderRadius: 2,
+    backgroundColor: COLORS.textMuted,
+    opacity: 0.5,
+    borderRadius: RADIUS.full,
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    gap: 12,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    marginBottom: 16,
+  },
+  headerTextWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   headerTitle: {
     color: COLORS.textPrimary,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   headerSubtitle: {
     color: COLORS.textMuted,
     fontSize: 12,
-    marginTop: 2,
+    fontWeight: '600',
+    marginTop: 3,
+  },
+  closeBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.bgCardSub,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   listWrapper: {
-    maxHeight: 420,
+    maxHeight: 440,
   },
   scrollContent: {
-    paddingBottom: 16,
-    gap: 10,
+    paddingBottom: 20,
+    gap: 12,
   },
   emptyState: {
-    padding: 30,
+    paddingVertical: 36,
+    paddingHorizontal: 20,
     alignItems: 'center',
+    gap: 12,
+  },
+  emptyIconWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: RADIUS.xl,
+    backgroundColor: COLORS.financeLight,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.32)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyText: {
     color: COLORS.textMuted,
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   rowCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#11141D',
-    borderRadius: RADIUS.md,
+    minHeight: 72,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 12,
   },
   rowCardActive: {
-    backgroundColor: '#161B26',
-    borderColor: COLORS.finance,
-    shadowColor: COLORS.finance,
+    borderWidth: 1,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
   },
   iconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
   infoGroup: {
     flex: 1,
-    marginRight: 10,
+    minWidth: 0,
   },
   accName: {
     color: COLORS.textPrimary,
     fontSize: 15,
     fontWeight: '700',
+    letterSpacing: -0.2,
   },
-  accSub: {
-    color: COLORS.textMuted,
-    fontSize: 11.5,
-    marginTop: 2,
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  typeChip: {
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    maxWidth: 130,
+    flexShrink: 0,
+  },
+  typeChipText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  accBalance: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    fontVariant: ['tabular-nums'],
   },
   dragHandle: {
-    width: 36,
-    height: 36,
-    borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.md,
+    backgroundColor: hexToRgba('#FFFFFF', 0.05),
+    borderWidth: 1,
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dragHandleActive: {
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+  btnIcon: {
+    marginRight: 8,
   },
   doneBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: COLORS.finance,
     borderRadius: RADIUS.md,
-    paddingVertical: 13,
-    alignItems: 'center',
-    marginTop: 12,
+    minHeight: 50,
+    paddingHorizontal: 20,
+    marginTop: 16,
+    shadowColor: COLORS.finance,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
   },
   doneBtnText: {
     color: '#08090C',
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 14.5,
+    fontWeight: '900',
+    letterSpacing: -0.2,
   },
 });

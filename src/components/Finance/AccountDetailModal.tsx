@@ -9,8 +9,17 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Account, Transaction, formatMoney } from '../../types/finance';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import {
+  Account,
+  Transaction,
+  formatMoney,
+  getAccountIcon,
+  ACCOUNT_TYPE_THEME,
+  TX_TYPE_THEME,
+  getCategoryTheme,
+  hexToRgba,
+} from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
 
 const formatTxShortDate = (iso: string) =>
@@ -93,6 +102,8 @@ export const AccountDetailModal = ({
 
   if (!account) return null;
 
+  const accountTheme = ACCOUNT_TYPE_THEME[account.type];
+
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
@@ -103,29 +114,78 @@ export const AccountDetailModal = ({
 
               {/* Header Modal */}
               <View style={modalStyles.headerRow}>
-                <Text style={modalStyles.headerTitle}>Account Settings</Text>
-                <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-                  <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
+                <View style={modalStyles.headerTextWrap}>
+                  <Text style={modalStyles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+                    Account Settings
+                  </Text>
+                  <Text style={modalStyles.headerSubtitle} numberOfLines={1} ellipsizeMode="tail">
+                    Overview, pockets & history
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={onClose}
+                  activeOpacity={0.7}
+                  style={modalStyles.closeBtn}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                  <Ionicons name="close" size={18} color={COLORS.textSecondary} />
                 </TouchableOpacity>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled={true} contentContainerStyle={{ paddingBottom: 16 }}>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled={true}
+                contentContainerStyle={modalStyles.scrollContent}
+              >
                 {/* SECTION: MAIN ACCOUNT */}
                 <Text style={modalStyles.sectionLabel}>MAIN ACCOUNT</Text>
-                <View style={modalStyles.mainAccountCard}>
+                <View style={[modalStyles.mainAccountCard, { borderColor: accountTheme.border }]}>
                   <View style={modalStyles.mainCardHeader}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={modalStyles.mainAccountName}>{account.name}</Text>
+                    <View style={[modalStyles.mainIconWrap, { backgroundColor: accountTheme.bg, borderColor: accountTheme.border }]}>
+                      <FontAwesome5 name={getAccountIcon(account.type)} size={16} color={accountTheme.color} />
+                    </View>
+                    <View style={modalStyles.mainHeaderTextWrap}>
+                      <Text style={modalStyles.mainAccountName} numberOfLines={1} ellipsizeMode="tail">
+                        {account.name}
+                      </Text>
                       {Boolean(account.description) && (
-                        <Text style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 2, marginBottom: 2 }}>
+                        <Text style={modalStyles.mainAccountDesc} numberOfLines={2} ellipsizeMode="tail">
                           {account.description}
                         </Text>
                       )}
-                      <Text style={modalStyles.mainAccountBadge}>
-                        {account.type} • {account.currency}
-                      </Text>
+                      <View style={modalStyles.mainBadgeRow}>
+                        <View
+                          style={[
+                            modalStyles.mainAccountBadge,
+                            { backgroundColor: accountTheme.bg, borderColor: accountTheme.border },
+                          ]}
+                        >
+                          <Text
+                            style={[modalStyles.mainAccountBadgeText, { color: accountTheme.color }]}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
+                            {account.type}
+                          </Text>
+                        </View>
+                        <View style={modalStyles.currencyBadge}>
+                          <Text style={modalStyles.currencyBadgeText} numberOfLines={1} ellipsizeMode="tail">
+                            {account.currency}
+                          </Text>
+                        </View>
+                      </View>
                     </View>
-                    <Text style={modalStyles.mainTotalBalance}>
+                  </View>
+
+                  <View style={modalStyles.mainBalanceBlock}>
+                    <Text style={modalStyles.mainBalanceLabel}>TOTAL BALANCE</Text>
+                    <Text
+                      style={[modalStyles.mainTotalBalance, { color: accountTheme.color }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                      ellipsizeMode="tail"
+                    >
                       {formatMoney(totalBalance, account.currency)}
                     </Text>
                   </View>
@@ -136,8 +196,10 @@ export const AccountDetailModal = ({
                       onPress={() => onRenameAccount(account)}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="pencil" size={14} color={COLORS.finance} style={{ marginRight: 6 }} />
-                      <Text style={modalStyles.outlineBtnText}>Rename Account</Text>
+                      <Ionicons name="pencil" size={14} color={COLORS.finance} style={modalStyles.btnIcon} />
+                      <Text style={modalStyles.outlineBtnText} numberOfLines={1} ellipsizeMode="tail">
+                        Rename Account
+                      </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -145,17 +207,21 @@ export const AccountDetailModal = ({
                       onPress={() => onDeleteAccount(account.id)}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="trash-outline" size={14} color={COLORS.danger} style={{ marginRight: 6 }} />
-                      <Text style={modalStyles.dangerOutlineBtnText}>Delete</Text>
+                      <Ionicons name="trash-outline" size={14} color={COLORS.danger} style={modalStyles.btnIcon} />
+                      <Text style={modalStyles.dangerOutlineBtnText} numberOfLines={1} ellipsizeMode="tail">
+                        Delete
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
                 {/* SECTION: SUB-ACCOUNTS */}
-                <View style={[modalStyles.subSectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-                  <View style={{ flex: 1 }}>
+                <View style={modalStyles.subSectionHeader}>
+                  <View style={modalStyles.subSectionTitleWrap}>
                     <Text style={modalStyles.sectionLabel}>SUB-ACCOUNTS ({account.subAccounts.length})</Text>
-                    <Text style={modalStyles.subHelperText}>Adjust balance or manage sub-wallets</Text>
+                    <Text style={modalStyles.subHelperText} numberOfLines={2} ellipsizeMode="tail">
+                      Adjust balance or manage sub-wallets
+                    </Text>
                   </View>
                   {onAddSubAccount && (
                     <TouchableOpacity
@@ -163,8 +229,10 @@ export const AccountDetailModal = ({
                       onPress={onAddSubAccount}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="add" size={14} color="#08090C" />
-                      <Text style={modalStyles.addPocketHeaderBtnText}>Add Pocket</Text>
+                      <Ionicons name="add" size={15} color="#08090C" />
+                      <Text style={modalStyles.addPocketHeaderBtnText} numberOfLines={1} ellipsizeMode="tail">
+                        Add Pocket
+                      </Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -172,15 +240,33 @@ export const AccountDetailModal = ({
                 {account.subAccounts.map((sub) => {
                   const balance = getSubBalance(account.id, sub.id);
                   return (
-                    <View key={sub.id} style={modalStyles.subCard}>
+                    <View
+                      key={sub.id}
+                      style={[modalStyles.subCard, { borderColor: hexToRgba(accountTheme.color, 0.22) }]}
+                    >
                       <View style={modalStyles.subCardTop}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={modalStyles.subAccountName}>{sub.name}</Text>
-                          <Text style={modalStyles.subCardTypeLabel}>Sub-Wallet</Text>
+                        <View style={[modalStyles.subIconWrap, { backgroundColor: accountTheme.bg, borderColor: accountTheme.border }]}>
+                          <Ionicons name="wallet-outline" size={15} color={accountTheme.color} />
                         </View>
-                        <Text style={modalStyles.subAccountBalance}>
-                          {formatMoney(balance, account.currency)}
-                        </Text>
+                        <View style={modalStyles.subCardTextWrap}>
+                          <Text style={modalStyles.subAccountName} numberOfLines={1} ellipsizeMode="tail">
+                            {sub.name}
+                          </Text>
+                          <Text style={modalStyles.subCardTypeLabel} numberOfLines={1} ellipsizeMode="tail">
+                            Sub-Wallet
+                          </Text>
+                        </View>
+                        <View style={[modalStyles.subBalanceChip, { backgroundColor: accountTheme.bg, borderColor: accountTheme.border }]}>
+                          <Text
+                            style={[modalStyles.subAccountBalance, { color: accountTheme.color }]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.7}
+                            ellipsizeMode="tail"
+                          >
+                            {formatMoney(balance, account.currency)}
+                          </Text>
+                        </View>
                       </View>
 
                       <View style={modalStyles.subActionRow}>
@@ -189,8 +275,15 @@ export const AccountDetailModal = ({
                           onPress={() => onEditBalance(account.id, sub.id)}
                           activeOpacity={0.8}
                         >
-                          <Ionicons name="calculator-outline" size={14} color="#08090C" style={{ marginRight: 6 }} />
-                          <Text style={modalStyles.adjustBalanceText}>Adjust Balance</Text>
+                          <Ionicons
+                            name="calculator-outline"
+                            size={15}
+                            color="#08090C"
+                            style={modalStyles.btnIcon}
+                          />
+                          <Text style={modalStyles.adjustBalanceText} numberOfLines={1} ellipsizeMode="tail">
+                            Adjust Balance
+                          </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -198,7 +291,7 @@ export const AccountDetailModal = ({
                           onPress={() => onRenameSubAccount(account.id, sub.id, sub.name)}
                           activeOpacity={0.7}
                         >
-                          <Ionicons name="pencil" size={15} color={COLORS.finance} />
+                          <Ionicons name="pencil" size={16} color={COLORS.finance} />
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -206,7 +299,7 @@ export const AccountDetailModal = ({
                           onPress={() => onDeleteSubAccount(account.id, sub.id)}
                           activeOpacity={0.7}
                         >
-                          <Ionicons name="trash-outline" size={15} color={COLORS.danger} />
+                          <Ionicons name="trash-outline" size={16} color={COLORS.danger} />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -215,20 +308,64 @@ export const AccountDetailModal = ({
 
                 {/* SECTION: ACCOUNT HISTORY */}
                 <View style={modalStyles.subSectionHeader}>
-                  <Text style={modalStyles.sectionLabel}>HISTORY ({history.length})</Text>
-                  <Text style={modalStyles.subHelperText}>Income & expenses for this account</Text>
+                  <View style={modalStyles.subSectionTitleWrap}>
+                    <Text style={modalStyles.sectionLabel}>HISTORY ({history.length})</Text>
+                    <Text style={modalStyles.subHelperText} numberOfLines={2} ellipsizeMode="tail">
+                      Income & expenses for this account
+                    </Text>
+                  </View>
                 </View>
 
                 <View style={modalStyles.historySummaryRow}>
-                  <View style={modalStyles.historySummaryBox}>
-                    <Text style={modalStyles.historySummaryLabel}>INCOME</Text>
-                    <Text style={[modalStyles.historySummaryValue, { color: COLORS.success }]} numberOfLines={1}>
+                  <View
+                    style={[
+                      modalStyles.historySummaryBox,
+                      { borderColor: TX_TYPE_THEME.income.border, backgroundColor: TX_TYPE_THEME.income.bg },
+                    ]}
+                  >
+                    <View style={modalStyles.summaryLabelRow}>
+                      <Ionicons name="arrow-down" size={12} color={TX_TYPE_THEME.income.color} />
+                      <Text
+                        style={[modalStyles.historySummaryLabel, { color: TX_TYPE_THEME.income.color }]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        INCOME
+                      </Text>
+                    </View>
+                    <Text
+                      style={[modalStyles.historySummaryValue, { color: TX_TYPE_THEME.income.color }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                      ellipsizeMode="tail"
+                    >
                       {formatMoney(totalIncome, account.currency)}
                     </Text>
                   </View>
-                  <View style={modalStyles.historySummaryBox}>
-                    <Text style={modalStyles.historySummaryLabel}>EXPENSE</Text>
-                    <Text style={[modalStyles.historySummaryValue, { color: COLORS.danger }]} numberOfLines={1}>
+                  <View
+                    style={[
+                      modalStyles.historySummaryBox,
+                      { borderColor: TX_TYPE_THEME.expense.border, backgroundColor: TX_TYPE_THEME.expense.bg },
+                    ]}
+                  >
+                    <View style={modalStyles.summaryLabelRow}>
+                      <Ionicons name="arrow-up" size={12} color={TX_TYPE_THEME.expense.color} />
+                      <Text
+                        style={[modalStyles.historySummaryLabel, { color: TX_TYPE_THEME.expense.color }]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        EXPENSE
+                      </Text>
+                    </View>
+                    <Text
+                      style={[modalStyles.historySummaryValue, { color: TX_TYPE_THEME.expense.color }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                      ellipsizeMode="tail"
+                    >
                       {formatMoney(totalExpense, account.currency)}
                     </Text>
                   </View>
@@ -246,14 +383,27 @@ export const AccountDetailModal = ({
                       return (
                         <TouchableOpacity
                           key={s.id}
-                          style={[modalStyles.historyChip, active && modalStyles.historyChipActive]}
+                          style={[
+                            modalStyles.historyChip,
+                            active && {
+                              backgroundColor: accountTheme.bg,
+                              borderColor: accountTheme.border,
+                            },
+                          ]}
                           onPress={() => {
                             setSubFilter(s.id);
                             setVisibleCount(20);
                           }}
                           activeOpacity={0.7}
                         >
-                          <Text style={[modalStyles.historyChipText, active && modalStyles.historyChipTextActive]}>
+                          <Text
+                            style={[
+                              modalStyles.historyChipText,
+                              active && { color: accountTheme.color, fontWeight: '800' },
+                            ]}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
                             {s.name}
                           </Text>
                         </TouchableOpacity>
@@ -263,11 +413,22 @@ export const AccountDetailModal = ({
                 )}
 
                 {history.length === 0 ? (
-                  <Text style={modalStyles.historyEmpty}>No transactions for this account yet.</Text>
+                  <View style={modalStyles.historyEmptyWrap}>
+                    <Ionicons name="receipt-outline" size={26} color={COLORS.textMuted} />
+                    <Text style={modalStyles.historyEmpty} numberOfLines={2}>
+                      No transactions for this account yet.
+                    </Text>
+                  </View>
                 ) : (
                   history.slice(0, visibleCount).map(({ tx, delta }) => {
                     const isTransfer = tx.type === 'transfer';
-                    const color = isTransfer && delta === 0 ? COLORS.accentUSD : delta >= 0 ? COLORS.success : COLORS.danger;
+                    const theme = isTransfer
+                      ? TX_TYPE_THEME.transfer
+                      : delta >= 0
+                        ? TX_TYPE_THEME.income
+                        : TX_TYPE_THEME.expense;
+                    const color = isTransfer && delta === 0 ? TX_TYPE_THEME.transfer.color : theme.color;
+                    const catTheme = getCategoryTheme(tx.category);
                     const srcSub = account.subAccounts.find((s) => s.id === tx.subAccountId)?.name;
                     const dstAcc = tx.toAccountId ? accounts.find((a) => a.id === tx.toAccountId) : undefined;
                     const dstSub = dstAcc?.subAccounts.find((s) => s.id === tx.toSubAccountId)?.name;
@@ -277,29 +438,56 @@ export const AccountDetailModal = ({
                     return (
                       <TouchableOpacity
                         key={tx.id}
-                        style={modalStyles.historyRow}
+                        style={[modalStyles.historyRow, { borderLeftColor: theme.color }]}
                         onPress={() => onEditTransaction?.(tx)}
                         activeOpacity={0.7}
                       >
-                        <View style={[modalStyles.historyIcon, { backgroundColor: `${color}22` }]}>
+                        <View
+                          style={[
+                            modalStyles.historyIcon,
+                            { backgroundColor: theme.bg, borderColor: theme.border },
+                          ]}
+                        >
                           <Ionicons
                             name={isTransfer ? 'swap-horizontal' : tx.type === 'income' ? 'arrow-down' : 'arrow-up'}
                             size={16}
-                            color={color}
+                            color={theme.color}
                           />
                         </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={modalStyles.historyDesc} numberOfLines={1}>
-                            {tx.description}
+                        <View style={modalStyles.historyTextWrap}>
+                          <Text style={modalStyles.historyDesc} numberOfLines={1} ellipsizeMode="tail">
+                            {(tx.description || '').trim() || tx.category || 'Transaction'}
                           </Text>
-                          <Text style={modalStyles.historyMeta} numberOfLines={1}>
-                            {formatTxShortDate(tx.date)} • {meta}
+                          <View style={modalStyles.historyMetaRow}>
+                            {!isTransfer && (
+                              <View
+                                style={[
+                                  modalStyles.categoryDot,
+                                  { backgroundColor: catTheme.color, borderColor: catTheme.border },
+                                ]}
+                              >
+                                <View
+                                  style={[modalStyles.categoryDotInner, { backgroundColor: catTheme.color }]}
+                                />
+                              </View>
+                            )}
+                            <Text style={modalStyles.historyMeta} numberOfLines={1} ellipsizeMode="tail">
+                              {formatTxShortDate(tx.date)} • {meta}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={modalStyles.historyAmountWrap}>
+                          <Text
+                            style={[modalStyles.historyAmount, { color }]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.7}
+                            ellipsizeMode="tail"
+                          >
+                            {delta > 0 ? '+' : delta < 0 ? '-' : ''}
+                            {formatMoney(tx.amount, account.currency)}
                           </Text>
                         </View>
-                        <Text style={[modalStyles.historyAmount, { color }]}>
-                          {delta > 0 ? '+' : delta < 0 ? '-' : ''}
-                          {formatMoney(tx.amount, account.currency)}
-                        </Text>
                       </TouchableOpacity>
                     );
                   })
@@ -311,7 +499,10 @@ export const AccountDetailModal = ({
                     onPress={() => setVisibleCount((c) => c + 20)}
                     activeOpacity={0.7}
                   >
-                    <Text style={modalStyles.historyMoreText}>Show more</Text>
+                    <Text style={modalStyles.historyMoreText} numberOfLines={1} ellipsizeMode="tail">
+                      Show more
+                    </Text>
+                    <Ionicons name="chevron-down" size={14} color={COLORS.finance} />
                   </TouchableOpacity>
                 )}
               </ScrollView>
@@ -336,93 +527,187 @@ const modalStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 38 : 28,
-    maxHeight: '85%',
+    maxHeight: '90%',
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   handle: {
-    width: 36,
+    width: 40,
     height: 4,
     backgroundColor: COLORS.textMuted,
     opacity: 0.5,
     borderRadius: RADIUS.full,
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  headerTextWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   headerTitle: {
     color: COLORS.textPrimary,
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
-  sectionLabel: {
+  headerSubtitle: {
     color: COLORS.textMuted,
-    fontSize: 10,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 3,
+  },
+  closeBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.bgCardSub,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    paddingBottom: 28,
+    paddingTop: 8,
+  },
+  sectionLabel: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.2,
-    marginBottom: 8,
+    marginBottom: 10,
     textTransform: 'uppercase',
   },
   subSectionHeader: {
-    marginTop: 20,
-    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  subSectionTitleWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   addPocketHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: COLORS.finance,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: RADIUS.xs,
+    paddingHorizontal: 14,
+    minHeight: 44,
+    borderRadius: RADIUS.sm,
     gap: 4,
   },
   addPocketHeaderBtnText: {
     color: '#08090C',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
+    flexShrink: 0,
   },
   subHelperText: {
     color: COLORS.textMuted,
     fontSize: 12,
-    marginBottom: 8,
+    marginBottom: 0,
   },
   mainAccountCard: {
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.xl,
-    padding: 16,
+    padding: 18,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    gap: 14,
   },
   mainCardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 14,
+    gap: 12,
+  },
+  mainIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mainHeaderTextWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   mainAccountName: {
     color: COLORS.textPrimary,
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  mainAccountDesc: {
+    fontSize: 12.5,
+    color: COLORS.textSecondary,
+    marginTop: 3,
+  },
+  mainBadgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
   },
   mainAccountBadge: {
-    color: COLORS.finance,
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    maxWidth: 180,
+  },
+  mainAccountBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  currencyBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    backgroundColor: hexToRgba('#FFFFFF', 0.05),
+  },
+  currencyBadgeText: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  mainBalanceBlock: {
+    backgroundColor: hexToRgba('#FFFFFF', 0.03),
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  mainBalanceLabel: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 6,
   },
   mainTotalBalance: {
-    color: COLORS.textPrimary,
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 26,
+    fontWeight: '900',
+    letterSpacing: -0.6,
     fontVariant: ['tabular-nums'],
   },
   mainActionRow: {
@@ -430,14 +715,19 @@ const modalStyles = StyleSheet.create({
     gap: 10,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    paddingTop: 12,
+    paddingTop: 14,
+  },
+  btnIcon: {
+    marginRight: 7,
   },
   outlineBtn: {
     flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    minHeight: 44,
+    paddingHorizontal: 12,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: 'rgba(56, 189, 248, 0.4)',
@@ -445,15 +735,16 @@ const modalStyles = StyleSheet.create({
   },
   outlineBtnText: {
     color: COLORS.finance,
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '800',
+    flexShrink: 1,
   },
   dangerOutlineBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 44,
     paddingHorizontal: 16,
-    paddingVertical: 10,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: 'rgba(244, 63, 94, 0.4)',
@@ -461,61 +752,86 @@ const modalStyles = StyleSheet.create({
   },
   dangerOutlineBtnText: {
     color: COLORS.danger,
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '800',
+    flexShrink: 0,
   },
   subCard: {
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 10,
+    marginBottom: 12,
+    gap: 14,
   },
   subCardTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    gap: 12,
+  },
+  subIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subCardTextWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   subAccountName: {
     color: COLORS.textPrimary,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   subCardTypeLabel: {
     color: COLORS.textMuted,
     fontSize: 11,
-    marginTop: 1,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  subBalanceChip: {
+    maxWidth: 176,
+    flexShrink: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
   },
   subAccountBalance: {
-    color: COLORS.textPrimary,
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
     fontVariant: ['tabular-nums'],
+    letterSpacing: -0.2,
   },
   subActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   adjustBalanceBtn: {
     flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.finance,
-    paddingVertical: 8,
+    minHeight: 44,
+    paddingHorizontal: 12,
     borderRadius: RADIUS.sm,
   },
   adjustBalanceText: {
     color: '#08090C',
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '800',
+    flexShrink: 1,
   },
   subIconActionBtn: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: RADIUS.sm,
     backgroundColor: COLORS.bgCard,
     borderWidth: 1,
@@ -525,99 +841,156 @@ const modalStyles = StyleSheet.create({
   },
   historySummaryRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 10,
+    gap: 10,
+    marginBottom: 14,
   },
   historySummaryBox: {
     flex: 1,
-    backgroundColor: COLORS.bgCardSub,
+    minWidth: 0,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  summaryLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 6,
   },
   historySummaryLabel: {
-    color: COLORS.textMuted,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.8,
+    flexShrink: 1,
   },
   historySummaryValue: {
-    fontSize: 13,
-    fontWeight: '800',
-    marginTop: 2,
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: -0.3,
     fontVariant: ['tabular-nums'],
   },
   historyChipRow: {
     flexDirection: 'row',
-    gap: 6,
-    paddingBottom: 10,
+    gap: 8,
+    paddingBottom: 14,
+    paddingRight: 8,
   },
   historyChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: RADIUS.full,
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.bgCardSub,
-  },
-  historyChipActive: {
-    backgroundColor: COLORS.finance,
-    borderColor: COLORS.finance,
+    maxWidth: 200,
   },
   historyChipText: {
     color: COLORS.textSecondary,
     fontSize: 12,
-    fontWeight: '600',
-  },
-  historyChipTextActive: {
-    color: '#08090C',
-    fontWeight: '800',
+    fontWeight: '700',
   },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    gap: 10,
+    minHeight: 60,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    borderColor: COLORS.border,
+    borderLeftColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    backgroundColor: hexToRgba('#FFFFFF', 0.02),
+    gap: 12,
   },
   historyIcon: {
-    width: 32,
-    height: 32,
+    width: 38,
+    height: 38,
     borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  historyTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
   historyDesc: {
     color: COLORS.textPrimary,
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  historyMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  categoryDot: {
+    width: 12,
+    height: 12,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryDotInner: {
+    width: 4,
+    height: 4,
+    borderRadius: RADIUS.full,
   },
   historyMeta: {
+    flex: 1,
+    minWidth: 0,
     color: COLORS.textMuted,
     fontSize: 11,
-    marginTop: 2,
+    fontWeight: '600',
+  },
+  historyAmountWrap: {
+    maxWidth: 140,
+    minWidth: 0,
+    flexShrink: 0,
+    alignItems: 'flex-end',
   },
   historyAmount: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
+    letterSpacing: -0.3,
     fontVariant: ['tabular-nums'],
+  },
+  historyEmptyWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 28,
+    gap: 10,
   },
   historyEmpty: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 12.5,
+    fontWeight: '600',
     textAlign: 'center',
-    paddingVertical: 18,
   },
   historyMoreBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    justifyContent: 'center',
+    minHeight: 44,
+    gap: 6,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bgCardSub,
+    marginTop: 4,
   },
   historyMoreText: {
     color: COLORS.finance,
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '800',
   },
 });

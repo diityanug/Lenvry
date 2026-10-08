@@ -5,15 +5,15 @@ export const habitStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.bgCanvas,
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
     paddingTop: 0,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 16,
+    marginTop: 20,
+    marginBottom: 24,
   },
   headerTitleBold: {
     fontSize: 26,
@@ -70,10 +70,10 @@ export const habitStyles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   sectionTitle: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.1,
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   sectionHint: {

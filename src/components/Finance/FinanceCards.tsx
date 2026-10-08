@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { Account, Transaction, formatMoney, getAccountIcon, MONTHS } from '../../types/finance';
+import { Account, Transaction, formatMoney, getAccountIcon, MONTHS, ACCOUNT_TYPE_THEME, TX_TYPE_THEME, getCategoryTheme } from '../../types/finance';
 import { financeStyles as styles } from '../../styles/financeStyles';
 import { COLORS } from '../../constants/theme';
 
@@ -9,45 +9,51 @@ import { COLORS } from '../../constants/theme';
 const getCategoryIconInfo = (
   category: string,
   type: 'income' | 'expense' | 'transfer'
-): { name: any; color: string; bg: string } => {
+): { name: any; color: string; bg: string; border: string } => {
   if (type === 'transfer') {
-    return { name: 'swap-horizontal', color: COLORS.accentUSD, bg: 'rgba(56, 189, 248, 0.12)' };
+    return { name: 'swap-horizontal', ...TX_TYPE_THEME.transfer };
   }
 
   if (type === 'income') {
-    switch (category) {
-      case 'Salary':
-        return { name: 'briefcase-outline', color: COLORS.success, bg: COLORS.successLight };
-      case 'Investment':
-        return { name: 'trending-up-outline', color: COLORS.success, bg: COLORS.successLight };
-      case 'Bonus':
-      case 'Gift':
-        return { name: 'gift-outline', color: COLORS.success, bg: COLORS.successLight };
-      default:
-        return { name: 'arrow-down', color: COLORS.success, bg: COLORS.successLight };
-    }
+    const icon =
+      category === 'Salary'
+        ? 'briefcase-outline'
+        : category === 'Investments' || category === 'Investment'
+        ? 'trending-up-outline'
+        : category === 'Bonus' || category === 'Gift'
+        ? 'gift-outline'
+        : 'arrow-down';
+    return { name: icon, ...TX_TYPE_THEME.income };
   }
 
-  switch (category) {
-    case 'Food & Beverages':
-      return { name: 'restaurant-outline', color: '#F97316', bg: 'rgba(249, 115, 22, 0.12)' };
-    case 'Snacks':
-      return { name: 'cafe-outline', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.12)' };
-    case 'Transportation':
-      return { name: 'car-outline', color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.12)' };
-    case 'Shopping':
-      return { name: 'cart-outline', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.12)' };
-    case 'Bills & Utilities':
-      return { name: 'receipt-outline', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.12)' };
-    case 'Entertainment':
-      return { name: 'game-controller-outline', color: '#A855F7', bg: 'rgba(168, 85, 247, 0.12)' };
-    case 'Health & Medical':
-      return { name: 'medkit-outline', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.12)' };
-    case 'Education':
-      return { name: 'school-outline', color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.12)' };
-    default:
-      return { name: 'arrow-up', color: COLORS.danger, bg: COLORS.dangerLight };
-  }
+  const iconMap: Record<string, string> = {
+    'Food & Beverages': 'restaurant-outline',
+    Snacks: 'cafe-outline',
+    Transportation: 'car-outline',
+    Fuel: 'car-outline',
+    Parking: 'car-outline',
+    'Vehicle Services': 'construct-outline',
+    Shopping: 'cart-outline',
+    'Bills & Utilities': 'receipt-outline',
+    'Housing / Rent': 'home-outline',
+    'Internet & Phone': 'wifi-outline',
+    Insurance: 'shield-checkmark-outline',
+    'Fitness & Gym': 'barbell-outline',
+    'Cloud & Storage': 'cloud-outline',
+    Subscriptions: 'repeat-outline',
+    Entertainment: 'game-controller-outline',
+    'Health & Medical': 'medkit-outline',
+    Education: 'school-outline',
+    Travel: 'airplane-outline',
+    'Public Services': 'business-outline',
+    Personal: 'person-outline',
+    'Home Services': 'hammer-outline',
+    Furnisings: 'bed-outline',
+    Social: 'people-outline',
+    Others: 'ellipsis-horizontal',
+  };
+
+  return { name: iconMap[category] || 'pricetag-outline', ...getCategoryTheme(category) };
 };
 
 // Helper: Human-friendly date formatting
@@ -93,44 +99,74 @@ export const TransactionCard = ({ item, accounts, onClone, onDelete, onEdit }: T
   const iconInfo = getCategoryIconInfo(item.category, item.type);
   const isTransfer = item.type === 'transfer';
 
+  // Fallback title if description is empty or whitespace
+  const displayTitle = (item.description || '').trim() || item.category || (isTransfer ? 'Transfer' : 'Transaction');
+
+  const accountPillText = isTransfer
+    ? item.accountId === item.toAccountId
+      ? `${accName} (${subName || 'Main'} → ${toSubName || 'Main'})`
+      : `${accName}${subName ? ` • ${subName}` : ''} → ${toAccName}${toSubName ? ` • ${toSubName}` : ''}`
+    : `${accName}${subName ? ` • ${subName}` : ''}`;
+
   return (
     <TouchableOpacity
       style={styles.txCard}
-      activeOpacity={0.7}
+      activeOpacity={0.75}
       onPress={() => onEdit?.(item)}
       disabled={!onEdit}
     >
-      {/* PRIMARY ROW: CATEGORY ICON + DETAILS + AMOUNT */}
-      <View style={styles.txTopRow}>
-        <View style={[styles.iconContainer, { backgroundColor: iconInfo.bg }]}>
-          <Ionicons name={iconInfo.name} size={20} color={iconInfo.color} />
+      {/* MAIN CONTENT BLOCK: ICON (LEFT) + BALANCED 2-ROW GRID (RIGHT) */}
+      <View style={styles.txMainBlock}>
+        <View style={[styles.iconContainer, { backgroundColor: iconInfo.bg, borderColor: iconInfo.border }]}>
+          <Ionicons name={iconInfo.name} size={18} color={iconInfo.color} />
         </View>
 
-        <View style={styles.txMainInfo}>
-          <Text style={styles.txDesc} numberOfLines={1}>
-            {item.description}
-          </Text>
-          <View style={styles.txCategoryRow}>
-            <View style={styles.txCategoryBadge}>
-              <Text style={styles.txCategoryBadgeText}>{item.category}</Text>
-            </View>
-            <Text style={styles.txDateText}>{dateFormatted}</Text>
+        <View style={styles.txBody}>
+          {/* Row 1: Title (Left) + Amount (Right) */}
+          <View style={styles.txMainRow}>
+            <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
+              {displayTitle}
+            </Text>
+            <Text
+              style={[
+                styles.txAmount,
+                item.type === 'income'
+                  ? styles.textIncome
+                  : isTransfer
+                  ? { color: '#818CF8' }
+                  : styles.textExpense,
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              adjustsFontSizeToFit
+              minimumFontScale={0.65}
+            >
+              {item.type === 'income' ? '+' : isTransfer ? '' : '-'} {formatMoney(item.amount, accCurrency)}
+            </Text>
           </View>
-        </View>
 
-        <View style={styles.txAmountWrap}>
-          <Text
-            style={[
-              styles.txAmount,
-              item.type === 'income'
-                ? styles.textIncome
-                : isTransfer
-                ? { color: COLORS.accentUSD }
-                : styles.textExpense,
-            ]}
-          >
-            {item.type === 'income' ? '+' : isTransfer ? '' : '-'} {formatMoney(item.amount, accCurrency)}
-          </Text>
+          {/* Row 2: Category Badge (Left) + Date (Right) */}
+          <View style={styles.txMetaRow}>
+            <View style={styles.txCategoryBadgeWrap}>
+              <View
+                style={[
+                  styles.txCategoryBadge,
+                  { backgroundColor: iconInfo.bg, borderColor: iconInfo.border },
+                ]}
+              >
+                <Text
+                  style={[styles.txCategoryBadgeText, { color: iconInfo.color }]}
+                  numberOfLines={1}
+                >
+                  {item.category}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.txDateText} numberOfLines={1}>
+              {dateFormatted}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -139,28 +175,24 @@ export const TransactionCard = ({ item, accounts, onClone, onDelete, onEdit }: T
         <View style={styles.txAccountPill}>
           <Ionicons
             name={item.type === 'income' ? 'arrow-down-circle-outline' : isTransfer ? 'swap-horizontal' : 'wallet-outline'}
-            size={13}
-            color={COLORS.textSecondary}
+            size={12}
+            color={isTransfer ? '#818CF8' : item.type === 'income' ? '#10B981' : COLORS.textSecondary}
+            style={{ flexShrink: 0 }}
           />
-          <Text style={styles.txAccountPillText} numberOfLines={1}>
-            {isTransfer
-              ? item.accountId === item.toAccountId
-                ? `${accName} (${subName || 'Main'} → ${toSubName || 'Main'})`
-                : `${accName}${subName ? ` • ${subName}` : ''} → ${toAccName}${toSubName ? ` • ${toSubName}` : ''}`
-              : `${accName}${subName ? ` • ${subName}` : ''}`}
+          <Text style={styles.txAccountPillText} numberOfLines={1} ellipsizeMode="tail">
+            {accountPillText}
           </Text>
         </View>
 
         <View style={styles.txActions}>
-
           <TouchableOpacity
             onPress={() => onClone(item)}
             style={styles.txActionBtn}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="copy-outline" size={13} color={COLORS.textMuted} />
-            <Text style={styles.txActionBtnText}>Copy</Text>
+            <Ionicons name="copy-outline" size={12} color={COLORS.textMuted} />
+            <Text style={styles.txActionBtnText} numberOfLines={1}>Copy</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -169,8 +201,8 @@ export const TransactionCard = ({ item, accounts, onClone, onDelete, onEdit }: T
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="trash-outline" size={13} color={COLORS.danger} />
-            <Text style={[styles.txActionBtnText, { color: COLORS.danger }]}>Delete</Text>
+            <Ionicons name="trash-outline" size={12} color={COLORS.danger} />
+            <Text style={[styles.txActionBtnText, { color: COLORS.danger }]} numberOfLines={1}>Delete</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -191,24 +223,7 @@ export const AccountCard = ({ item, balance, onPress }: AccountCardProps) => {
   const pockets = item.subAccounts || [];
   const pocketsCount = pockets.length;
 
-  const getAccColorTheme = (type: Account['type']) => {
-    switch (type) {
-      case 'Bank':
-        return { color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.28)' };
-      case 'E-Wallet':
-        return { color: '#34D399', bg: 'rgba(52, 211, 153, 0.12)', border: 'rgba(52, 211, 153, 0.28)' };
-      case 'Cash':
-        return { color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.28)' };
-      case 'Credit Card':
-        return { color: '#A855F7', bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.28)' };
-      case 'Investment':
-        return { color: '#EC4899', bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.28)' };
-      default:
-        return { color: COLORS.finance, bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.28)' };
-    }
-  };
-
-  const theme = getAccColorTheme(item.type);
+  const theme = ACCOUNT_TYPE_THEME[item.type];
 
   return (
     <TouchableOpacity
@@ -247,7 +262,7 @@ export const AccountCard = ({ item, balance, onPress }: AccountCardProps) => {
 
           <View style={styles.accHeaderRight}>
             <View style={[styles.accCurrencyPill, isUSD && styles.accCurrencyPillUSD]}>
-              <Text style={[styles.accCurrencyPillText, isUSD && { color: COLORS.accentUSD }]}>
+              <Text style={[styles.accCurrencyPillText, isUSD && { color: '#C084FC' }]}>
                 {item.currency}
               </Text>
             </View>

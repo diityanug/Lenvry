@@ -13,9 +13,13 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { formatMoney } from '../../types/finance';
+import { formatMoney, hexToRgba } from '../../types/finance';
 import { CalculatorModal } from './CalculatorModal';
 import { COLORS, RADIUS } from '../../constants/theme';
+
+// Shared accents used by these dialogs (alpha tints come from hexToRgba)
+const SKY = '#38BDF8';
+const VIOLET = '#818CF8';
 
 // --- EDIT BALANCE MODAL ---
 interface EditBalanceModalProps {
@@ -57,8 +61,17 @@ export const EditBalanceModal = ({
           <View style={dialogStyles.overlayCenter}>
             <TouchableWithoutFeedback onPress={() => {}}>
               <View style={dialogStyles.cardSmall}>
-                <Text style={dialogStyles.titleCenter}>Adjust Balance</Text>
-                <Text style={dialogStyles.subtitleCenter}>
+                <View style={dialogStyles.headerBadge}>
+                  <View style={dialogStyles.headerBadgeIcon}>
+                    <Ionicons name="calculator-outline" size={18} color={SKY} />
+                  </View>
+                  <Text style={dialogStyles.headerBadgeText} numberOfLines={1}>BALANCE CORRECTION</Text>
+                </View>
+
+                <Text style={dialogStyles.titleCenter} numberOfLines={1} ellipsizeMode="tail">
+                  Adjust Balance
+                </Text>
+                <Text style={dialogStyles.subtitleCenter} numberOfLines={2}>
                   Set the corrected total balance for this sub-account.
                 </Text>
 
@@ -69,15 +82,21 @@ export const EditBalanceModal = ({
                   activeOpacity={0.8}
                 >
                   <View style={dialogStyles.amountHeroTop}>
-                    <Text style={dialogStyles.amountHeroLabel}>TARGET BALANCE</Text>
+                    <Text style={dialogStyles.amountHeroLabel} numberOfLines={1}>TARGET BALANCE</Text>
                     <View style={dialogStyles.calcBadge}>
-                      <Ionicons name="calculator-outline" size={12} color={COLORS.finance} style={{ marginRight: 4 }} />
-                      <Text style={dialogStyles.calcBadgeText}>Keypad</Text>
+                      <Ionicons name="calculator-outline" size={12} color={SKY} style={dialogStyles.calcBadgeIcon} />
+                      <Text style={dialogStyles.calcBadgeText} numberOfLines={1}>Keypad</Text>
                     </View>
                   </View>
                   <View style={dialogStyles.amountHeroValueRow}>
-                    <Text style={dialogStyles.currencySymbolLarge}>{currencySymbol}</Text>
-                    <Text style={dialogStyles.amountNumberLarge} numberOfLines={1}>
+                    <Text style={dialogStyles.currencySymbolLarge} numberOfLines={1}>{currencySymbol}</Text>
+                    <Text
+                      style={dialogStyles.amountNumberLarge}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                    >
                       {formattedVal || '0'}
                     </Text>
                   </View>
@@ -85,10 +104,14 @@ export const EditBalanceModal = ({
 
                 <View style={dialogStyles.actionRow}>
                   <TouchableOpacity style={dialogStyles.btnCancel} onPress={onClose} activeOpacity={0.7}>
-                    <Text style={dialogStyles.btnCancelText}>CANCEL</Text>
+                    <Text style={dialogStyles.btnCancelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                      CANCEL
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={dialogStyles.btnConfirm} onPress={onSave} activeOpacity={0.8}>
-                    <Text style={dialogStyles.btnConfirmText}>APPLY</Text>
+                    <Text style={dialogStyles.btnConfirmText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                      APPLY
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -137,6 +160,7 @@ export const RenameModal = ({
   };
 
   const isMain = targetType === 'main';
+  const pillColor = isMain ? SKY : VIOLET;
 
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
@@ -153,37 +177,38 @@ export const RenameModal = ({
                   style={[
                     dialogStyles.typePill,
                     {
-                      backgroundColor: isMain ? COLORS.financeLight : COLORS.accentLight,
+                      backgroundColor: hexToRgba(pillColor, 0.14),
+                      borderColor: hexToRgba(pillColor, 0.34),
                     },
                   ]}
                 >
                   <Text
-                    style={[
-                      dialogStyles.typePillText,
-                      { color: isMain ? COLORS.finance : COLORS.accent },
-                    ]}
+                    style={[dialogStyles.typePillText, { color: pillColor }]}
+                    numberOfLines={1}
                   >
                     {isMain ? 'MAIN ACCOUNT' : 'SUB-ACCOUNT'}
                   </Text>
                 </View>
 
-                <Text style={dialogStyles.titleCenter}>
+                <Text style={dialogStyles.titleCenter} numberOfLines={1} ellipsizeMode="tail">
                   Edit {isMain ? 'Account' : 'Sub-Account'}
                 </Text>
 
-                <Text style={[dialogStyles.subtitleCenter, { alignSelf: 'flex-start', marginBottom: 4 }]}>ACCOUNT NAME</Text>
-                <TextInput
-                  style={dialogStyles.inputField}
-                  placeholder={isMain ? 'Enter account title...' : 'Enter sub-account title...'}
-                  placeholderTextColor={COLORS.textMuted}
-                  value={value}
-                  onChangeText={onChangeValue}
-                  autoFocus={true}
-                />
+                <View style={dialogStyles.fieldBlock}>
+                  <Text style={dialogStyles.fieldLabel} numberOfLines={1}>ACCOUNT NAME</Text>
+                  <TextInput
+                    style={dialogStyles.inputField}
+                    placeholder={isMain ? 'Enter account title...' : 'Enter sub-account title...'}
+                    placeholderTextColor={COLORS.textMuted}
+                    value={value}
+                    onChangeText={onChangeValue}
+                    autoFocus={true}
+                  />
+                </View>
 
                 {isMain && onChangeDescValue && (
-                  <>
-                    <Text style={[dialogStyles.subtitleCenter, { alignSelf: 'flex-start', marginTop: 10, marginBottom: 4 }]}>
+                  <View style={dialogStyles.fieldBlock}>
+                    <Text style={dialogStyles.fieldLabel} numberOfLines={1} ellipsizeMode="tail">
                       DESCRIPTION / NOTE (OPTIONAL)
                     </Text>
                     <TextInput
@@ -193,15 +218,19 @@ export const RenameModal = ({
                       value={descValue}
                       onChangeText={onChangeDescValue}
                     />
-                  </>
+                  </View>
                 )}
 
                 <View style={dialogStyles.actionRow}>
                   <TouchableOpacity style={dialogStyles.btnCancel} onPress={onClose} activeOpacity={0.7}>
-                    <Text style={dialogStyles.btnCancelText}>CANCEL</Text>
+                    <Text style={dialogStyles.btnCancelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                      CANCEL
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={dialogStyles.btnConfirm} onPress={onSave} activeOpacity={0.8}>
-                    <Text style={dialogStyles.btnConfirmText}>SAVE</Text>
+                    <Text style={dialogStyles.btnConfirmText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                      SAVE
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -289,67 +318,102 @@ export const AddCategoryModal = ({
         <TouchableWithoutFeedback onPress={handleDismiss}>
           <View style={dialogStyles.overlayCenter}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={[dialogStyles.cardSmall, { maxHeight: '90%' }]}>
+              <View style={dialogStyles.cardSmall}>
                 {/* Header Icon Preview */}
-                <View style={{ alignItems: 'center', marginBottom: 12 }}>
-                  <View style={[dialogStyles.iconPreviewBox, { backgroundColor: activeIconItem.bg }]}>
-                    <Ionicons name={activeIconItem.icon as any} size={28} color={activeIconItem.color} />
+                <View style={dialogStyles.previewBlock}>
+                  <View
+                    style={[
+                      dialogStyles.iconPreviewBox,
+                      {
+                        backgroundColor: activeIconItem.bg,
+                        borderColor: hexToRgba(activeIconItem.color, 0.45),
+                      },
+                    ]}
+                  >
+                    <Ionicons name={activeIconItem.icon as any} size={30} color={activeIconItem.color} />
                   </View>
-                  <Text style={dialogStyles.titleCenter}>New Category</Text>
-                  <Text style={dialogStyles.subtitleCenter}>
+                  <Text style={dialogStyles.titleCenter} numberOfLines={1}>New Category</Text>
+                  <Text style={dialogStyles.subtitleCenter} numberOfLines={2}>
                     Name your category and pick an icon for instant recognition.
                   </Text>
                 </View>
 
                 {/* Name Input */}
-                <Text style={dialogStyles.inputLabel}>CATEGORY NAME</Text>
-                <TextInput
-                  style={[dialogStyles.inputField, { marginBottom: 14 }]}
-                  placeholder="e.g. Subscriptions, Freelance, Tech..."
-                  placeholderTextColor={COLORS.textMuted}
-                  value={value}
-                  onChangeText={onChangeValue}
-                  autoFocus={true}
-                />
+                <View style={dialogStyles.fieldBlock}>
+                  <Text style={dialogStyles.fieldLabel} numberOfLines={1}>CATEGORY NAME</Text>
+                  <TextInput
+                    style={dialogStyles.inputField}
+                    placeholder="e.g. Subscriptions, Freelance, Tech..."
+                    placeholderTextColor={COLORS.textMuted}
+                    value={value}
+                    onChangeText={onChangeValue}
+                    autoFocus={true}
+                  />
+                </View>
 
                 {/* Icon Grid Picker */}
-                <Text style={dialogStyles.inputLabel}>CHOOSE ICON</Text>
-                <ScrollView
-                  nestedScrollEnabled={true}
-                  style={dialogStyles.iconScrollArea}
-                  contentContainerStyle={dialogStyles.iconGrid}
-                  showsVerticalScrollIndicator={true}
-                  keyboardShouldPersistTaps="handled"
-                >
-                  {AVAILABLE_CATEGORY_ICONS.map((item) => {
-                    const isSelected = activeIconItem.icon === item.icon;
-                    return (
-                      <TouchableOpacity
-                        key={item.icon}
-                        style={[
-                          dialogStyles.iconPickBtn,
-                          isSelected && dialogStyles.iconPickBtnActive,
-                        ]}
-                        onPress={() => handleSelectIcon(item)}
-                        activeOpacity={0.7}
+                <View style={dialogStyles.fieldBlock}>
+                  <View style={dialogStyles.iconLabelRow}>
+                    <Text style={dialogStyles.fieldLabelInline} numberOfLines={1}>CHOOSE ICON</Text>
+                    <View
+                      style={[
+                        dialogStyles.iconChipPreview,
+                        { backgroundColor: hexToRgba(activeIconItem.color, 0.14), borderColor: hexToRgba(activeIconItem.color, 0.34) },
+                      ]}
+                    >
+                      <Text
+                        style={[dialogStyles.iconChipPreviewText, { color: activeIconItem.color }]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
                       >
-                        <Ionicons
-                          name={item.icon as any}
-                          size={20}
-                          color={isSelected ? '#08090C' : item.color}
-                        />
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+                        {activeIconItem.label}
+                      </Text>
+                    </View>
+                  </View>
+                  <ScrollView
+                    nestedScrollEnabled={true}
+                    style={dialogStyles.iconScrollArea}
+                    contentContainerStyle={dialogStyles.iconGrid}
+                    showsVerticalScrollIndicator={true}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {AVAILABLE_CATEGORY_ICONS.map((item) => {
+                      const isSelected = activeIconItem.icon === item.icon;
+                      return (
+                        <TouchableOpacity
+                          key={item.icon}
+                          style={[
+                            dialogStyles.iconPickBtn,
+                            {
+                              backgroundColor: isSelected ? item.color : hexToRgba(item.color, 0.12),
+                              borderColor: isSelected ? item.color : hexToRgba(item.color, 0.34),
+                            },
+                          ]}
+                          onPress={() => handleSelectIcon(item)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name={item.icon as any}
+                            size={22}
+                            color={isSelected ? '#08090C' : item.color}
+                          />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
 
                 {/* Actions */}
-                <View style={[dialogStyles.actionRow, { marginTop: 16 }]}>
+                <View style={[dialogStyles.actionRow, dialogStyles.actionRowSpaced]}>
                   <TouchableOpacity style={dialogStyles.btnCancel} onPress={onClose} activeOpacity={0.7}>
-                    <Text style={dialogStyles.btnCancelText}>CANCEL</Text>
+                    <Text style={dialogStyles.btnCancelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                      CANCEL
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={dialogStyles.btnConfirm} onPress={handleConfirmSave} activeOpacity={0.8}>
-                    <Text style={dialogStyles.btnConfirmText}>SAVE CATEGORY</Text>
+                    <Text style={dialogStyles.btnConfirmText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                      SAVE CATEGORY
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -364,59 +428,91 @@ export const AddCategoryModal = ({
 const dialogStyles = StyleSheet.create({
   overlayCenter: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
   },
   cardSmall: {
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.xl,
-    padding: 18,
+    borderRadius: RADIUS.xxl,
+    padding: 20,
     width: '100%',
+    maxWidth: 440,
+    maxHeight: '90%',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderLight,
+  },
+  headerBadge: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: hexToRgba(SKY, 0.12),
+    borderWidth: 1,
+    borderColor: hexToRgba(SKY, 0.34),
+    paddingHorizontal: 12,
+    minHeight: 34,
+    borderRadius: RADIUS.full,
+    marginBottom: 14,
+    maxWidth: '100%',
+  },
+  headerBadgeIcon: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerBadgeText: {
+    color: SKY,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+    flexShrink: 1,
   },
   titleCenter: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '900',
     color: COLORS.textPrimary,
     textAlign: 'center',
-    marginBottom: 4,
-    letterSpacing: -0.3,
+    marginBottom: 6,
+    letterSpacing: -0.4,
   },
   subtitleCenter: {
-    fontSize: 12,
+    fontSize: 12.5,
+    fontWeight: '600',
     color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 16,
+    marginBottom: 18,
+    lineHeight: 18,
+    paddingHorizontal: 4,
   },
   typePill: {
     alignSelf: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: RADIUS.sm,
-    marginBottom: 8,
+    paddingHorizontal: 14,
+    minHeight: 30,
+    justifyContent: 'center',
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    marginBottom: 14,
   },
   typePillText: {
     fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   amountHeroBox: {
-    backgroundColor: COLORS.bgCardSub,
+    backgroundColor: hexToRgba(SKY, 0.08),
     borderRadius: RADIUS.lg,
-    padding: 14,
+    padding: 18,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: 18,
+    borderColor: hexToRgba(SKY, 0.34),
+    marginBottom: 20,
   },
   amountHeroTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    gap: 10,
+    marginBottom: 10,
   },
   amountHeroLabel: {
     color: COLORS.textMuted,
@@ -424,59 +520,113 @@ const dialogStyles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1,
     textTransform: 'uppercase',
+    flexShrink: 1,
   },
   calcBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.financeLight,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: RADIUS.xs,
+    backgroundColor: hexToRgba(SKY, 0.14),
+    paddingHorizontal: 10,
+    minHeight: 26,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderColor: hexToRgba(SKY, 0.34),
+    flexShrink: 0,
+  },
+  calcBadgeIcon: {
+    marginRight: 5,
   },
   calcBadgeText: {
-    color: COLORS.finance,
-    fontSize: 10,
+    color: SKY,
+    fontSize: 10.5,
     fontWeight: '800',
   },
   amountHeroValueRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
+    gap: 8,
   },
   currencySymbolLarge: {
-    color: COLORS.finance,
+    color: SKY,
     fontSize: 22,
     fontWeight: '900',
-    marginRight: 6,
+    flexShrink: 0,
   },
   amountNumberLarge: {
     color: COLORS.textPrimary,
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '900',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
     fontVariant: ['tabular-nums'],
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  fieldBlock: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.textSecondary,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    flexShrink: 1,
+  },
+  fieldLabelInline: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.textSecondary,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  iconLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  iconChipPreview: {
+    paddingHorizontal: 12,
+    minHeight: 26,
+    justifyContent: 'center',
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    flexShrink: 0,
+    maxWidth: 140,
+  },
+  iconChipPreviewText: {
+    fontSize: 10.5,
+    fontWeight: '800',
   },
   inputField: {
     backgroundColor: COLORS.bgCardSub,
     color: COLORS.textPrimary,
     paddingHorizontal: 16,
     paddingVertical: 14,
+    minHeight: 52,
     borderRadius: RADIUS.md,
     fontSize: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 18,
     fontWeight: '600',
   },
   actionRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
+  },
+  actionRowSpaced: {
+    marginTop: 12,
   },
   btnCancel: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: COLORS.bgCardSub,
-    paddingVertical: 12,
+    minHeight: 50,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -484,66 +634,62 @@ const dialogStyles = StyleSheet.create({
   },
   btnCancelText: {
     color: COLORS.textPrimary,
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   btnConfirm: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: COLORS.finance,
-    paddingVertical: 12,
+    minHeight: 50,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
     borderRadius: RADIUS.md,
     alignItems: 'center',
   },
   btnConfirmText: {
     color: '#08090C',
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 12.5,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  previewBlock: {
+    alignItems: 'center',
+    marginBottom: 4,
   },
   iconPreviewBox: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 64,
+    height: 64,
+    borderRadius: RADIUS.full,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  inputLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORS.textMuted,
-    letterSpacing: 0.8,
-    marginBottom: 6,
   },
   iconScrollArea: {
-    height: 220,
+    maxHeight: 220,
+    minHeight: 130,
+    flexShrink: 1,
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: 12,
+    padding: 10,
   },
   iconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'space-between',
-    paddingBottom: 16,
+    gap: 10,
+    justifyContent: 'flex-start',
+    paddingBottom: 24,
   },
   iconPickBtn: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.bgCard,
     borderWidth: 1,
-    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  iconPickBtnActive: {
-    backgroundColor: COLORS.finance,
-    borderColor: COLORS.finance,
-    transform: [{ scale: 1.05 }],
   },
 });

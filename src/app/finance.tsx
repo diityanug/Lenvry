@@ -22,7 +22,7 @@ import { ManageAccountsModal } from '../components/Finance/ManageAccountsModal';
 import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
 import { TAB_BAR_HEIGHT } from '../constants/tabBar';
 import { financeStyles as styles } from '../styles/financeStyles';
-import { COLORS, RADIUS } from '../constants/theme';
+import { COLORS } from '../constants/theme';
 
 import { useFocusEffect } from 'expo-router';
 
@@ -664,7 +664,7 @@ export default function FinanceTracker() {
             onPress={() => openNewTransaction('expense')}
             activeOpacity={0.8}
           >
-            <Ionicons name="add" size={16} color="#08090C" />
+            <Ionicons name="add" size={16} color="#06131F" />
             <Text style={styles.headerAddBtnText}>Add</Text>
           </TouchableOpacity>
         </View>
@@ -696,31 +696,11 @@ export default function FinanceTracker() {
         />
 
         {/* VIEW MODE SWITCHER TABS */}
-        <View
-          style={{
-            flexDirection: 'row',
-            backgroundColor: COLORS.bgCard,
-            borderRadius: RADIUS.md,
-            padding: 4,
-            marginTop: 4,
-            marginBottom: 16,
-            borderWidth: 1,
-            borderColor: COLORS.border,
-          }}
-        >
+        <View style={styles.viewSwitchRow}>
           <TouchableOpacity
             style={[
-              {
-                flex: 1,
-                paddingVertical: 9,
-                paddingHorizontal: 6,
-                borderRadius: RADIUS.sm,
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexDirection: 'row',
-                gap: 8,
-              },
-              financeViewMode === 'overview' && { backgroundColor: COLORS.finance },
+              styles.viewSwitchItem,
+              financeViewMode === 'overview' && styles.viewSwitchItemActive,
             ]}
             onPress={() => setFinanceViewMode('overview')}
             activeOpacity={0.8}
@@ -728,41 +708,23 @@ export default function FinanceTracker() {
             <Ionicons
               name="wallet-outline"
               size={18}
-              color={financeViewMode === 'overview' ? '#08090C' : COLORS.textMuted}
+              color={financeViewMode === 'overview' ? '#06131F' : COLORS.textMuted}
             />
-            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-              <Text
-                style={[
-                  { fontSize: 11.5, fontWeight: '700', color: COLORS.textMuted, lineHeight: 15, textAlign: 'center' },
-                  financeViewMode === 'overview' && { color: '#08090C', fontWeight: '800' },
-                ]}
-              >
-                Accounts
-              </Text>
-              <Text
-                style={[
-                  { fontSize: 11.5, fontWeight: '700', color: COLORS.textMuted, lineHeight: 15, textAlign: 'center' },
-                  financeViewMode === 'overview' && { color: '#08090C', fontWeight: '800' },
-                ]}
-              >
-                Transactions
-              </Text>
-            </View>
+            <Text
+              style={[
+                styles.viewSwitchText,
+                financeViewMode === 'overview' && styles.viewSwitchTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              Accounts
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[
-              {
-                flex: 1,
-                paddingVertical: 9,
-                paddingHorizontal: 6,
-                borderRadius: RADIUS.sm,
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexDirection: 'row',
-                gap: 8,
-              },
-              financeViewMode === 'insights' && { backgroundColor: COLORS.finance },
+              styles.viewSwitchItem,
+              financeViewMode === 'insights' && styles.viewSwitchItemActive,
             ]}
             onPress={() => setFinanceViewMode('insights')}
             activeOpacity={0.8}
@@ -770,26 +732,17 @@ export default function FinanceTracker() {
             <Ionicons
               name="pie-chart-outline"
               size={18}
-              color={financeViewMode === 'insights' ? '#08090C' : COLORS.textMuted}
+              color={financeViewMode === 'insights' ? '#06131F' : COLORS.textMuted}
             />
-            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-              <Text
-                style={[
-                  { fontSize: 11.5, fontWeight: '700', color: COLORS.textMuted, lineHeight: 15, textAlign: 'center' },
-                  financeViewMode === 'insights' && { color: '#08090C', fontWeight: '800' },
-                ]}
-              >
-                Budgets
-              </Text>
-              <Text
-                style={[
-                  { fontSize: 11.5, fontWeight: '700', color: COLORS.textMuted, lineHeight: 15, textAlign: 'center' },
-                  financeViewMode === 'insights' && { color: '#08090C', fontWeight: '800' },
-                ]}
-              >
-                Bills
-              </Text>
-            </View>
+            <Text
+              style={[
+                styles.viewSwitchText,
+                financeViewMode === 'insights' && styles.viewSwitchTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              Budgets &amp; Bills
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -803,7 +756,9 @@ export default function FinanceTracker() {
             {/* ACCOUNTS SECTION */}
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionTitle}>MY ACCOUNTS</Text>
+                <Text style={styles.sectionTitle} numberOfLines={1}>
+                  MY ACCOUNTS
+                </Text>
                 <View style={styles.countBadge}>
                   <Text style={styles.countBadgeText}>{accounts.length}</Text>
                 </View>
@@ -821,7 +776,7 @@ export default function FinanceTracker() {
             </View>
 
             {/* Natural vertical flow for accounts */}
-            <View style={{ gap: 10, marginBottom: 20 }}>
+            <View style={{ gap: 14, marginBottom: 24 }}>
               {accounts.map((item) => (
                 <AccountCard
                   key={item.id}
@@ -839,7 +794,7 @@ export default function FinanceTracker() {
             {/* TRANSACTIONS SECTION */}
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionTitle}>
+                <Text style={styles.sectionTitle} numberOfLines={1}>
                   TRANSACTIONS • {MONTHS[selectedMonthFilter.getMonth()].toUpperCase()}
                 </Text>
                 <View style={styles.countBadge}>

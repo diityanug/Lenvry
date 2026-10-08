@@ -11,11 +11,22 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Account, CategoryCustomIcon, Transaction, formatMoney } from '../../types/finance';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import {
+  Account,
+  ACCOUNT_TYPE_THEME,
+  CategoryCustomIcon,
+  TX_TYPE_THEME,
+  Transaction,
+  formatMoney,
+  getAccountIcon,
+  getCategoryTheme,
+  hexToRgba,
+} from '../../types/finance';
 import { CalculatorModal } from './CalculatorModal';
 import { COLORS, RADIUS } from '../../constants/theme';
-import { getCategoryTheme } from './CategoryBreakdownCard';
+// Icon glyphs only — every colour below comes from getCategoryTheme in ../../types/finance.
+import { getCategoryTheme as getCategoryIconTheme } from './CategoryBreakdownCard';
 
 interface TransactionModalProps {
   visible: boolean;
@@ -113,11 +124,15 @@ export const TransactionModal = ({
   const isTransfer = type === 'transfer';
   const activeCategories = isExpense ? expenseCategories : incomeCategories;
 
+  // Colour theme for the currently active transaction type
+  const typeTheme = TX_TYPE_THEME[type];
+  const typeIcon = isExpense ? 'arrow-up-circle' : isTransfer ? 'swap-horizontal' : 'arrow-down-circle';
+
   // History suggestions specifically for the clicked/selected category
   const descriptionSuggestions = React.useMemo(() => {
     if (isTransfer || !selectedCategory) return [];
     const counts = new Map<string, { text: string; count: number; last: number }>();
-    
+
     for (const t of transactions) {
       if (t.type !== type || t.category !== selectedCategory) continue;
       const text = (t.description || '').trim();
@@ -192,9 +207,21 @@ export const TransactionModal = ({
 
             {/* Header */}
             <View style={txStyles.headerRow}>
-              <Text style={txStyles.headerTitle}>{isEditing ? 'Edit Transaction' : 'New Transaction'}</Text>
-              <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-                <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
+              <View style={txStyles.headerTextWrap}>
+                <Text style={txStyles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+                  {isEditing ? 'Edit Transaction' : 'New Transaction'}
+                </Text>
+                <Text style={txStyles.headerSubtitle} numberOfLines={1} ellipsizeMode="tail">
+                  {typeTheme.label} • {currency}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={onClose}
+                activeOpacity={0.7}
+                style={txStyles.closeBtn}
+                accessibilityRole="button"
+              >
+                <Ionicons name="close" size={20} color={COLORS.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -203,13 +230,22 @@ export const TransactionModal = ({
               automaticallyAdjustKeyboardInsets={true}
               showsVerticalScrollIndicator={false}
               nestedScrollEnabled={true}
-              contentContainerStyle={{ paddingBottom: Math.max(16, keyboardHeight + 16) }}
+              contentContainerStyle={[
+                txStyles.scrollContent,
+                { paddingBottom: Math.max(28, keyboardHeight + 28) },
+              ]}
             >
             {/* 1. Transaction Type Toggle (Expense, Income, Transfer) */}
             {!hideTypeSwitcher ? (
               <View style={txStyles.typeSwitcher}>
                 <TouchableOpacity
-                  style={[txStyles.typeTab, isExpense && txStyles.typeTabExpenseActive]}
+                  style={[
+                    txStyles.typeTab,
+                    isExpense && {
+                      backgroundColor: TX_TYPE_THEME.expense.bg,
+                      borderColor: TX_TYPE_THEME.expense.border,
+                    },
+                  ]}
                   onPress={() => {
                     setType('expense');
                     setSelectedCategory(expenseCategories[0]);
@@ -218,17 +254,32 @@ export const TransactionModal = ({
                 >
                   <Ionicons
                     name="arrow-up-circle"
-                    size={15}
-                    color={isExpense ? COLORS.danger : COLORS.textMuted}
-                    style={{ marginRight: 4 }}
+                    size={16}
+                    color={isExpense ? TX_TYPE_THEME.expense.color : COLORS.textMuted}
+                    style={txStyles.typeTabIcon}
                   />
-                  <Text style={[txStyles.typeTabText, isExpense && txStyles.typeTabTextExpense]}>
+                  <Text
+                    style={[
+                      txStyles.typeTabText,
+                      isExpense && txStyles.typeTabTextActive,
+                      isExpense && { color: TX_TYPE_THEME.expense.color },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
                     Expense
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[txStyles.typeTab, type === 'income' && txStyles.typeTabIncomeActive]}
+                  style={[
+                    txStyles.typeTab,
+                    type === 'income' && {
+                      backgroundColor: TX_TYPE_THEME.income.bg,
+                      borderColor: TX_TYPE_THEME.income.border,
+                    },
+                  ]}
                   onPress={() => {
                     setType('income');
                     setSelectedCategory(incomeCategories[0]);
@@ -237,17 +288,32 @@ export const TransactionModal = ({
                 >
                   <Ionicons
                     name="arrow-down-circle"
-                    size={15}
-                    color={type === 'income' ? COLORS.success : COLORS.textMuted}
-                    style={{ marginRight: 4 }}
+                    size={16}
+                    color={type === 'income' ? TX_TYPE_THEME.income.color : COLORS.textMuted}
+                    style={txStyles.typeTabIcon}
                   />
-                  <Text style={[txStyles.typeTabText, type === 'income' && txStyles.typeTabTextIncome]}>
+                  <Text
+                    style={[
+                      txStyles.typeTabText,
+                      type === 'income' && txStyles.typeTabTextActive,
+                      type === 'income' && { color: TX_TYPE_THEME.income.color },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
                     Income
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[txStyles.typeTab, isTransfer && txStyles.typeTabTransferActive]}
+                  style={[
+                    txStyles.typeTab,
+                    isTransfer && {
+                      backgroundColor: TX_TYPE_THEME.transfer.bg,
+                      borderColor: TX_TYPE_THEME.transfer.border,
+                    },
+                  ]}
                   onPress={() => {
                     setType('transfer');
                     setSelectedCategory('Transfer');
@@ -256,11 +322,20 @@ export const TransactionModal = ({
                 >
                   <Ionicons
                     name="swap-horizontal"
-                    size={15}
-                    color={isTransfer ? COLORS.accentUSD : COLORS.textMuted}
-                    style={{ marginRight: 4 }}
+                    size={16}
+                    color={isTransfer ? TX_TYPE_THEME.transfer.color : COLORS.textMuted}
+                    style={txStyles.typeTabIcon}
                   />
-                  <Text style={[txStyles.typeTabText, isTransfer && txStyles.typeTabTextTransfer]}>
+                  <Text
+                    style={[
+                      txStyles.typeTabText,
+                      isTransfer && txStyles.typeTabTextActive,
+                      isTransfer && { color: TX_TYPE_THEME.transfer.color },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
                     Transfer
                   </Text>
                 </TouchableOpacity>
@@ -269,25 +344,44 @@ export const TransactionModal = ({
 
             {/* 2. Amount Input Hero Card */}
             <TouchableOpacity
-              style={txStyles.amountCard}
+              style={[
+                txStyles.amountCard,
+                {
+                  backgroundColor: hexToRgba(typeTheme.color, 0.08),
+                  borderColor: typeTheme.border,
+                },
+              ]}
               onPress={() => setCalcVisible(true)}
               activeOpacity={0.8}
             >
               <View style={txStyles.amountHeaderRow}>
-                <Text style={txStyles.amountLabel}>AMOUNT</Text>
-                <View style={txStyles.calcBadge}>
-                  <Ionicons name="calculator-outline" size={13} color={COLORS.finance} style={{ marginRight: 4 }} />
-                  <Text style={txStyles.calcBadgeText}>Keypad</Text>
+                <Text style={txStyles.amountLabel} numberOfLines={1}>AMOUNT</Text>
+                <View
+                  style={[
+                    txStyles.calcBadge,
+                    {
+                      backgroundColor: hexToRgba(typeTheme.color, 0.14),
+                      borderColor: typeTheme.border,
+                    },
+                  ]}
+                >
+                  <Ionicons name="calculator-outline" size={13} color={typeTheme.color} style={txStyles.calcBadgeIcon} />
+                  <Text style={[txStyles.calcBadgeText, { color: typeTheme.color }]} numberOfLines={1}>
+                    Keypad
+                  </Text>
                 </View>
               </View>
 
               <View style={txStyles.amountValueRow}>
-                <Text style={[txStyles.currencyBadge, isExpense ? txStyles.textExpense : isTransfer ? txStyles.textTransfer : txStyles.textIncome]}>
+                <Text style={[txStyles.currencyBadge, { color: typeTheme.color }]} numberOfLines={1}>
                   {currencySymbol}
                 </Text>
                 <Text
-                  style={[txStyles.amountText, isExpense ? txStyles.textExpense : isTransfer ? txStyles.textTransfer : txStyles.textIncome]}
+                  style={[txStyles.amountText, { color: typeTheme.color }]}
                   numberOfLines={1}
+                  ellipsizeMode="tail"
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
                 >
                   {formattedDisplayAmount}
                 </Text>
@@ -296,7 +390,7 @@ export const TransactionModal = ({
 
             {/* 3. Account Selection */}
             <View style={txStyles.sectionCard}>
-              <Text style={txStyles.sectionLabel}>
+              <Text style={txStyles.sectionLabel} numberOfLines={1} ellipsizeMode="tail">
                 {type === 'income' ? 'DEPOSIT TO' : isTransfer ? 'FROM ACCOUNT' : 'PAID FROM'}
               </Text>
 
@@ -304,19 +398,37 @@ export const TransactionModal = ({
                 horizontal
                 nestedScrollEnabled={true}
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingRight: 16 }}
+                contentContainerStyle={txStyles.hScrollContent}
                 keyboardShouldPersistTaps="handled"
               >
                 {accounts.map((acc) => {
                   const isSelected = selectedAccId === acc.id;
+                  const accTheme = ACCOUNT_TYPE_THEME[acc.type];
                   return (
                     <TouchableOpacity
                       key={acc.id}
-                      style={[txStyles.accountChip, isSelected && txStyles.accountChipActive]}
+                      style={[
+                        txStyles.accountChip,
+                        { backgroundColor: accTheme.bg, borderColor: accTheme.border },
+                        isSelected && {
+                          backgroundColor: accTheme.color,
+                          borderColor: accTheme.color,
+                        },
+                      ]}
                       onPress={() => handleSelectAccount(acc)}
                       activeOpacity={0.7}
                     >
-                      <Text style={[txStyles.accountChipText, isSelected && txStyles.accountChipTextActive]}>
+                      <FontAwesome5
+                        name={getAccountIcon(acc.type)}
+                        size={14}
+                        color={isSelected ? '#08090C' : accTheme.color}
+                        style={txStyles.chipIcon}
+                      />
+                      <Text
+                        style={[txStyles.accountChipText, isSelected && txStyles.accountChipTextActive]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
                         {acc.name} ({acc.currency})
                       </Text>
                     </TouchableOpacity>
@@ -326,13 +438,13 @@ export const TransactionModal = ({
 
               {/* Sub Account selection */}
               {selectedAccount && selectedAccount.subAccounts.length > 0 && (
-                <View style={{ marginTop: 10 }}>
-                  <Text style={txStyles.subLabel}>POCKET</Text>
+                <View style={txStyles.subBlock}>
+                  <Text style={txStyles.subLabel} numberOfLines={1}>POCKET</Text>
                   <ScrollView
                     horizontal
                     nestedScrollEnabled={true}
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 6, paddingRight: 16 }}
+                    contentContainerStyle={txStyles.hScrollContent}
                     keyboardShouldPersistTaps="handled"
                   >
                     {selectedAccount.subAccounts.map((sub) => {
@@ -344,7 +456,11 @@ export const TransactionModal = ({
                           onPress={() => handleSelectSubAccount(sub.id)}
                           activeOpacity={0.7}
                         >
-                          <Text style={[txStyles.subChipText, isSubSelected && txStyles.subChipTextActive]}>
+                          <Text
+                            style={[txStyles.subChipText, isSubSelected && txStyles.subChipTextActive]}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
                             {sub.name}
                           </Text>
                         </TouchableOpacity>
@@ -359,7 +475,7 @@ export const TransactionModal = ({
             {isTransfer && (
               <View style={txStyles.sectionCard}>
                 <View style={txStyles.transferHeaderRow}>
-                  <Text style={txStyles.sectionLabel}>TO ACCOUNT</Text>
+                  <Text style={txStyles.sectionLabelInline} numberOfLines={1} ellipsizeMode="tail">TO ACCOUNT</Text>
                   {selectedAccount && selectedAccount.subAccounts.length > 1 && (
                     <TouchableOpacity
                       onPress={() => handleSelectToAccount(selectedAccount)}
@@ -371,15 +487,17 @@ export const TransactionModal = ({
                     >
                       <Ionicons
                         name="repeat"
-                        size={11}
+                        size={12}
                         color={selectedToAccId === selectedAccId ? '#08090C' : COLORS.finance}
-                        style={{ marginRight: 3 }}
+                        style={txStyles.chipIcon}
                       />
                       <Text
                         style={[
                           txStyles.sameAccPillText,
                           selectedToAccId === selectedAccId && txStyles.sameAccPillTextActive,
                         ]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
                       >
                         Sub-Account Transfer
                       </Text>
@@ -392,24 +510,39 @@ export const TransactionModal = ({
                   horizontal
                   nestedScrollEnabled={true}
                   showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingRight: 16 }}
+                  contentContainerStyle={txStyles.hScrollContent}
                   keyboardShouldPersistTaps="handled"
                 >
                   {accounts.map((acc) => {
                     const isSelected = selectedToAccId === acc.id;
                     const isSameAccount = acc.id === selectedAccId;
+                    const accTheme = ACCOUNT_TYPE_THEME[acc.type];
                     return (
                       <TouchableOpacity
                         key={`to_${acc.id}`}
                         style={[
                           txStyles.accountChip,
-                          isSelected && txStyles.accountChipActive,
+                          { backgroundColor: accTheme.bg, borderColor: accTheme.border },
                           isSameAccount && !isSelected && txStyles.accountChipSame,
+                          isSelected && {
+                            backgroundColor: accTheme.color,
+                            borderColor: accTheme.color,
+                          },
                         ]}
                         onPress={() => handleSelectToAccount(acc)}
                         activeOpacity={0.7}
                       >
-                        <Text style={[txStyles.accountChipText, isSelected && txStyles.accountChipTextActive]}>
+                        <FontAwesome5
+                          name={getAccountIcon(acc.type)}
+                          size={14}
+                          color={isSelected ? '#08090C' : accTheme.color}
+                          style={txStyles.chipIcon}
+                        />
+                        <Text
+                          style={[txStyles.accountChipText, isSelected && txStyles.accountChipTextActive]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
                           {acc.name} ({acc.currency})
                           {isSameAccount ? ' • Same Account' : ''}
                         </Text>
@@ -420,13 +553,13 @@ export const TransactionModal = ({
 
                 {/* Sub Account Selection for Destination */}
                 {selectedToAccount && selectedToAccount.subAccounts.length > 0 && (
-                  <View style={{ marginTop: 12 }}>
-                    <Text style={txStyles.subLabel}>DESTINATION</Text>
+                  <View style={txStyles.subBlock}>
+                    <Text style={txStyles.subLabel} numberOfLines={1}>DESTINATION</Text>
                     <ScrollView
                       horizontal
                       nestedScrollEnabled={true}
                       showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{ gap: 6, paddingRight: 16 }}
+                      contentContainerStyle={txStyles.hScrollContent}
                       keyboardShouldPersistTaps="handled"
                     >
                       {selectedToAccount.subAccounts.map((sub) => {
@@ -455,6 +588,8 @@ export const TransactionModal = ({
                                 isSubSelected && txStyles.subChipTextActive,
                                 isSameAsSourceSub && txStyles.subChipTextDisabled,
                               ]}
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
                             >
                               {sub.name} {isSameAsSourceSub ? '(Source)' : ''}
                             </Text>
@@ -468,8 +603,8 @@ export const TransactionModal = ({
                 {/* Transfer route preview */}
                 {selectedAccount && selectedToAccount && (
                   <View style={txStyles.transferRoutePreview}>
-                    <Ionicons name="swap-horizontal" size={14} color={COLORS.accentUSD} style={{ marginRight: 6 }} />
-                    <Text style={txStyles.transferRouteText} numberOfLines={1}>
+                    <Ionicons name="swap-horizontal" size={15} color={COLORS.accentUSD} style={txStyles.chipIcon} />
+                    <Text style={txStyles.transferRouteText} numberOfLines={1} ellipsizeMode="tail">
                       {selectedAccount.name} ({selectedAccount.subAccounts.find((s) => s.id === selectedSubAccId)?.name || 'Main'})
                       {'  ➔  '}
                       {selectedToAccount.name} ({selectedToAccount.subAccounts.find((s) => s.id === selectedToSubAccId)?.name || 'Main'})
@@ -483,20 +618,29 @@ export const TransactionModal = ({
             {!isTransfer && (
               <View style={txStyles.sectionCard}>
                 <View style={txStyles.catHeaderRow}>
-                  <Text style={txStyles.sectionLabel}>CATEGORY</Text>
-                  <TouchableOpacity onPress={onOpenAddCategory} activeOpacity={0.7}>
-                    <Text style={txStyles.addCatText}>+ Add Category</Text>
+                  <Text style={txStyles.sectionLabelInline} numberOfLines={1} ellipsizeMode="tail">CATEGORY</Text>
+                  <TouchableOpacity onPress={onOpenAddCategory} activeOpacity={0.7} style={txStyles.addCatBtn}>
+                    <Ionicons name="add" size={14} color={COLORS.finance} style={txStyles.chipIcon} />
+                    <Text style={txStyles.addCatText} numberOfLines={1}>Add Category</Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={txStyles.categoriesWrap}>
                   {activeCategories.map((cat) => {
                     const isSelected = selectedCategory === cat;
-                    const catTheme = getCategoryTheme(cat, type === 'income' ? 'income' : 'expense', customCategoryIcons);
+                    const catTheme = getCategoryTheme(cat, customCategoryIcons);
+                    const catIcon = getCategoryIconTheme(cat, type === 'income' ? 'income' : 'expense', customCategoryIcons);
                     return (
                       <TouchableOpacity
                         key={cat}
-                        style={[txStyles.catSquare, isSelected && txStyles.catSquareActive]}
+                        style={[
+                          txStyles.catSquare,
+                          { backgroundColor: catTheme.bg, borderColor: catTheme.border },
+                          isSelected && {
+                            backgroundColor: hexToRgba(catTheme.color, 0.28),
+                            borderColor: catTheme.color,
+                          },
+                        ]}
                         onPress={() => setSelectedCategory(cat)}
                         onLongPress={() => onDeleteCategory?.(cat)}
                         delayLongPress={400}
@@ -505,18 +649,21 @@ export const TransactionModal = ({
                         <View
                           style={[
                             txStyles.catIconCircle,
-                            { backgroundColor: isSelected ? '#08090C' : catTheme.bg || 'rgba(255,255,255,0.06)' },
+                            { backgroundColor: isSelected ? catTheme.color : hexToRgba(catTheme.color, 0.22) },
                           ]}
                         >
                           <Ionicons
-                            name={catTheme.icon}
+                            name={catIcon.icon}
                             size={18}
-                            color={isSelected ? COLORS.finance : catTheme.color}
+                            color={isSelected ? '#08090C' : catTheme.color}
                           />
                         </View>
                         <Text
                           style={[txStyles.catSquareText, isSelected && txStyles.catSquareTextActive]}
                           numberOfLines={1}
+                          ellipsizeMode="tail"
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.7}
                         >
                           {cat}
                         </Text>
@@ -529,7 +676,7 @@ export const TransactionModal = ({
 
             {/* 6. Description & Date with Frequent Suggestions */}
             <View style={txStyles.sectionCard}>
-              <Text style={txStyles.sectionLabel}>DESCRIPTION & NOTE</Text>
+              <Text style={txStyles.sectionLabel} numberOfLines={1} ellipsizeMode="tail">DESCRIPTION &amp; NOTE</Text>
               <TextInput
                 style={txStyles.input}
                 placeholder="e.g. Lunch, Grocery, Transfer to Savings..."
@@ -539,11 +686,17 @@ export const TransactionModal = ({
               />
 
               {!isTransfer && descriptionSuggestions.length > 0 && (
-                <View>
-                  <Text style={txStyles.suggestLabel}>
+                <View style={txStyles.suggestBlock}>
+                  <Text style={txStyles.suggestLabel} numberOfLines={1} ellipsizeMode="tail">
                     SUGGESTIONS • {selectedCategory.toUpperCase()}
                   </Text>
-                  <View style={txStyles.suggestWrap}>
+                  <ScrollView
+                    horizontal
+                    nestedScrollEnabled={true}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={txStyles.hScrollContent}
+                    keyboardShouldPersistTaps="handled"
+                  >
                     {descriptionSuggestions.map((text) => (
                       <TouchableOpacity
                         key={text}
@@ -551,22 +704,28 @@ export const TransactionModal = ({
                         onPress={() => setDescription(text)}
                         activeOpacity={0.7}
                       >
-                        <Ionicons name="time-outline" size={12} color={COLORS.finance} style={{ marginRight: 5 }} />
-                        <Text style={txStyles.suggestChipText} numberOfLines={1}>
+                        <Ionicons name="time-outline" size={12} color={COLORS.finance} style={txStyles.chipIcon} />
+                        <Text style={txStyles.suggestChipText} numberOfLines={1} ellipsizeMode="tail">
                           {text}
                         </Text>
                       </TouchableOpacity>
                     ))}
-                  </View>
+                  </ScrollView>
                 </View>
               )}
 
-              <View style={{ marginTop: 12 }}>
-                <Text style={txStyles.sectionLabel}>TRANSACTION DATE</Text>
+              <View style={txStyles.dateBlock}>
+                <Text style={txStyles.sectionLabel} numberOfLines={1} ellipsizeMode="tail">TRANSACTION DATE</Text>
                 <TouchableOpacity style={txStyles.datePickerBtn} onPress={onOpenDatePicker} activeOpacity={0.7}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
-                    <Ionicons name="calendar-outline" size={16} color={COLORS.finance} style={{ marginRight: 8 }} />
-                    <Text style={txStyles.datePickerText} numberOfLines={1}>
+                  <View style={txStyles.datePickerLeft}>
+                    <Ionicons name="calendar-outline" size={17} color={COLORS.finance} style={txStyles.chipIcon} />
+                    <Text
+                      style={txStyles.datePickerText}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.75}
+                    >
                       {(() => {
                         const today = new Date();
                         const isToday =
@@ -594,14 +753,19 @@ export const TransactionModal = ({
                       })()}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
+                  <Ionicons name="chevron-forward" size={15} color={COLORS.textMuted} />
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* Save Button */}
-            <TouchableOpacity style={txStyles.saveBtn} onPress={onSave} activeOpacity={0.85}>
-              <Text style={txStyles.saveBtnText}>
+            <TouchableOpacity
+              style={[txStyles.saveBtn, { backgroundColor: typeTheme.color }]}
+              onPress={onSave}
+              activeOpacity={0.85}
+            >
+              <Ionicons name={typeIcon as any} size={16} color="#08090C" style={txStyles.chipIcon} />
+              <Text style={txStyles.saveBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
                 {isEditing ? 'UPDATE TRANSACTION' : 'SAVE TRANSACTION'}
               </Text>
             </TouchableOpacity>
@@ -638,182 +802,226 @@ const txStyles = StyleSheet.create({
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 14,
-    maxHeight: '85%',
+    paddingBottom: Platform.OS === 'ios' ? 34 : 26,
+    maxHeight: '90%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
   handle: {
-    width: 36,
+    width: 44,
     height: 4,
-    backgroundColor: COLORS.borderLight,
-    borderRadius: 2,
+    backgroundColor: COLORS.borderHighlight,
+    borderRadius: RADIUS.full,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 18,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
-    paddingBottom: 12,
+    gap: 12,
+    marginBottom: 18,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
+  headerTextWrap: {
+    flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
+  },
   headerTitle: {
     color: COLORS.textPrimary,
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 19,
+    fontWeight: '900',
+    letterSpacing: -0.4,
+  },
+  headerSubtitle: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 3,
+  },
+  closeBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.bgCardSub,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    flexShrink: 0,
+  },
+  scrollContent: {
+    gap: 12,
   },
   typeSwitcher: {
     flexDirection: 'row',
     backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
     padding: 4,
-    marginBottom: 12,
+    gap: 4,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   typeTab: {
     flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: RADIUS.sm,
-  },
-  typeTabExpenseActive: {
-    backgroundColor: 'rgba(244, 63, 94, 0.15)',
-  },
-  typeTabIncomeActive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-  },
-  typeTabTransferActive: {
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    minHeight: 44,
+    paddingHorizontal: 6,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   typeTabText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.textMuted,
+    flexShrink: 1,
   },
-  typeTabTextExpense: {
-    color: COLORS.danger,
-    fontWeight: '800',
+  typeTabTextActive: {
+    fontWeight: '900',
   },
-  typeTabTextIncome: {
-    color: COLORS.success,
-    fontWeight: '800',
-  },
-  typeTabTextTransfer: {
-    color: COLORS.accentUSD,
-    fontWeight: '800',
+  typeTabIcon: {
+    marginRight: 5,
   },
   amountCard: {
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
-    padding: 14,
+    padding: 18,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 12,
   },
   amountHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    gap: 10,
+    marginBottom: 10,
   },
   amountLabel: {
     color: COLORS.textMuted,
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.8,
+    letterSpacing: 1,
+    flexShrink: 1,
   },
   calcBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    flexShrink: 0,
+  },
+  calcBadgeIcon: {
+    marginRight: 5,
   },
   calcBadgeText: {
     color: COLORS.finance,
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 10.5,
+    fontWeight: '800',
   },
   amountValueRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
+    gap: 8,
   },
   currencyBadge: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginRight: 6,
+    fontSize: 22,
+    fontWeight: '900',
+    flexShrink: 0,
   },
   amountText: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '900',
-  },
-  textExpense: {
-    color: COLORS.danger,
-  },
-  textIncome: {
-    color: COLORS.success,
-  },
-  textTransfer: {
-    color: COLORS.accentUSD,
+    letterSpacing: -0.8,
+    flexShrink: 1,
+    minWidth: 0,
+    fontVariant: ['tabular-nums'],
   },
   sectionCard: {
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 12,
+    gap: 12,
   },
   sectionLabel: {
     color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  sectionLabelInline: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  subLabel: {
+    color: COLORS.textMuted,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.8,
     marginBottom: 8,
   },
-  subLabel: {
-    color: COLORS.textMuted,
-    fontSize: 9,
-    fontWeight: '700',
-    marginBottom: 6,
+  subBlock: {
+    marginTop: 2,
+  },
+  hScrollContent: {
+    gap: 8,
+    paddingRight: 4,
+    paddingVertical: 1,
+  },
+  chipIcon: {
+    marginRight: 6,
   },
   accountChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.bgCard,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: RADIUS.sm,
+    paddingHorizontal: 14,
+    minHeight: 44,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginRight: 8,
+    maxWidth: 240,
   },
-  accountChipActive: {
-    backgroundColor: COLORS.finance,
-    borderColor: COLORS.finance,
+  accountChipSame: {
+    borderStyle: 'dashed',
   },
   accountChipText: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
+    color: COLORS.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+    flexShrink: 1,
+    minWidth: 0,
   },
   accountChipTextActive: {
     color: '#08090C',
-    fontWeight: '800',
-  },
-  subAccountRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
+    fontWeight: '900',
   },
   subChip: {
     backgroundColor: COLORS.bgCard,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: RADIUS.xs,
+    paddingHorizontal: 14,
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
+    maxWidth: 220,
   },
   subChipActive: {
     backgroundColor: COLORS.finance,
@@ -821,50 +1029,76 @@ const txStyles = StyleSheet.create({
   },
   subChipText: {
     color: COLORS.textSecondary,
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 12.5,
+    fontWeight: '700',
+    flexShrink: 1,
   },
   subChipTextActive: {
     color: '#08090C',
-    fontWeight: '800',
+    fontWeight: '900',
   },
   input: {
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.md,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 52,
     color: COLORS.textPrimary,
-    fontSize: 13,
+    fontSize: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
     fontWeight: '600',
+  },
+  dateBlock: {
+    marginTop: 2,
   },
   datePickerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 10,
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.md,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    minHeight: 54,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
+  datePickerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
+  },
   datePickerText: {
     color: COLORS.textPrimary,
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
+    flexShrink: 1,
+    minWidth: 0,
   },
   catHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    gap: 10,
+  },
+  addCatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    minHeight: 44,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.financeLight,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+    flexShrink: 0,
   },
   addCatText: {
     color: COLORS.finance,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   categoriesWrap: {
     flexDirection: 'row',
@@ -872,24 +1106,21 @@ const txStyles = StyleSheet.create({
     gap: 8,
   },
   catSquare: {
-    width: '31.5%',
-    aspectRatio: 1,
+    width: '31.3%',
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 8,
-  },
-  catSquareActive: {
-    backgroundColor: COLORS.finance,
-    borderColor: COLORS.finance,
+    paddingHorizontal: 6,
+    paddingVertical: 12,
+    minHeight: 76,
   },
   catIconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: RADIUS.full,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
@@ -897,103 +1128,76 @@ const txStyles = StyleSheet.create({
   catSquareText: {
     color: COLORS.textSecondary,
     fontSize: 11.5,
-    fontWeight: '700',
+    fontWeight: '800',
     textAlign: 'center',
+    alignSelf: 'stretch',
+    letterSpacing: -0.2,
   },
   catSquareTextActive: {
-    color: '#08090C',
-    fontWeight: '800',
+    color: COLORS.textPrimary,
+    fontWeight: '900',
   },
-  catChip: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.bgCard,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    minHeight: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  catChipActive: {
-    backgroundColor: COLORS.finance,
-    borderColor: COLORS.finance,
-  },
-  catChipText: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  catChipTextActive: {
-    color: '#08090C',
-    fontWeight: '800',
+  suggestBlock: {
+    marginTop: 2,
   },
   suggestLabel: {
     color: COLORS.textMuted,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: 0.8,
-    marginTop: 10,
-    marginBottom: 6,
-  },
-  suggestWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
+    marginBottom: 8,
   },
   suggestChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    minHeight: 44,
     borderRadius: RADIUS.full,
     borderWidth: 1,
     borderColor: COLORS.border,
-    backgroundColor: COLORS.bgCardSub,
-    maxWidth: '100%',
+    backgroundColor: COLORS.bgCard,
+    maxWidth: 240,
   },
   suggestChipText: {
     color: COLORS.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-    flexShrink: 1,
-  },
-  suggestCatBadgeText: {
-    color: COLORS.finance,
-    fontSize: 10.5,
+    fontSize: 12.5,
     fontWeight: '700',
-    marginLeft: 4,
+    flexShrink: 1,
+    minWidth: 0,
   },
   saveBtn: {
+    flexDirection: 'row',
     backgroundColor: COLORS.finance,
     borderRadius: RADIUS.md,
-    paddingVertical: 14,
+    minHeight: 54,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
     marginTop: 4,
     marginBottom: 4,
   },
   saveBtnText: {
     color: '#08090C',
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 13.5,
+    fontWeight: '900',
     letterSpacing: 0.4,
   },
   transferHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: 10,
   },
   sameAccPill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.bgCard,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: RADIUS.xs,
+    paddingHorizontal: 12,
+    minHeight: 44,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
     borderColor: 'rgba(56, 189, 248, 0.3)',
+    flexShrink: 0,
   },
   sameAccPillActive: {
     backgroundColor: COLORS.finance,
@@ -1001,15 +1205,12 @@ const txStyles = StyleSheet.create({
   },
   sameAccPillText: {
     color: COLORS.finance,
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
   },
   sameAccPillTextActive: {
     color: '#08090C',
-    fontWeight: '800',
-  },
-  accountChipSame: {
-    borderColor: 'rgba(56, 189, 248, 0.35)',
+    fontWeight: '900',
   },
   subChipDisabled: {
     opacity: 0.35,
@@ -1021,18 +1222,20 @@ const txStyles = StyleSheet.create({
   transferRoutePreview: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    marginTop: 12,
+    backgroundColor: hexToRgba('#818CF8', 0.12),
+    borderRadius: RADIUS.md,
+    paddingHorizontal: 14,
+    minHeight: 48,
+    marginTop: 2,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: hexToRgba('#818CF8', 0.34),
   },
   transferRouteText: {
     color: COLORS.textPrimary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
   },
 });

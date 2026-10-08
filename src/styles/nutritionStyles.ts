@@ -5,15 +5,15 @@ export const nutritionStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.bgCanvas,
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
     paddingTop: 0,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 16,
+    marginTop: 20,
+    marginBottom: 24,
   },
   title: {
     fontSize: 26,

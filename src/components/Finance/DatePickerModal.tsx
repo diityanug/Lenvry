@@ -6,9 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   TouchableWithoutFeedback,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS } from '../../constants/theme';
+
+const ACCENT = '#38BDF8';
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = [
@@ -117,15 +120,21 @@ const DatePickerModalContent = ({
       <View style={styles.overlay}>
         <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.container}>
+            <View style={styles.sheetHandle} />
+
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.headerTitleWrap}>
                 <View style={styles.iconBox}>
-                  <Ionicons name="calendar" size={17} color={COLORS.finance} />
+                  <Ionicons name="calendar" size={18} color={ACCENT} />
                 </View>
-                <View>
-                  <Text style={styles.headerTitle}>Select Date</Text>
-                  <Text style={styles.headerSubtitle}>Choose transaction date</Text>
+                <View style={styles.headerTextWrap}>
+                  <Text style={styles.headerTitle} numberOfLines={1}>
+                    Select Date
+                  </Text>
+                  <Text style={styles.headerSubtitle} numberOfLines={1}>
+                    Choose transaction date
+                  </Text>
                 </View>
               </View>
 
@@ -139,100 +148,139 @@ const DatePickerModalContent = ({
               </TouchableOpacity>
             </View>
 
-            {/* Quick Preset Buttons */}
-            <View style={styles.presetsRow}>
-              <TouchableOpacity
-                style={styles.presetBtn}
-                onPress={handleQuickSelectToday}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="today-outline" size={13} color={COLORS.finance} style={{ marginRight: 4 }} />
-                <Text style={styles.presetBtnText}>Today</Text>
-              </TouchableOpacity>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
+            >
+              {/* Quick Preset Buttons */}
+              <View style={styles.presetsRow}>
+                <TouchableOpacity
+                  style={styles.presetBtnToday}
+                  onPress={handleQuickSelectToday}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="today-outline" size={14} color={ACCENT} style={styles.presetIcon} />
+                  <Text style={styles.presetBtnTextToday} numberOfLines={1}>
+                    Today
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.presetBtn}
-                onPress={handleQuickSelectYesterday}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="time-outline" size={13} color={COLORS.textSecondary} style={{ marginRight: 4 }} />
-                <Text style={[styles.presetBtnText, { color: COLORS.textSecondary }]}>Yesterday</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Month & Year Navigator */}
-            <View style={styles.navRow}>
-              <TouchableOpacity
-                style={styles.navBtn}
-                onPress={handlePrevMonth}
-                activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="chevron-back" size={18} color={COLORS.textPrimary} />
-              </TouchableOpacity>
-
-              <View style={styles.monthYearCenter}>
-                <Text style={styles.monthYearText}>
-                  {MONTH_NAMES[currentMonth]} {currentYear}
-                </Text>
+                <TouchableOpacity
+                  style={styles.presetBtn}
+                  onPress={handleQuickSelectYesterday}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="time-outline" size={14} color={COLORS.textSecondary} style={styles.presetIcon} />
+                  <Text style={styles.presetBtnText} numberOfLines={1}>
+                    Yesterday
+                  </Text>
+                </TouchableOpacity>
               </View>
 
-              <TouchableOpacity
-                style={styles.navBtn}
-                onPress={handleNextMonth}
-                activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="chevron-forward" size={18} color={COLORS.textPrimary} />
-              </TouchableOpacity>
-            </View>
+              {/* Month & Year Navigator */}
+              <View style={styles.navRow}>
+                <TouchableOpacity
+                  style={styles.navBtn}
+                  onPress={handlePrevMonth}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="chevron-back" size={18} color={COLORS.textPrimary} />
+                </TouchableOpacity>
 
-            {/* Day of Week Headers */}
-            <View style={styles.weekDaysRow}>
-              {DAYS_OF_WEEK.map((d, index) => (
-                <View key={index} style={styles.cellWrapper}>
-                  <Text style={[styles.weekDayText, index === 0 && { color: COLORS.danger }]}>
-                    {d}
+                <View style={styles.monthYearCenter}>
+                  <Text style={styles.monthYearText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                    {MONTH_NAMES[currentMonth]} {currentYear}
                   </Text>
                 </View>
-              ))}
-            </View>
 
-            {/* Days Grid */}
-            <View style={styles.daysGrid}>
-              {daysArray.map((day, idx) => {
-                if (day === null) {
-                  return <View key={`empty-${idx}`} style={styles.cellWrapper} />;
-                }
+                <TouchableOpacity
+                  style={styles.navBtn}
+                  onPress={handleNextMonth}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.textPrimary} />
+                </TouchableOpacity>
+              </View>
 
-                const selected = isDaySelected(day);
-                const todayMatch = isToday(day);
-
-                return (
-                  <View key={`day-${day}`} style={styles.cellWrapper}>
-                    <TouchableOpacity
-                      style={[
-                        styles.dayBox,
-                        selected && styles.dayBoxSelected,
-                        todayMatch && !selected && styles.dayBoxToday,
-                      ]}
-                      onPress={() => handleSelectDay(day)}
-                      activeOpacity={0.7}
+              {/* Day of Week Headers — even 7-column rail */}
+              <View style={styles.weekDaysRow}>
+                {DAYS_OF_WEEK.map((d, index) => (
+                  <View key={`wd-${index}`} style={styles.weekDayCell}>
+                    <Text
+                      style={[styles.weekDayText, index === 0 && styles.weekDayTextSunday]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
                     >
-                      <Text
-                        style={[
-                          styles.dayText,
-                          selected && styles.dayTextSelected,
-                          todayMatch && !selected && styles.dayTextToday,
-                        ]}
-                      >
-                        {day}
-                      </Text>
-                    </TouchableOpacity>
+                      {d}
+                    </Text>
                   </View>
-                );
-              })}
-            </View>
+                ))}
+              </View>
+
+              {/* Days Grid — six fixed 7-column rows so cells never cramp or collide */}
+              <View style={styles.daysGrid}>
+                {[0, 1, 2, 3, 4, 5].map((rowIdx) => (
+                  <View key={`day-row-${rowIdx}`} style={styles.dayRow}>
+                    {daysArray.slice(rowIdx * 7, rowIdx * 7 + 7).map((day, colIdx) => {
+                      const idx = rowIdx * 7 + colIdx;
+
+                      if (day === null) {
+                        return <View key={`empty-${idx}`} style={styles.cellWrapper} />;
+                      }
+
+                      const selected = isDaySelected(day);
+                      const todayMatch = isToday(day);
+
+                      return (
+                        <View key={`day-${day}`} style={styles.cellWrapper}>
+                          <TouchableOpacity
+                            style={[
+                              styles.dayBox,
+                              todayMatch && !selected && styles.dayBoxToday,
+                              selected && styles.dayBoxSelected,
+                            ]}
+                            onPress={() => handleSelectDay(day)}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              style={[
+                                styles.dayText,
+                                todayMatch && !selected && styles.dayTextToday,
+                                selected && styles.dayTextSelected,
+                              ]}
+                              numberOfLines={1}
+                              adjustsFontSizeToFit
+                              minimumFontScale={0.8}
+                            >
+                              {day}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ))}
+              </View>
+
+              {/* Legend */}
+              <View style={styles.legendRow}>
+                <View style={styles.legendItem}>
+                  <View style={styles.legendSelectedDot} />
+                  <Text style={styles.legendText} numberOfLines={1}>
+                    Selected
+                  </Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={styles.legendTodayRing} />
+                  <Text style={styles.legendText} numberOfLines={1}>
+                    Today
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
           </View>
         </TouchableWithoutFeedback>
       </View>
@@ -252,54 +300,73 @@ export const DatePickerModal = ({ visible, ...props }: DatePickerModalProps) => 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
+    paddingVertical: 24,
   },
   container: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 380,
+    maxHeight: '90%',
     alignSelf: 'center',
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.xl,
-    padding: 20,
+    borderRadius: RADIUS.xxl,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 18,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderLight,
     elevation: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.45,
     shadowRadius: 16,
   },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.borderLight,
+    alignSelf: 'center',
+    marginBottom: 14,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 14,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    marginBottom: 14,
-    height: 48,
+    marginBottom: 18,
+    gap: 12,
   },
   headerTitleWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    flex: 1,
+    minWidth: 0,
+    gap: 12,
+  },
+  headerTextWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   iconBox: {
-    width: 34,
-    height: 34,
+    width: 42,
+    height: 42,
     borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.financeLight,
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(56, 189, 248, 0.25)',
+    flexShrink: 0,
   },
   headerTitle: {
     color: COLORS.textPrimary,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
     letterSpacing: -0.2,
   },
@@ -307,69 +374,104 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 11,
     fontWeight: '500',
-    marginTop: 1,
+    marginTop: 3,
   },
   closeBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.full,
     backgroundColor: COLORS.bgCardSub,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
+    flexShrink: 0,
+  },
+  scrollContent: {
+    paddingBottom: 24,
   },
   presetsRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 14,
-    height: 32,
+    gap: 10,
+    marginBottom: 18,
   },
   presetBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    minWidth: 0,
     backgroundColor: COLORS.bgCardSub,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: RADIUS.sm,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
+    minHeight: 44,
+    paddingHorizontal: 12,
+  },
+  presetBtnToday: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: 'rgba(56, 189, 248, 0.14)',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+    minHeight: 44,
+    paddingHorizontal: 12,
+  },
+  presetIcon: {
+    marginRight: 5,
+    flexShrink: 0,
   },
   presetBtnText: {
-    color: COLORS.finance,
-    fontSize: 11,
+    color: COLORS.textSecondary,
+    fontSize: 12,
     fontWeight: '700',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  presetBtnTextToday: {
+    color: ACCENT,
+    fontSize: 12,
+    fontWeight: '800',
+    flexShrink: 1,
+    minWidth: 0,
   },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.md,
-    padding: 6,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: 6,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 14,
-    height: 44,
+    marginBottom: 20,
+    minHeight: 52,
+    gap: 8,
   },
   navBtn: {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.bgCard,
+    backgroundColor: COLORS.bgCardHover,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
+    flexShrink: 0,
   },
   monthYearCenter: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
   monthYearText: {
     color: COLORS.textPrimary,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.2,
     textAlign: 'center',
@@ -377,54 +479,101 @@ const styles = StyleSheet.create({
   weekDaysRow: {
     flexDirection: 'row',
     width: '100%',
-    marginBottom: 6,
-    height: 20,
-    alignItems: 'center',
+    marginBottom: 8,
   },
-  cellWrapper: {
-    width: '14.285%',
-    height: 40,
+  weekDayCell: {
+    flex: 1,
+    minWidth: 0,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   weekDayText: {
     color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.3,
     textAlign: 'center',
   },
+  weekDayTextSunday: {
+    color: '#FB7185',
+  },
   daysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
     width: '100%',
-    height: 240,
+    marginBottom: 8,
+    gap: 4,
+  },
+  dayRow: {
+    flexDirection: 'row',
+  },
+  cellWrapper: {
+    flex: 1,
+    minWidth: 0,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dayBox: {
-    width: 34,
-    height: 34,
-    borderRadius: RADIUS.sm,
+    width: 40,
+    height: 40,
+    minWidth: 40,
+    minHeight: 40,
+    borderRadius: RADIUS.full,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  dayBoxSelected: {
-    backgroundColor: COLORS.finance,
-  },
   dayBoxToday: {
     borderWidth: 1.5,
-    borderColor: COLORS.finance,
+    borderColor: ACCENT,
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+  },
+  dayBoxSelected: {
+    backgroundColor: ACCENT,
+    borderWidth: 1,
+    borderColor: ACCENT,
   },
   dayText: {
     color: COLORS.textPrimary,
     fontSize: 13,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  dayTextToday: {
+    color: ACCENT,
+    fontWeight: '800',
   },
   dayTextSelected: {
     color: '#08090C',
     fontWeight: '900',
   },
-  dayTextToday: {
-    color: COLORS.finance,
-    fontWeight: '800',
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 18,
+    marginTop: 4,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendSelectedDot: {
+    width: 12,
+    height: 12,
+    borderRadius: RADIUS.full,
+    backgroundColor: ACCENT,
+  },
+  legendTodayRing: {
+    width: 12,
+    height: 12,
+    borderRadius: RADIUS.full,
+    borderWidth: 1.5,
+    borderColor: ACCENT,
+  },
+  legendText: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

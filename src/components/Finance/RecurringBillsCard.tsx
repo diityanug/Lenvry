@@ -12,7 +12,13 @@ import {
   Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { RecurringBill, Transaction, formatMoney } from '../../types/finance';
+import {
+  RecurringBill,
+  Transaction,
+  formatMoney,
+  getCategoryTheme,
+  hexToRgba,
+} from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
 import AppAlertModal, { AppAlertConfig } from '../Common/AppAlertModal';
 
@@ -25,6 +31,11 @@ interface RecurringBillsCardProps {
   onDeleteBill: (id: string) => void;
   onQuickLogBill: (bill: RecurringBill) => void;
 }
+
+const ACCENT = '#38BDF8';
+const INCOME = '#10B981';
+const EXPENSE = '#F43F5E';
+const INK = '#08090C';
 
 const BILL_CATEGORIES = [
   'Bills & Utilities',
@@ -45,7 +56,7 @@ const BILL_CATEGORY_THEMES: Record<string, { icon: any; color: string }> = {
   'Insurance': { icon: 'shield-checkmark-outline', color: '#10B981' },
   'Fitness & Gym': { icon: 'barbell-outline', color: '#EC4899' },
   'Cloud & Storage': { icon: 'cloud-outline', color: '#6366F1' },
-  'Other': { icon: 'receipt-outline', color: COLORS.finance },
+  'Other': { icon: 'receipt-outline', color: ACCENT },
 };
 
 const PRESET_BILLS = [
@@ -118,8 +129,16 @@ const getBillTheme = (category: string, name: string): { icon: any; color: strin
     case 'Cloud & Storage':
       return { icon: 'cloud-outline', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.16)' };
     default:
-      return { icon: 'receipt-outline', color: COLORS.finance, bg: COLORS.financeLight };
+      return { icon: 'receipt-outline', color: ACCENT, bg: 'rgba(56, 189, 248, 0.16)' };
   }
+};
+
+const STATUS_THEME: Record<string, { color: string; bg: string; border: string }> = {
+  paid: { color: INCOME, bg: 'rgba(16, 185, 129, 0.14)', border: 'rgba(16, 185, 129, 0.34)' },
+  today: { color: EXPENSE, bg: 'rgba(244, 63, 94, 0.16)', border: 'rgba(244, 63, 94, 0.4)' },
+  soon: { color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.14)', border: 'rgba(245, 158, 11, 0.34)' },
+  overdue: { color: EXPENSE, bg: 'rgba(244, 63, 94, 0.12)', border: 'rgba(244, 63, 94, 0.3)' },
+  normal: { color: COLORS.textSecondary, bg: 'rgba(255, 255, 255, 0.05)', border: COLORS.border },
 };
 
 export const RecurringBillsCard = ({
@@ -285,11 +304,14 @@ export const RecurringBillsCard = ({
       <View style={cardStyles.headerRow}>
         <View style={cardStyles.titleGroup}>
           <View style={cardStyles.iconWrap}>
-            <Ionicons name="repeat-outline" size={20} color={COLORS.finance} />
+            <Ionicons name="repeat-outline" size={20} color={ACCENT} />
           </View>
-          <View style={{ flex: 1 }}>
+          <View style={cardStyles.titleTextWrap}>
             <Text style={cardStyles.title} numberOfLines={1}>
               Bill & Subscriptions
+            </Text>
+            <Text style={cardStyles.subtitle} numberOfLines={1}>
+              Recurring payments tracker
             </Text>
           </View>
         </View>
@@ -299,8 +321,10 @@ export const RecurringBillsCard = ({
           onPress={() => setModalVisible(true)}
           activeOpacity={0.8}
         >
-          <Ionicons name="add" size={15} color="#08090C" />
-          <Text style={cardStyles.addBtnText}>Add</Text>
+          <Ionicons name="add" size={16} color={INK} />
+          <Text style={cardStyles.addBtnText} numberOfLines={1}>
+            Add
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -308,21 +332,27 @@ export const RecurringBillsCard = ({
       {filteredBills.length > 0 && (
         <View style={cardStyles.summaryBox}>
           <View style={cardStyles.summaryTopRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={cardStyles.summaryLabel}>{"THIS MONTH'S BILL STATUS"}</Text>
-              <Text style={cardStyles.summaryValues}>
+            <View style={cardStyles.summaryLeftCol}>
+              <Text style={cardStyles.summaryLabel} numberOfLines={1}>
+                {"THIS MONTH'S BILL STATUS"}
+              </Text>
+              <Text style={cardStyles.summaryValues} numberOfLines={1}>
                 {paidBills.length} of {filteredBills.length} Bills Paid
               </Text>
             </View>
 
             <View style={cardStyles.summaryAmountRight}>
-              <Text style={cardStyles.summaryRemainingLabel}>Remaining to Pay</Text>
+              <Text style={cardStyles.summaryRemainingLabel} numberOfLines={1}>
+                Remaining to Pay
+              </Text>
               <Text
                 style={[
                   cardStyles.summaryRemainingVal,
-                  totalUnpaidAmount > 0 ? { color: '#F59E0B' } : { color: COLORS.success },
+                  totalUnpaidAmount > 0 ? { color: '#F59E0B' } : { color: INCOME },
                 ]}
                 numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
               >
                 {totalUnpaidAmount > 0 ? formatMoney(totalUnpaidAmount, currency) : 'All Paid!'}
               </Text>
@@ -336,10 +366,25 @@ export const RecurringBillsCard = ({
                 cardStyles.progressFill,
                 {
                   width: `${Math.max(2, progressPercent)}%`,
-                  backgroundColor: progressPercent === 100 ? COLORS.success : COLORS.finance,
+                  backgroundColor: progressPercent === 100 ? INCOME : ACCENT,
                 },
               ]}
             />
+          </View>
+
+          <View style={cardStyles.summaryLegendRow}>
+            <View style={cardStyles.summaryLegendItem}>
+              <View style={[cardStyles.summaryDot, { backgroundColor: INCOME }]} />
+              <Text style={cardStyles.summaryLegendText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                Paid {formatMoney(totalPaidAmount, currency)}
+              </Text>
+            </View>
+            <View style={cardStyles.summaryLegendItem}>
+              <View style={[cardStyles.summaryDot, { backgroundColor: '#F59E0B' }]} />
+              <Text style={cardStyles.summaryLegendText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                Unpaid {formatMoney(totalUnpaidAmount, currency)}
+              </Text>
+            </View>
           </View>
         </View>
       )}
@@ -352,7 +397,12 @@ export const RecurringBillsCard = ({
             onPress={() => setFilterTab('all')}
             activeOpacity={0.7}
           >
-            <Text style={[cardStyles.tabBtnText, filterTab === 'all' && cardStyles.tabBtnTextActive]}>
+            <Text
+              style={[cardStyles.tabBtnText, filterTab === 'all' && cardStyles.tabBtnTextActive]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
               All ({filteredBills.length})
             </Text>
           </TouchableOpacity>
@@ -367,6 +417,9 @@ export const RecurringBillsCard = ({
                 cardStyles.tabBtnText,
                 filterTab === 'unpaid' && { color: '#F59E0B', fontWeight: '800' },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
             >
               Unpaid ({unpaidBills.length})
             </Text>
@@ -380,8 +433,11 @@ export const RecurringBillsCard = ({
             <Text
               style={[
                 cardStyles.tabBtnText,
-                filterTab === 'paid' && { color: COLORS.success, fontWeight: '800' },
+                filterTab === 'paid' && { color: INCOME, fontWeight: '800' },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
             >
               Paid ({paidBills.length})
             </Text>
@@ -392,13 +448,14 @@ export const RecurringBillsCard = ({
       {/* 4. Bills Cards List */}
       {displayedBills.length === 0 ? (
         <View style={cardStyles.emptyBox}>
-          <Ionicons
-            name={filterTab === 'paid' ? 'checkmark-done-circle-outline' : 'calendar-outline'}
-            size={32}
-            color={COLORS.textMuted}
-            style={{ marginBottom: 6 }}
-          />
-          <Text style={cardStyles.emptyTitle}>
+          <View style={cardStyles.emptyIconWrap}>
+            <Ionicons
+              name={filterTab === 'paid' ? 'checkmark-done-circle-outline' : 'calendar-outline'}
+              size={30}
+              color={filterTab === 'paid' ? INCOME : ACCENT}
+            />
+          </View>
+          <Text style={cardStyles.emptyTitle} numberOfLines={2}>
             {filterTab === 'paid'
               ? 'No Paid Bills Yet'
               : filterTab === 'unpaid'
@@ -417,24 +474,28 @@ export const RecurringBillsCard = ({
         <View style={cardStyles.billsStack}>
           {displayedBills.map((bill) => {
             const theme = getBillTheme(bill.category, bill.name);
+            const categoryTheme = getCategoryTheme(bill.category);
+            const statusTheme = STATUS_THEME[bill.statusType] || STATUS_THEME.normal;
             const isPaid = bill.isPaid;
             const isToday = bill.statusType === 'today';
-            const isSoon = bill.statusType === 'soon';
-            const isOverdue = bill.statusType === 'overdue';
 
             return (
               <View
                 key={bill.id}
                 style={[
                   cardStyles.billCard,
+                  { borderColor: hexToRgba(theme.color, 0.28) },
                   isPaid && cardStyles.billCardPaid,
                   isToday && cardStyles.billCardToday,
                 ]}
               >
+                {/* Colourful category accent rail */}
+                <View style={[cardStyles.billAccentRail, { backgroundColor: theme.color }]} />
+
                 {/* Header Row: Brand Icon + Title & Category + Trash Button */}
                 <View style={cardStyles.billTopRow}>
                   {/* Visual Brand Icon */}
-                  <View style={[cardStyles.brandIconBox, { backgroundColor: theme.bg }]}>
+                  <View style={[cardStyles.brandIconBox, { backgroundColor: theme.bg, borderColor: hexToRgba(theme.color, 0.34) }]}>
                     <Ionicons name={theme.icon} size={20} color={theme.color} />
                   </View>
 
@@ -443,7 +504,7 @@ export const RecurringBillsCard = ({
                     <Text style={cardStyles.billName} numberOfLines={1}>
                       {bill.name}
                     </Text>
-                    <Text style={cardStyles.billScheduleText}>
+                    <Text style={cardStyles.billScheduleText} numberOfLines={1}>
                       Due every {bill.dueOrdinal} • {bill.category}
                     </Text>
                   </View>
@@ -461,9 +522,16 @@ export const RecurringBillsCard = ({
 
                 {/* Middle Info Row: Amount + Status Badge */}
                 <View style={cardStyles.billMiddleRow}>
-                  <View>
-                    <Text style={cardStyles.billAmountLabel}>BILL AMOUNT</Text>
-                    <Text style={cardStyles.billAmountText} numberOfLines={1}>
+                  <View style={cardStyles.billAmountCol}>
+                    <Text style={cardStyles.billAmountLabel} numberOfLines={1}>
+                      BILL AMOUNT
+                    </Text>
+                    <Text
+                      style={cardStyles.billAmountText}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                    >
                       {formatMoney(bill.amount, bill.currency)}
                     </Text>
                   </View>
@@ -471,21 +539,15 @@ export const RecurringBillsCard = ({
                   <View
                     style={[
                       cardStyles.statusBadge,
-                      isPaid && cardStyles.statusBadgePaid,
-                      isToday && cardStyles.statusBadgeToday,
-                      isSoon && cardStyles.statusBadgeSoon,
-                      isOverdue && cardStyles.statusBadgeOverdue,
+                      { backgroundColor: statusTheme.bg, borderColor: statusTheme.border },
                     ]}
                   >
+                    <View style={[cardStyles.statusDot, { backgroundColor: statusTheme.color }]} />
                     <Text
-                      style={[
-                        cardStyles.statusBadgeText,
-                        isPaid && { color: COLORS.success },
-                        isToday && { color: '#F43F5E', fontWeight: '800' },
-                        isSoon && { color: '#F59E0B' },
-                        isOverdue && { color: '#F43F5E' },
-                      ]}
+                      style={[cardStyles.statusBadgeText, { color: statusTheme.color }]}
                       numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.75}
                     >
                       {bill.statusText}
                     </Text>
@@ -498,8 +560,8 @@ export const RecurringBillsCard = ({
                 {isPaid ? (
                   <View style={cardStyles.paidStateRow}>
                     <View style={cardStyles.paidCheckGroup}>
-                      <Ionicons name="checkmark-circle" size={18} color={COLORS.success} />
-                      <Text style={cardStyles.paidLabelText}>
+                      <Ionicons name="checkmark-circle" size={18} color={INCOME} />
+                      <Text style={cardStyles.paidLabelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
                         Paid for this month
                       </Text>
                     </View>
@@ -509,25 +571,54 @@ export const RecurringBillsCard = ({
                       onPress={() => onQuickLogBill(bill)}
                       activeOpacity={0.7}
                     >
-                      <Text style={cardStyles.relogActionText}>Pay Again</Text>
+                      <Text style={cardStyles.relogActionText} numberOfLines={1}>
+                        Pay Again
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
                   <TouchableOpacity
-                    style={cardStyles.payCtaButton}
+                    style={[cardStyles.payCtaButton, { backgroundColor: theme.color }]}
                     onPress={() => onQuickLogBill(bill)}
                     activeOpacity={0.85}
                   >
                     <View style={cardStyles.payCtaLeft}>
-                      <Ionicons name="wallet-outline" size={17} color="#08090C" style={{ marginRight: 8 }} />
-                      <Text style={cardStyles.payCtaText}>Pay This Bill</Text>
+                      <Ionicons name="wallet-outline" size={17} color={INK} style={{ marginRight: 8 }} />
+                      <Text style={cardStyles.payCtaText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
+                        Pay This Bill
+                      </Text>
                     </View>
                     <View style={cardStyles.payCtaBadge}>
-                      <Text style={cardStyles.payCtaBadgeText}>{formatMoney(bill.amount, bill.currency)}</Text>
-                      <Ionicons name="chevron-forward" size={14} color="#08090C" style={{ marginLeft: 4 }} />
+                      <Text
+                        style={cardStyles.payCtaBadgeText}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
+                      >
+                        {formatMoney(bill.amount, bill.currency)}
+                      </Text>
+                      <Ionicons name="chevron-forward" size={14} color={INK} style={{ marginLeft: 4 }} />
                     </View>
                   </TouchableOpacity>
                 )}
+
+                {/* Category chip keeps the palette honest even when the pay CTA changes shade */}
+                <View style={cardStyles.billFooterRow}>
+                  <View
+                    style={[
+                      cardStyles.billCategoryChip,
+                      { backgroundColor: categoryTheme.bg, borderColor: categoryTheme.border },
+                    ]}
+                  >
+                    <View style={[cardStyles.statusDot, { backgroundColor: categoryTheme.color }]} />
+                    <Text
+                      style={[cardStyles.billCategoryChipText, { color: categoryTheme.color }]}
+                      numberOfLines={1}
+                    >
+                      {bill.category}
+                    </Text>
+                  </View>
+                </View>
               </View>
             );
           })}
@@ -548,198 +639,248 @@ export const RecurringBillsCard = ({
           <View style={cardStyles.modalContent}>
             <View style={cardStyles.modalHandle} />
 
-              <View style={cardStyles.modalHeaderRow}>
-                <View>
-                  <Text style={cardStyles.modalTitle}>Add Recurring Bill</Text>
+            <View style={cardStyles.modalHeaderRow}>
+              <View style={cardStyles.modalTitleWrap}>
+                <View style={cardStyles.modalTitleIcon}>
+                  <Ionicons name="add-circle-outline" size={20} color={ACCENT} />
                 </View>
-                <TouchableOpacity
-                  onPress={handleCloseModal}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
-                </TouchableOpacity>
+                <View style={cardStyles.modalTitleTextWrap}>
+                  <Text style={cardStyles.modalTitle} numberOfLines={1}>
+                    Add Recurring Bill
+                  </Text>
+                  <Text style={cardStyles.modalSubTitle} numberOfLines={1}>
+                    Track a bill or subscription
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={handleCloseModal}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={cardStyles.modalCloseBtn}
+              >
+                <Ionicons name="close" size={18} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              contentContainerStyle={cardStyles.modalScrollContent}
+            >
+              {/* Popular Quick Templates */}
+              <View style={cardStyles.presetHeaderRow}>
+                <Text style={cardStyles.formSectionLabel} numberOfLines={1}>
+                  SUGGESTIONS / PRESETS
+                </Text>
+                <Text style={cardStyles.presetHint} numberOfLines={1}>
+                  Tap to auto-fill
+                </Text>
               </View>
 
               <ScrollView
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
-                contentContainerStyle={{ paddingBottom: 16 }}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={cardStyles.presetScrollContent}
+                style={cardStyles.presetScroll}
               >
-                {/* Popular Quick Templates */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={cardStyles.formSectionLabel}>SUGGESTIONS / PRESETS</Text>
-                  <Text style={{ fontSize: 10, color: COLORS.textMuted }}>Tap to auto-fill</Text>
-                </View>
+                {PRESET_BILLS.map((preset) => {
+                  const isSelected = name === preset.name;
+                  return (
+                    <TouchableOpacity
+                      key={preset.name}
+                      style={[
+                        cardStyles.presetChip,
+                        { borderColor: hexToRgba(preset.color, 0.28) },
+                        isSelected && { backgroundColor: preset.color, borderColor: preset.color },
+                      ]}
+                      onPress={() => handleSelectPreset(preset)}
+                      activeOpacity={0.7}
+                    >
+                      <View
+                        style={[
+                          cardStyles.presetIconWrap,
+                          { backgroundColor: hexToRgba(preset.color, 0.18) },
+                          isSelected && cardStyles.presetIconWrapActive,
+                        ]}
+                      >
+                        <Ionicons
+                          name={preset.icon as any}
+                          size={15}
+                          color={isSelected ? INK : preset.color}
+                        />
+                      </View>
+                      <View style={cardStyles.presetTextWrap}>
+                        <Text
+                          style={[
+                            cardStyles.presetChipText,
+                            isSelected && cardStyles.presetChipTextActive,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {preset.name}
+                        </Text>
+                        <Text
+                          style={[
+                            cardStyles.presetSubText,
+                            isSelected && cardStyles.presetSubTextActive,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {currency === 'IDR' && preset.defaultAmount
+                            ? formatMoney(parseFloat(preset.defaultAmount), 'IDR')
+                            : currency === 'USD' && preset.defaultAmountUSD
+                            ? formatMoney(parseFloat(preset.defaultAmountUSD), 'USD')
+                            : preset.category}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
 
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={cardStyles.presetScrollContent}
-                  style={{ marginBottom: 16 }}
-                >
-                  {PRESET_BILLS.map((preset) => {
-                    const isSelected = name === preset.name;
+              {/* Form Group: Name */}
+              <View style={cardStyles.formGroup}>
+                <Text style={cardStyles.inputLabel} numberOfLines={1}>
+                  NAME
+                </Text>
+                <TextInput
+                  style={cardStyles.inputField}
+                  placeholder="e.g. Netflix, Wi-Fi, Rent"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={name}
+                  onChangeText={setName}
+                />
+              </View>
+
+              {/* Form Group: Amount */}
+              <View style={cardStyles.formGroup}>
+                <Text style={cardStyles.inputLabel} numberOfLines={1}>
+                  AMOUNT ({currency})
+                </Text>
+                <TextInput
+                  style={cardStyles.inputField}
+                  placeholder="0"
+                  placeholderTextColor={COLORS.textMuted}
+                  keyboardType="numeric"
+                  value={amount}
+                  onChangeText={setAmount}
+                />
+              </View>
+
+              {/* Form Group: Category with Icons */}
+              <View style={cardStyles.formGroup}>
+                <Text style={cardStyles.inputLabel} numberOfLines={1}>
+                  CATEGORY
+                </Text>
+                <View style={cardStyles.categoriesWrap}>
+                  {BILL_CATEGORIES.map((cat) => {
+                    const isSelected = selectedCategory === cat;
+                    const catTheme = BILL_CATEGORY_THEMES[cat] || {
+                      icon: 'receipt-outline',
+                      color: ACCENT,
+                    };
+                    const palette = getCategoryTheme(cat);
                     return (
                       <TouchableOpacity
-                        key={preset.name}
+                        key={cat}
                         style={[
-                          cardStyles.presetChip,
-                          isSelected && cardStyles.presetChipActive,
+                          cardStyles.catChip,
+                          { backgroundColor: palette.bg, borderColor: palette.border },
+                          isSelected && cardStyles.catChipActive,
                         ]}
-                        onPress={() => handleSelectPreset(preset)}
+                        onPress={() => setSelectedCategory(cat)}
                         activeOpacity={0.7}
                       >
-                        <View
+                        <Ionicons
+                          name={catTheme.icon}
+                          size={15}
+                          color={isSelected ? INK : catTheme.color}
+                          style={cardStyles.catChipIcon}
+                        />
+                        <Text
                           style={[
-                            cardStyles.presetIconWrap,
-                            isSelected && cardStyles.presetIconWrapActive,
-                            !isSelected && { backgroundColor: `${preset.color}20` },
+                            cardStyles.catChipText,
+                            { color: palette.color },
+                            isSelected && cardStyles.catChipTextActive,
                           ]}
+                          numberOfLines={1}
                         >
-                          <Ionicons
-                            name={preset.icon as any}
-                            size={14}
-                            color={isSelected ? '#08090C' : preset.color}
-                          />
-                        </View>
-                        <View>
-                          <Text
-                            style={[
-                              cardStyles.presetChipText,
-                              isSelected && cardStyles.presetChipTextActive,
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {preset.name}
-                          </Text>
-                          <Text
-                            style={[
-                              cardStyles.presetSubText,
-                              isSelected && cardStyles.presetSubTextActive,
-                            ]}
-                          >
-                            {currency === 'IDR' && preset.defaultAmount
-                              ? formatMoney(parseFloat(preset.defaultAmount), 'IDR')
-                              : currency === 'USD' && preset.defaultAmountUSD
-                              ? formatMoney(parseFloat(preset.defaultAmountUSD), 'USD')
-                              : preset.category}
-                          </Text>
-                        </View>
+                          {cat}
+                        </Text>
                       </TouchableOpacity>
                     );
                   })}
-                </ScrollView>
+                </View>
+              </View>
 
-                {/* Form Group: Name */}
-                <View style={cardStyles.formGroup}>
-                  <Text style={cardStyles.inputLabel}>NAME</Text>
-                  <TextInput
-                    style={cardStyles.inputField}
-                    placeholder="e.g. Netflix, Wi-Fi, Rent"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={name}
-                    onChangeText={setName}
-                  />
+              {/* Form Group: Due Day */}
+              <View style={cardStyles.formGroup}>
+                <View style={cardStyles.inputLabelRow}>
+                  <Text style={[cardStyles.inputLabel, cardStyles.inputLabelInline]} numberOfLines={1}>
+                    DUE DAY OF MONTH
+                  </Text>
+                  <Text style={cardStyles.dueDayPreview} numberOfLines={1}>
+                    Every {getOrdinal(Math.max(1, Math.min(31, parseInt(dueDateDay, 10) || 1)))}
+                  </Text>
                 </View>
 
-                {/* Form Group: Amount */}
-                <View style={cardStyles.formGroup}>
-                  <Text style={cardStyles.inputLabel}>AMOUNT ({currency})</Text>
-                  <TextInput
-                    style={cardStyles.inputField}
-                    placeholder="0"
-                    placeholderTextColor={COLORS.textMuted}
-                    keyboardType="numeric"
-                    value={amount}
-                    onChangeText={setAmount}
-                  />
-                </View>
-
-                {/* Form Group: Category with Icons */}
-                <View style={cardStyles.formGroup}>
-                  <Text style={cardStyles.inputLabel}>CATEGORY</Text>
-                  <View style={cardStyles.categoriesWrap}>
-                    {BILL_CATEGORIES.map((cat) => {
-                      const isSelected = selectedCategory === cat;
-                      const catTheme = BILL_CATEGORY_THEMES[cat] || {
-                        icon: 'receipt-outline',
-                        color: COLORS.finance,
-                      };
-                      return (
-                        <TouchableOpacity
-                          key={cat}
-                          style={[cardStyles.catChip, isSelected && cardStyles.catChipActive]}
-                          onPress={() => setSelectedCategory(cat)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons
-                            name={catTheme.icon}
-                            size={15}
-                            color={isSelected ? '#08090C' : catTheme.color}
-                            style={{ marginRight: 6 }}
-                          />
-                          <Text style={[cardStyles.catChipText, isSelected && cardStyles.catChipTextActive]}>
-                            {cat}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-
-                {/* Form Group: Due Day */}
-                <View style={cardStyles.formGroup}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <Text style={cardStyles.inputLabel}>DUE DAY OF MONTH</Text>
-                    <Text style={{ fontSize: 11, color: COLORS.finance, fontWeight: '700' }}>
-                      Every {getOrdinal(Math.max(1, Math.min(31, parseInt(dueDateDay, 10) || 1)))}
-                    </Text>
-                  </View>
-
-                  {/* Quick Select Day Chips */}
-                  <View style={cardStyles.quickDayRow}>
-                    {[1, 5, 10, 15, 20, 25, 28].map((d) => {
-                      const isDaySelected = parseInt(dueDateDay, 10) === d;
-                      return (
-                        <TouchableOpacity
-                          key={`day-${d}`}
+                {/* Quick Select Day Chips */}
+                <View style={cardStyles.quickDayRow}>
+                  {[1, 5, 10, 15, 20, 25, 28].map((d) => {
+                    const isDaySelected = parseInt(dueDateDay, 10) === d;
+                    return (
+                      <TouchableOpacity
+                        key={`day-${d}`}
+                        style={[
+                          cardStyles.quickDayPill,
+                          isDaySelected && cardStyles.quickDayPillActive,
+                        ]}
+                        onPress={() => setDueDateDay(d.toString())}
+                        activeOpacity={0.7}
+                      >
+                        <Text
                           style={[
-                            cardStyles.quickDayPill,
-                            isDaySelected && cardStyles.quickDayPillActive,
+                            cardStyles.quickDayPillText,
+                            isDaySelected && cardStyles.quickDayPillTextActive,
                           ]}
-                          onPress={() => setDueDateDay(d.toString())}
-                          activeOpacity={0.7}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.8}
                         >
-                          <Text
-                            style={[
-                              cardStyles.quickDayPillText,
-                              isDaySelected && cardStyles.quickDayPillTextActive,
-                            ]}
-                          >
-                            {d}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                          {d}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
+              </View>
 
-                {/* Save CTA */}
-                <TouchableOpacity
-                  style={[
-                    cardStyles.saveCtaBtn,
-                    (!name.trim() || !amount) && { opacity: 0.6 },
-                  ]}
-                  onPress={handleSave}
-                  activeOpacity={0.85}
-                  disabled={!name.trim() || !amount}
-                >
-                  <Text style={cardStyles.saveCtaBtnText}>SAVE BILL</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
+              {/* Save CTA */}
+              <TouchableOpacity
+                style={[
+                  cardStyles.saveCtaBtn,
+                  (!name.trim() || !amount) && { opacity: 0.6 },
+                ]}
+                onPress={handleSave}
+                activeOpacity={0.85}
+                disabled={!name.trim() || !amount}
+              >
+                <Ionicons name="checkmark-circle-outline" size={18} color={INK} style={{ marginRight: 8 }} />
+                <Text style={cardStyles.saveCtaBtnText} numberOfLines={1}>
+                  SAVE BILL
+                </Text>
+              </TouchableOpacity>
+
+              <View style={cardStyles.saveNoteRow}>
+                <Ionicons name="information-circle-outline" size={13} color={COLORS.textMuted} />
+                <Text style={cardStyles.saveNoteText} numberOfLines={2}>
+                  Bills are tracked per month and reset automatically.
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
         </View>
       </Modal>
 
@@ -756,7 +897,7 @@ const cardStyles = StyleSheet.create({
   containerCard: {
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.xl,
-    padding: 16,
+    padding: 20,
     marginBottom: 20,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -765,21 +906,26 @@ const cardStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
-    paddingBottom: 10,
+    marginBottom: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
+    gap: 12,
   },
   titleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 10,
-    gap: 10,
+    minWidth: 0,
+    gap: 12,
+  },
+  titleTextWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   iconWrap: {
-    width: 38,
-    height: 38,
+    width: 44,
+    height: 44,
     borderRadius: RADIUS.md,
     backgroundColor: 'rgba(56, 189, 248, 0.12)',
     alignItems: 'center',
@@ -789,194 +935,256 @@ const cardStyles = StyleSheet.create({
     flexShrink: 0,
   },
   title: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
     color: COLORS.textPrimary,
+    letterSpacing: -0.2,
   },
   subtitle: {
     fontSize: 11,
-    color: COLORS.finance,
-    marginTop: 1,
+    color: ACCENT,
+    marginTop: 2,
     fontWeight: '600',
   },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.finance,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: RADIUS.sm,
-    gap: 4,
+    justifyContent: 'center',
+    backgroundColor: ACCENT,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.md,
+    gap: 5,
+    minHeight: 44,
     flexShrink: 0,
   },
   addBtnText: {
-    color: '#08090C',
-    fontSize: 11,
+    color: INK,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.2,
   },
   summaryBox: {
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
-    padding: 12,
+    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   summaryTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 10,
+    marginBottom: 14,
+    gap: 12,
+  },
+  summaryLeftCol: {
+    flex: 1,
+    minWidth: 0,
   },
   summaryLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
     color: COLORS.textMuted,
-    letterSpacing: 0.8,
+    letterSpacing: 0.9,
   },
   summaryValues: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     color: COLORS.textPrimary,
-    marginTop: 2,
+    marginTop: 4,
   },
   summaryAmountRight: {
     alignItems: 'flex-end',
-    flexShrink: 0,
+    flexShrink: 1,
+    maxWidth: '52%',
   },
   summaryRemainingLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
     color: COLORS.textMuted,
   },
   summaryRemainingVal: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '800',
-    marginTop: 2,
+    marginTop: 4,
     fontVariant: ['tabular-nums'],
+    textAlign: 'right',
   },
   progressTrack: {
-    height: 5,
+    height: 8,
     backgroundColor: COLORS.bgCard,
-    borderRadius: 3,
+    borderRadius: RADIUS.full,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   progressFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: RADIUS.full,
+  },
+  summaryLegendRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 14,
+  },
+  summaryLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  summaryDot: {
+    width: 7,
+    height: 7,
+    borderRadius: RADIUS.full,
+    flexShrink: 0,
+  },
+  summaryLegendText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    flexShrink: 1,
+    minWidth: 0,
   },
   tabFilterRow: {
     flexDirection: 'row',
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.md,
-    padding: 3,
-    marginBottom: 14,
+    padding: 4,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
+    gap: 4,
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 7,
+    minWidth: 0,
+    minHeight: 44,
+    paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: RADIUS.sm,
   },
   tabBtnActive: {
-    backgroundColor: COLORS.bgCard,
+    backgroundColor: COLORS.bgCardHover,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
   tabBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: COLORS.textMuted,
+    textAlign: 'center',
   },
   tabBtnTextActive: {
     color: COLORS.textPrimary,
     fontWeight: '800',
   },
   emptyBox: {
-    paddingVertical: 24,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderStyle: 'dashed',
   },
+  emptyIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
   emptyTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: COLORS.textPrimary,
-    marginBottom: 4,
+    marginBottom: 6,
+    textAlign: 'center',
   },
   emptySubText: {
     color: COLORS.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     textAlign: 'center',
-    lineHeight: 16,
+    lineHeight: 18,
     maxWidth: 280,
   },
   emptyAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.finance,
+    backgroundColor: ACCENT,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: RADIUS.md,
     marginTop: 14,
   },
   emptyAddBtnText: {
-    color: '#08090C',
+    color: INK,
     fontSize: 11,
     fontWeight: '800',
   },
   billsStack: {
-    gap: 12,
+    gap: 14,
   },
   billCard: {
     backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.xl,
-    padding: 16,
+    borderRadius: RADIUS.lg,
+    paddingTop: 18,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
+    overflow: 'hidden',
   },
   billCardPaid: {
-    opacity: 0.9,
-    borderColor: 'rgba(16, 185, 129, 0.25)',
+    opacity: 0.92,
   },
   billCardToday: {
-    borderColor: 'rgba(244, 63, 94, 0.4)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(244, 63, 94, 0.45)',
+  },
+  billAccentRail: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 3,
   },
   billTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
+    gap: 12,
   },
   brandIconBox: {
-    width: 44,
-    height: 44,
+    width: 46,
+    height: 46,
     borderRadius: RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     flexShrink: 0,
   },
   billInfoCol: {
     flex: 1,
-    marginRight: 8,
+    minWidth: 0,
   },
   billName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
     color: COLORS.textPrimary,
     letterSpacing: -0.2,
-    marginBottom: 3,
+    marginBottom: 4,
   },
   billScheduleText: {
     fontSize: 12,
@@ -985,137 +1193,178 @@ const cardStyles = StyleSheet.create({
     lineHeight: 16,
   },
   trashBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   billMiddleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.md,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
     marginBottom: 4,
+    gap: 12,
+  },
+  billAmountCol: {
+    flex: 1,
+    minWidth: 0,
   },
   billAmountLabel: {
     fontSize: 10,
     fontWeight: '800',
     color: COLORS.textMuted,
-    letterSpacing: 0.6,
-    marginBottom: 4,
+    letterSpacing: 0.7,
+    marginBottom: 5,
     textTransform: 'uppercase',
   },
   billAmountText: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '900',
     color: COLORS.textPrimary,
     fontVariant: ['tabular-nums'],
     letterSpacing: -0.3,
   },
   statusBadge: {
-    backgroundColor: COLORS.bgCardSub,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderRadius: RADIUS.full,
     borderWidth: 1,
     borderColor: COLORS.border,
+    flexShrink: 0,
+    maxWidth: '55%',
   },
-  statusBadgePaid: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: 'rgba(16, 185, 129, 0.35)',
-  },
-  statusBadgeToday: {
-    backgroundColor: 'rgba(244, 63, 94, 0.15)',
-    borderColor: 'rgba(244, 63, 94, 0.35)',
-  },
-  statusBadgeSoon: {
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    borderColor: 'rgba(245, 158, 11, 0.35)',
-  },
-  statusBadgeOverdue: {
-    backgroundColor: 'rgba(244, 63, 94, 0.12)',
-    borderColor: 'rgba(244, 63, 94, 0.3)',
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: RADIUS.full,
+    marginRight: 6,
+    flexShrink: 0,
   },
   statusBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.textMuted,
+    fontWeight: '800',
+    flexShrink: 1,
+    minWidth: 0,
   },
   billActionDivider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    marginVertical: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    marginVertical: 14,
   },
   payCtaButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.finance,
+    backgroundColor: ACCENT,
     borderRadius: RADIUS.md,
-    paddingVertical: 13,
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    minHeight: 48,
+    minHeight: 50,
+    gap: 10,
   },
   payCtaLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 1,
+    minWidth: 0,
   },
   payCtaText: {
-    color: '#08090C',
+    color: INK,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.2,
+    flexShrink: 1,
+    minWidth: 0,
   },
   payCtaBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(8, 9, 12, 0.15)',
+    backgroundColor: 'rgba(8, 9, 12, 0.16)',
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: RADIUS.sm,
+    flexShrink: 0,
+    maxWidth: '52%',
   },
   payCtaBadgeText: {
-    color: '#08090C',
+    color: INK,
     fontSize: 12,
     fontWeight: '800',
+    flexShrink: 1,
+    minWidth: 0,
   },
   paidStateRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    minHeight: 44,
+    gap: 12,
   },
   paidCheckGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexShrink: 1,
+    minWidth: 0,
   },
   paidLabelText: {
-    color: COLORS.success,
+    color: INCOME,
     fontSize: 13,
     fontWeight: '700',
+    flexShrink: 1,
+    minWidth: 0,
   },
   relogActionBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: RADIUS.sm,
     backgroundColor: COLORS.bgCard,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    minHeight: 32,
+    borderColor: COLORS.borderLight,
+    minHeight: 40,
     justifyContent: 'center',
+    flexShrink: 0,
   },
   relogActionText: {
     color: COLORS.textSecondary,
     fontSize: 12,
     fontWeight: '700',
+  },
+  billFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  billCategoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: '100%',
+  },
+  billCategoryChipText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    flexShrink: 1,
+    minWidth: 0,
   },
   modalOverlay: {
     flex: 1,
@@ -1130,28 +1379,65 @@ const cardStyles = StyleSheet.create({
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
-    maxHeight: '85%',
+    paddingTop: 14,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    maxHeight: '90%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
   modalHandle: {
-    width: 36,
+    width: 40,
     height: 4,
     backgroundColor: COLORS.borderLight,
     borderRadius: RADIUS.full,
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   modalHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 18,
-    paddingBottom: 14,
+    marginBottom: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
+    gap: 12,
+  },
+  modalTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+    gap: 12,
+  },
+  modalTitleIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  modalTitleTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.bgCardSub,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  modalScrollContent: {
+    paddingBottom: 28,
   },
   modalTitle: {
     color: COLORS.textPrimary,
@@ -1162,7 +1448,7 @@ const cardStyles = StyleSheet.create({
   modalSubTitle: {
     color: COLORS.textMuted,
     fontSize: 12,
-    marginTop: 2,
+    marginTop: 3,
     fontWeight: '500',
   },
   formSectionLabel: {
@@ -1170,13 +1456,29 @@ const cardStyles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.9,
-    marginBottom: 10,
     textTransform: 'uppercase',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  presetHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 10,
+  },
+  presetHint: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    flexShrink: 0,
+  },
+  presetScroll: {
+    marginBottom: 22,
   },
   presetScrollContent: {
     gap: 10,
     paddingVertical: 4,
-    paddingRight: 10,
+    paddingRight: 12,
   },
   presetChip: {
     flexDirection: 'row',
@@ -1184,15 +1486,15 @@ const cardStyles = StyleSheet.create({
     backgroundColor: COLORS.bgCardSub,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    minHeight: 46,
+    minHeight: 52,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
     gap: 10,
   },
   presetChipActive: {
-    backgroundColor: COLORS.finance,
-    borderColor: COLORS.finance,
+    backgroundColor: ACCENT,
+    borderColor: ACCENT,
   },
   presetIconWrap: {
     width: 32,
@@ -1200,9 +1502,14 @@ const cardStyles = StyleSheet.create({
     borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   presetIconWrapActive: {
-    backgroundColor: 'rgba(8, 9, 12, 0.15)',
+    backgroundColor: 'rgba(8, 9, 12, 0.18)',
+  },
+  presetTextWrap: {
+    flexShrink: 1,
+    minWidth: 0,
   },
   presetChipText: {
     color: COLORS.textPrimary,
@@ -1210,35 +1517,53 @@ const cardStyles = StyleSheet.create({
     fontWeight: '700',
   },
   presetChipTextActive: {
-    color: '#08090C',
+    color: INK,
     fontWeight: '800',
   },
   presetSubText: {
     color: COLORS.textMuted,
     fontSize: 11,
     fontWeight: '600',
+    marginTop: 2,
   },
   presetSubTextActive: {
-    color: 'rgba(8, 9, 12, 0.7)',
+    color: 'rgba(8, 9, 12, 0.75)',
     fontWeight: '700',
   },
   formGroup: {
-    marginBottom: 18,
+    marginBottom: 22,
+  },
+  inputLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    gap: 10,
   },
   inputLabel: {
     color: COLORS.textSecondary,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.8,
-    marginBottom: 8,
     textTransform: 'uppercase',
+  },
+  inputLabelInline: {
+    flexShrink: 1,
+    minWidth: 0,
+    marginBottom: 0,
+  },
+  dueDayPreview: {
+    fontSize: 11,
+    color: ACCENT,
+    fontWeight: '800',
+    flexShrink: 0,
   },
   inputField: {
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    minHeight: 52,
+    minHeight: 54,
     color: COLORS.textPrimary,
     fontSize: 15,
     borderWidth: 1,
@@ -1253,37 +1578,42 @@ const cardStyles = StyleSheet.create({
   catChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.bgCardSub,
     paddingHorizontal: 14,
     paddingVertical: 11,
-    minHeight: 44,
+    minHeight: 46,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    maxWidth: '100%',
   },
   catChipActive: {
-    backgroundColor: COLORS.finance,
-    borderColor: COLORS.finance,
+    backgroundColor: ACCENT,
+    borderColor: ACCENT,
+  },
+  catChipIcon: {
+    marginRight: 8,
+    flexShrink: 0,
   },
   catChipText: {
     color: COLORS.textSecondary,
     fontSize: 13,
     fontWeight: '600',
+    flexShrink: 1,
+    minWidth: 0,
   },
   catChipTextActive: {
-    color: '#08090C',
+    color: INK,
     fontWeight: '800',
   },
   quickDayRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 6,
   },
   quickDayPill: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: COLORS.bgCardSub,
     paddingVertical: 12,
-    minHeight: 44,
+    minHeight: 46,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -1291,8 +1621,9 @@ const cardStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   quickDayPillActive: {
-    backgroundColor: COLORS.financeLight,
-    borderColor: COLORS.finance,
+    backgroundColor: 'rgba(56, 189, 248, 0.16)',
+    borderColor: ACCENT,
+    borderWidth: 1.5,
   },
   quickDayPillText: {
     color: COLORS.textMuted,
@@ -1300,23 +1631,38 @@ const cardStyles = StyleSheet.create({
     fontWeight: '700',
   },
   quickDayPillTextActive: {
-    color: COLORS.finance,
-    fontWeight: '800',
+    color: ACCENT,
+    fontWeight: '900',
   },
   saveCtaBtn: {
-    backgroundColor: COLORS.finance,
-    borderRadius: RADIUS.xl,
+    flexDirection: 'row',
+    backgroundColor: ACCENT,
+    borderRadius: RADIUS.lg,
     paddingVertical: 16,
-    minHeight: 52,
+    minHeight: 54,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
-    marginBottom: 6,
+    marginTop: 6,
+    paddingHorizontal: 16,
   },
   saveCtaBtnText: {
-    color: '#08090C',
+    color: INK,
     fontSize: 14,
     fontWeight: '800',
-    letterSpacing: 0.4,
+    letterSpacing: 0.6,
+  },
+  saveNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    gap: 6,
+  },
+  saveNoteText: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '500',
+    flexShrink: 1,
+    minWidth: 0,
   },
 });

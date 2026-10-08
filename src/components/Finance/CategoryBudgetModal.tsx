@@ -12,9 +12,15 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CategoryBudget, CategoryCustomIcon, formatMoney } from '../../types/finance';
+import {
+  CategoryBudget,
+  CategoryCustomIcon,
+  formatMoney,
+  getCategoryTheme,
+  hexToRgba,
+} from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
-import { getCategoryTheme } from './CategoryBreakdownCard';
+import { getCategoryIcon } from './CategoryBreakdownCard';
 
 interface CategoryBudgetModalProps {
   visible: boolean;
@@ -58,7 +64,8 @@ export const CategoryBudgetModal = ({
   }, []);
 
   const currentBudget = budgets.find((b) => b.category === selectedCat);
-  const theme = getCategoryTheme(selectedCat, 'expense', customCategoryIcons);
+  const theme = getCategoryTheme(selectedCat, customCategoryIcons);
+  const selectedIcon = getCategoryIcon(selectedCat, 'expense', customCategoryIcons);
 
   const handleSelectCategory = (cat: string) => {
     setSelectedCat(cat);
@@ -94,121 +101,175 @@ export const CategoryBudgetModal = ({
         <View style={styles.content}>
           <View style={styles.handle} />
 
-            {/* Header */}
-            <View style={styles.headerRow}>
-              <View style={styles.headerTitleGroup}>
-                <View style={[styles.headerIconWrap, { backgroundColor: theme.bg }]}>
-                  <Ionicons name={theme.icon} size={20} color={theme.color} />
-                </View>
-                <View style={{ flex: 1, flexShrink: 1 }}>
-                  <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">Set Category Budget</Text>
-                  <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">Monthly spending target & guardrail</Text>
-                </View>
+          {/* Header */}
+          <View style={styles.headerRow}>
+            <View style={styles.headerTitleGroup}>
+              <View style={[styles.headerIconWrap, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                <Ionicons name={selectedIcon} size={22} color={theme.color} />
               </View>
-
-              <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                <Ionicons name="close-circle" size={26} color={COLORS.textMuted} />
-              </TouchableOpacity>
+              <View style={styles.headerTextCol}>
+                <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+                  Set Category Budget
+                </Text>
+                <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
+                  Monthly spending target &amp; guardrail
+                </Text>
+              </View>
             </View>
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              automaticallyAdjustKeyboardInsets={true}
-              contentContainerStyle={{ paddingBottom: Math.max(20, keyboardHeight + 20) }}
-              keyboardShouldPersistTaps="handled"
+            <TouchableOpacity
+              style={styles.closeBtn}
+              onPress={onClose}
+              activeOpacity={0.7}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
-              {/* Category Horizontal Chips */}
-              <View style={styles.sectionCard}>
-                <Text style={styles.label}>SELECT CATEGORY</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 8, paddingRight: 10 }}
-                  keyboardShouldPersistTaps="handled"
-                >
-                  {categories.map((cat) => {
-                    const isSelected = selectedCat === cat;
-                    const catTheme = getCategoryTheme(cat, 'expense', customCategoryIcons);
-                    const hasBudget = budgets.some((b) => b.category === cat && b.limit > 0);
-
-                    return (
-                      <TouchableOpacity
-                        key={cat}
-                        style={[styles.chipBtn, isSelected && styles.chipBtnActive]}
-                        onPress={() => handleSelectCategory(cat)}
-                        activeOpacity={0.75}
-                      >
-                        <Ionicons
-                          name={catTheme.icon}
-                          size={16}
-                          color={isSelected ? '#08090C' : catTheme.color}
-                          style={{ marginRight: 6 }}
-                        />
-                        <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
-                          {cat}
-                        </Text>
-                        {hasBudget && !isSelected && (
-                          <View style={styles.chipDot} />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-
-              {/* Limit Input Section */}
-              <View style={styles.sectionCard}>
-                <View style={styles.inputHeaderRow}>
-                  <Text style={styles.label}>MONTHLY SPENDING LIMIT ({currency})</Text>
-                  {currentBudget && currentBudget.limit > 0 && (
-                    <TouchableOpacity onPress={handleClearBudget} activeOpacity={0.7}>
-                      <Text style={styles.clearBtnText}>Remove Limit</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Text style={styles.currencyPrefix}>{currency === 'USD' ? '$' : 'Rp'}</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="0"
-                    placeholderTextColor={COLORS.textMuted}
-                    keyboardType="numeric"
-                    value={limitText}
-                    onChangeText={setLimitText}
-                  />
-                </View>
-
-                {/* Quick Presets */}
-                <View style={styles.presetsRow}>
-                  {presets.map((p) => (
-                    <TouchableOpacity
-                      key={p}
-                      style={styles.presetChip}
-                      onPress={() => handleQuickPreset(p)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.presetChipText}>{formatMoney(p, currency)}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {currentBudget && currentBudget.limit > 0 ? (
-                  <View style={styles.currentLimitBox}>
-                    <Ionicons name="information-circle-outline" size={16} color={COLORS.finance} />
-                    <Text style={styles.currentLimitText}>
-                      Active limit: {formatMoney(currentBudget.limit, currency)} / month
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-
-              {/* Action Save Button */}
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
-                <Text style={styles.saveBtnText}>APPLY BUDGET</Text>
-              </TouchableOpacity>
-            </ScrollView>
+              <Ionicons name="close" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
           </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            automaticallyAdjustKeyboardInsets={true}
+            contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Category Horizontal Chips */}
+            <View style={styles.sectionCard}>
+              <Text style={styles.label} numberOfLines={1}>
+                SELECT CATEGORY
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chipRowContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                {categories.map((cat) => {
+                  const isSelected = selectedCat === cat;
+                  const catTheme = getCategoryTheme(cat, customCategoryIcons);
+                  const catIcon = getCategoryIcon(cat, 'expense', customCategoryIcons);
+                  const hasBudget = budgets.some((b) => b.category === cat && b.limit > 0);
+
+                  return (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[
+                        styles.chipBtn,
+                        {
+                          backgroundColor: isSelected ? catTheme.color : hexToRgba(catTheme.color, 0.1),
+                          borderColor: isSelected ? catTheme.color : catTheme.border,
+                        },
+                      ]}
+                      onPress={() => handleSelectCategory(cat)}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons
+                        name={catIcon}
+                        size={16}
+                        color={isSelected ? '#08090C' : catTheme.color}
+                      />
+                      <Text
+                        style={[styles.chipText, isSelected && styles.chipTextActive]}
+                        numberOfLines={1}
+                      >
+                        {cat}
+                      </Text>
+                      {hasBudget && !isSelected && (
+                        <View style={[styles.chipDot, { backgroundColor: catTheme.color }]} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Limit Input Section */}
+            <View style={styles.sectionCard}>
+              <View style={styles.inputHeaderRow}>
+                <Text style={[styles.label, styles.inputHeaderLabel]} numberOfLines={1}>
+                  MONTHLY SPENDING LIMIT ({currency})
+                </Text>
+                {currentBudget && currentBudget.limit > 0 && (
+                  <TouchableOpacity
+                    style={styles.clearBtn}
+                    onPress={handleClearBudget}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.clearBtnText} numberOfLines={1}>
+                      Remove
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={[styles.inputContainer, { borderColor: hexToRgba(theme.color, 0.35) }]}>
+                <Text style={[styles.currencyPrefix, { color: theme.color }]}>
+                  {currency === 'USD' ? '$' : 'Rp'}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0"
+                  placeholderTextColor={COLORS.textMuted}
+                  keyboardType="numeric"
+                  value={limitText}
+                  onChangeText={setLimitText}
+                />
+              </View>
+
+              {/* Quick Presets */}
+              <View style={styles.presetsRow}>
+                {presets.map((p) => (
+                  <TouchableOpacity
+                    key={p}
+                    style={[
+                      styles.presetChip,
+                      {
+                        backgroundColor: hexToRgba(theme.color, 0.1),
+                        borderColor: hexToRgba(theme.color, 0.26),
+                      },
+                    ]}
+                    onPress={() => handleQuickPreset(p)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.presetChipText, { color: theme.color }]} numberOfLines={1}>
+                      {formatMoney(p, currency)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {currentBudget && currentBudget.limit > 0 ? (
+                <View
+                  style={[
+                    styles.currentLimitBox,
+                    {
+                      backgroundColor: hexToRgba(theme.color, 0.1),
+                      borderColor: hexToRgba(theme.color, 0.24),
+                    },
+                  ]}
+                >
+                  <Ionicons name="information-circle-outline" size={16} color={theme.color} />
+                  <Text style={[styles.currentLimitText, { color: theme.color }]} numberOfLines={1}>
+                    Active limit: {formatMoney(currentBudget.limit, currency)} / month
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            {/* Action Save Button */}
+            <TouchableOpacity
+              style={[styles.saveBtn, { backgroundColor: theme.color }]}
+              onPress={handleSave}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="checkmark-circle" size={18} color="#08090C" />
+              <Text style={styles.saveBtnText} numberOfLines={1}>
+                APPLY BUDGET
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
       </View>
     </Modal>
   );
@@ -225,29 +286,30 @@ const styles = StyleSheet.create({
   },
   content: {
     backgroundColor: COLORS.bgCard,
-    borderTopLeftRadius: RADIUS.modal,
-    borderTopRightRadius: RADIUS.modal,
+    borderTopLeftRadius: RADIUS.xxl,
+    borderTopRightRadius: RADIUS.xxl,
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 28,
-    maxHeight: '88%',
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    maxHeight: '90%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
   handle: {
-    width: 40,
+    width: 44,
     height: 5,
     backgroundColor: COLORS.borderLight,
-    borderRadius: 3,
+    borderRadius: RADIUS.full,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 18,
   },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 14,
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 18,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
@@ -256,13 +318,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     flex: 1,
+    minWidth: 0,
+  },
+  headerTextCol: {
+    flex: 1,
+    minWidth: 0,
   },
   headerIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 46,
+    height: 46,
+    borderRadius: RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    flexShrink: 0,
+  },
+  closeBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.bgCardSub,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    flexShrink: 0,
   },
   title: {
     color: COLORS.textPrimary,
@@ -271,7 +351,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   subtitle: {
-    color: COLORS.textMuted,
+    color: COLORS.textSecondary,
     fontSize: 12,
     marginTop: 2,
     fontWeight: '500',
@@ -279,37 +359,36 @@ const styles = StyleSheet.create({
   sectionCard: {
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
-    padding: 16,
+    padding: 18,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 14,
+    marginBottom: 16,
   },
   label: {
     color: COLORS.textSecondary,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.8,
-    marginBottom: 12,
+    marginBottom: 14,
+  },
+  chipRowContent: {
+    gap: 10,
+    paddingRight: 12,
   },
   chipBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.bgCard,
+    gap: 7,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.border,
     minHeight: 44,
-  },
-  chipBtnActive: {
-    backgroundColor: COLORS.finance,
-    borderColor: COLORS.finance,
+    flexShrink: 0,
   },
   chipText: {
-    color: COLORS.textSecondary,
+    color: COLORS.textPrimary,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   chipTextActive: {
     color: '#08090C',
@@ -318,19 +397,35 @@ const styles = StyleSheet.create({
   chipDot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.finance,
+    borderRadius: RADIUS.full,
     marginLeft: 6,
   },
   inputHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 10,
+  },
+  inputHeaderLabel: {
+    flexShrink: 1,
+    minWidth: 0,
+    marginBottom: 14,
+  },
+  clearBtn: {
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    minHeight: 44,
+    borderRadius: RADIUS.full,
+    backgroundColor: hexToRgba(COLORS.danger, 0.12),
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.danger, 0.28),
+    marginBottom: 14,
+    flexShrink: 0,
   },
   clearBtnText: {
     color: COLORS.danger,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -340,76 +435,73 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     paddingHorizontal: 16,
-    paddingVertical: 6,
-    marginTop: 4,
-    marginBottom: 12,
-    minHeight: 54,
+    marginBottom: 16,
+    minHeight: 60,
   },
   currencyPrefix: {
     fontSize: 18,
     fontWeight: '800',
-    color: COLORS.finance,
     marginRight: 10,
+    flexShrink: 0,
   },
   input: {
     flex: 1,
+    minWidth: 0,
     color: COLORS.textPrimary,
-    fontSize: 19,
+    fontSize: 20,
     fontWeight: '800',
-    paddingVertical: 10,
+    paddingVertical: 12,
     fontVariant: ['tabular-nums'],
   },
   presetsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 10,
+    gap: 10,
+    marginBottom: 12,
   },
   presetChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: RADIUS.sm,
+    paddingHorizontal: 14,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    minHeight: 38,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
   presetChipText: {
     fontSize: 12,
-    color: COLORS.textMuted,
-    fontWeight: '600',
+    fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   currentLimitBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 8,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    minHeight: 44,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
   },
   currentLimitText: {
     fontSize: 12,
-    color: COLORS.finance,
-    fontWeight: '600',
+    fontWeight: '700',
+    flexShrink: 1,
+    minWidth: 0,
   },
   saveBtn: {
-    backgroundColor: COLORS.finance,
-    borderRadius: RADIUS.lg,
-    paddingVertical: 16,
-    minHeight: 52,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 6,
-    marginBottom: 20,
+    gap: 8,
+    borderRadius: RADIUS.lg,
+    minHeight: 54,
+    marginTop: 4,
+    marginBottom: 24,
   },
   saveBtnText: {
     color: '#08090C',
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: 0.4,
   },
 });

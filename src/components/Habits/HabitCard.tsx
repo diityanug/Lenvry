@@ -251,7 +251,7 @@ export default function HabitCard({
               </View>
               {totalCompletedCount > 0 && (
                 <Text style={cardStyles.streakText}>
-                  🔥 {totalCompletedCount} {totalCompletedCount === 1 ? 'day completed' : 'days completed'}
+                  {totalCompletedCount} {totalCompletedCount === 1 ? 'day completed' : 'days completed'}
                 </Text>
               )}
             </View>

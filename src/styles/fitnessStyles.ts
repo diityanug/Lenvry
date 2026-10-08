@@ -6,7 +6,7 @@ export const fitnessStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.bgCanvas,
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
     paddingTop: 0,
   },
   header: {
@@ -17,8 +17,8 @@ export const fitnessStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 16,
+    marginTop: 20,
+    marginBottom: 24,
   },
   title: {
     fontSize: 26,
@@ -84,8 +84,8 @@ export const fitnessStyles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: COLORS.textMuted,
-    letterSpacing: 1.1,
+    color: COLORS.textSecondary,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   countBadge: {

@@ -794,7 +794,7 @@ const habitModalStyles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
     marginBottom: 10,
     textTransform: 'uppercase',
   },

@@ -5,37 +5,44 @@ export const homeStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.bgCanvas,
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
     paddingTop: 0,
   },
   scrollContent: {
-    paddingBottom: 36,
+    paddingTop: 4,
   },
 
-  // Header Row
+  // ------------------------------------------------------------------
+  // Header
+  // ------------------------------------------------------------------
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 20,
+    marginTop: 20,
+    marginBottom: 24,
   },
   userProfile: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 10,
+    marginRight: 12,
   },
   avatar: {
-    width: 44,
-    height: 44,
+    width: 46,
+    height: 46,
     borderRadius: RADIUS.md,
     backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 3,
   },
   avatarText: {
     color: COLORS.accentHover,
@@ -44,15 +51,15 @@ export const homeStyles = StyleSheet.create({
   },
   greetingText: {
     color: COLORS.textPrimary,
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.6,
   },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 3,
-    gap: 5,
+    marginTop: 5,
+    gap: 6,
   },
   dateText: {
     color: COLORS.textMuted,
@@ -61,9 +68,9 @@ export const homeStyles = StyleSheet.create({
     letterSpacing: -0.1,
   },
   settingsBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: RADIUS.md,
+    width: 42,
+    height: 42,
+    borderRadius: RADIUS.full,
     backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -72,132 +79,158 @@ export const homeStyles = StyleSheet.create({
     flexShrink: 0,
   },
 
-  // Section Header & Overview
-  overviewSection: {
-    marginBottom: 26,
-  },
-  sectionLabel: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-
-  // 2x2 Pillar Grid
-  grid2x2: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  pillarCard: {
-    width: '48%',
+  // ------------------------------------------------------------------
+  // Hero "Today" card
+  // ------------------------------------------------------------------
+  heroCard: {
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.lg,
-    padding: 14,
+    borderRadius: RADIUS.xxl,
     borderWidth: 1,
     borderColor: COLORS.border,
-    justifyContent: 'space-between',
-    minHeight: 148,
+    padding: 20,
+    overflow: 'hidden',
+    marginBottom: 34,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.42,
+    shadowRadius: 22,
+    elevation: 5,
   },
-  pillarTop: {
+  heroBody: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
   },
-  pillarIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: RADIUS.sm,
+  ringColumn: {
+    alignItems: 'center',
+    marginRight: 18,
+  },
+  ringWrap: {
+    width: 108,
+    height: 108,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ringLabel: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  ringCenter: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ringPercent: {
+    color: COLORS.textPrimary,
+    fontSize: 25,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+  },
+  ringCaption: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  heroStats: {
+    flex: 1,
+    gap: 9,
+  },
+  heroStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    gap: 10,
+  },
+  heroStatIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
   },
-  pillarBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+  heroStatTextWrap: {
+    flex: 1,
   },
-  pillarBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
-  },
-  pillarLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.textMuted,
-    letterSpacing: 0.3,
-    marginBottom: 3,
-  },
-  pillarValue: {
-    fontSize: 18,
+  heroStatValue: {
+    fontSize: 17,
     fontWeight: '800',
-    color: COLORS.textPrimary,
     letterSpacing: -0.3,
-    marginBottom: 8,
   },
-  pillarUnit: {
-    fontSize: 12,
-    fontWeight: '600',
+  heroStatValueMuted: {
     color: COLORS.textMuted,
+    fontSize: 11.5,
+    fontWeight: '600',
   },
-  pillarProgressTrack: {
-    height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  pillarProgressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  pillarSub: {
-    fontSize: 11,
-    fontWeight: '500',
+  heroStatLabel: {
     color: COLORS.textSecondary,
-    lineHeight: 15,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
   },
 
-  // Today's Activities Section
+  // ------------------------------------------------------------------
+  // Section headers
+  // ------------------------------------------------------------------
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   sectionTitleText: {
-    color: COLORS.textMuted,
-    fontSize: 11,
+    color: COLORS.textSecondary,
+    fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   sectionActionText: {
-    color: COLORS.accent,
-    fontSize: 12,
+    color: COLORS.accentHover,
+    fontSize: 12.5,
     fontWeight: '700',
   },
+
+  // ------------------------------------------------------------------
+  // Today's Activities
+  // ------------------------------------------------------------------
   habitsPreviewCard: {
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xxl,
     borderWidth: 1,
     borderColor: COLORS.border,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    marginBottom: 26,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    marginBottom: 34,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 4,
   },
   habitItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    minHeight: 48,
+    paddingVertical: 14,
+    minHeight: 58,
+  },
+  habitIconChip: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    marginRight: 12,
   },
   habitItemBorder: {
     borderBottomWidth: 1,
@@ -205,9 +238,9 @@ export const homeStyles = StyleSheet.create({
   },
   habitItemTitle: {
     color: COLORS.textPrimary,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    marginBottom: 3,
+    marginBottom: 4,
   },
   habitItemTitleDone: {
     color: COLORS.textMuted,
@@ -215,7 +248,7 @@ export const homeStyles = StyleSheet.create({
   },
   habitItemMeta: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '500',
   },
   priorityBadge: {
@@ -234,93 +267,42 @@ export const homeStyles = StyleSheet.create({
   },
   emptyCard: {
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.xl,
+    borderRadius: RADIUS.xxl,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: 24,
+    padding: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 34,
   },
   emptyCardIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: 'rgba(56, 189, 248, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: 'rgba(56, 189, 248, 0.25)',
   },
   emptyCardTitle: {
     color: COLORS.textPrimary,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 5,
     textAlign: 'center',
   },
   emptyCardSub: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 12.5,
     textAlign: 'center',
+    lineHeight: 18,
   },
 
-  // Daily Status Overview Strip
-  summaryCard: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.xl,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 16,
-    marginBottom: 16,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  summaryHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  summaryTitle: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  summaryGrid: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  summaryItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  summaryItemValue: {
-    color: COLORS.textPrimary,
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-    marginBottom: 3,
-  },
-  summaryItemLabel: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  summaryDivider: {
-    width: 1,
-    height: 26,
-    backgroundColor: COLORS.border,
-  },
-
-  // Modal Styles (for Home/Settings dialogs)
+  // ------------------------------------------------------------------
+  // Modal Styles (used by HomeSettingsModal)
+  // ------------------------------------------------------------------
   modalOverlay: {
     flex: 1,
     backgroundColor: COLORS.overlay,

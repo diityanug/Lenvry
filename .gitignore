@@ -7,6 +7,8 @@ node_modules/
 skills-lock
 .vscode
 .tools
+design-refs
+
 
 # Expo
 .expo/
