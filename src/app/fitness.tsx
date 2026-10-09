@@ -21,12 +21,14 @@ import DateStrip from '../components/Fitness/DateStrip';
 import HeroMetrics from '../components/Fitness/HeroMetrics';
 import CategoryFilter from '../components/Fitness/CategoryFilter';
 import WorkoutCard from '../components/Fitness/WorkoutCard';
-import CalendarModal from '../components/Fitness/CalendarModal';
+import { SharedCalendarModal } from '../components/Shared/CalendarModal';
 import AddWorkoutModal from '../components/Fitness/AddWorkoutModal';
 import WorkoutHistoryModal from '../components/Fitness/WorkoutHistoryModal';
 import RoutinePresetsModal from '../components/Fitness/RoutinePresetsModal';
 import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
+import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 import { fitnessStyles as styles } from '../styles/fitnessStyles';
+import { useFitnessStore } from '../stores';
 
 const formatDateKey = (d: Date): string => {
   const year = d.getFullYear();
@@ -36,7 +38,8 @@ const formatDateKey = (d: Date): string => {
 };
 
 export default function FitnessScreen() {
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const workouts = useFitnessStore((s) => s.workouts);
+  const setWorkouts = useFitnessStore((s) => s.setWorkouts);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const lastTodayKeyRef = useRef(formatDateKey(new Date()));
 
@@ -75,7 +78,7 @@ export default function FitnessScreen() {
     } catch (e) {
       console.error('Failed to load fitness data:', e);
     }
-  }, []);
+  }, [setWorkouts]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
@@ -235,8 +238,9 @@ export default function FitnessScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
+    <ErrorBoundary fallbackTitle="Modul Fitness Mengalami Kendala">
+      <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
 
       {/* HEADER WITH HISTORY & ADD BUTTONS */}
       <View style={styles.headerRow}>
@@ -335,9 +339,11 @@ export default function FitnessScreen() {
         }
       />
 
-      <CalendarModal
+      <SharedCalendarModal
         visible={calendarModalVisible}
         selectedDate={selectedDate}
+        themeColor={COLORS.fitness}
+        title="Select Workout Date"
         onClose={() => setCalendarModalVisible(false)}
         onSelectDate={setSelectedDate}
       />
@@ -369,5 +375,6 @@ export default function FitnessScreen() {
 
       <AppAlertModal config={alertConfig} onClose={closeAlert} />
     </SafeAreaView>
+  </ErrorBoundary>
   );
 }

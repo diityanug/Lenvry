@@ -17,8 +17,6 @@ import {
   MealType,
   NutritionLog,
   NutritionTarget,
-  WaterLog,
-  DEFAULT_NUTRITION_TARGET,
 } from '../types/nutrition';
 import { MacroSummaryCard } from '../components/Nutrition/MacroSummaryCard';
 import { WaterTrackerCard } from '../components/Nutrition/WaterTrackerCard';
@@ -26,12 +24,15 @@ import { MealSectionList } from '../components/Nutrition/MealSectionList';
 import { FoodSearchModal } from '../components/Nutrition/FoodSearchModal';
 import { CustomFoodModal } from '../components/Nutrition/CustomFoodModal';
 import { TargetModal } from '../components/Nutrition/TargetModal';
-import { CalendarModal } from '../components/Nutrition/CalendarModal';
+import { SharedCalendarModal } from '../components/Shared/CalendarModal';
 import { EditPortionModal } from '../components/Nutrition/EditPortionModal';
+import { saveCustomFoodToDb } from '../services/nutritionDatabaseService';
 import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
 import { TAB_BAR_HEIGHT } from '../constants/tabBar';
 import { COLORS } from '../constants/theme';
+import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 import { nutritionStyles as styles } from '../styles/nutritionStyles';
+import { useNutritionStore } from '../stores';
 
 const formatDateKey = (d: Date): string => {
   const year = d.getFullYear();
@@ -41,10 +42,14 @@ const formatDateKey = (d: Date): string => {
 };
 
 export default function NutritionScreen() {
-  const [logs, setLogs] = useState<NutritionLog[]>([]);
-  const [customFoods, setCustomFoods] = useState<FoodItem[]>([]);
-  const [target, setTarget] = useState<NutritionTarget>(DEFAULT_NUTRITION_TARGET);
-  const [waterLogs, setWaterLogs] = useState<WaterLog[]>([]);
+  const logs = useNutritionStore((s) => s.logs);
+  const setLogs = useNutritionStore((s) => s.setLogs);
+  const customFoods = useNutritionStore((s) => s.customFoods);
+  const setCustomFoods = useNutritionStore((s) => s.setCustomFoods);
+  const target = useNutritionStore((s) => s.target);
+  const setTarget = useNutritionStore((s) => s.setTarget);
+  const waterLogs = useNutritionStore((s) => s.waterLogs);
+  const setWaterLogs = useNutritionStore((s) => s.setWaterLogs);
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const lastTodayKeyRef = useRef(formatDateKey(new Date()));
@@ -115,7 +120,7 @@ export default function NutritionScreen() {
       if (stored.waterLogs) setWaterLogs(stored.waterLogs);
     } catch {
     }
-  }, []);
+  }, [setCustomFoods, setLogs, setTarget, setWaterLogs]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
@@ -259,6 +264,11 @@ export default function NutritionScreen() {
 
   // Custom food handler
   const handleSaveCustomFood = async (newFood: FoodItem) => {
+    try {
+      await saveCustomFoodToDb(newFood);
+    } catch (e) {
+      console.warn('Failed to save custom food to SQLite:', e);
+    }
     setCustomFoods(await updateStored('customFoods', (current) => [newFood, ...current]));
     showAlert('success', 'Food Saved', `${newFood.name} has been added to your local library.`);
   };
@@ -282,8 +292,9 @@ export default function NutritionScreen() {
   });
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
+    <ErrorBoundary fallbackTitle="Modul Meal Mengalami Kendala">
+      <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
 
       {/* Screen Header */}
       <View style={styles.headerRow}>
@@ -406,10 +417,12 @@ export default function NutritionScreen() {
         onSaveTarget={handleSaveTarget}
       />
 
-      <CalendarModal
+      <SharedCalendarModal
         key={`calendar_${selectedDate.getTime()}_${calendarModalVisible}`}
         visible={calendarModalVisible}
         selectedDate={selectedDate}
+        themeColor={COLORS.nutrition}
+        title="Select Log Date"
         onClose={() => setCalendarModalVisible(false)}
         onSelectDate={(newDate: Date) => {
           setSelectedDate(newDate);
@@ -419,5 +432,6 @@ export default function NutritionScreen() {
 
       <AppAlertModal config={alertConfig} onClose={closeAlert} />
     </SafeAreaView>
+  </ErrorBoundary>
   );
 }

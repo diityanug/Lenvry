@@ -11,8 +11,7 @@ import { TransactionModal } from '../components/Finance/TransactionModal';
 import { AccountDetailModal } from '../components/Finance/AccountDetailModal';
 import { HistoryModal } from '../components/Finance/HistoryModal';
 import { AddAccountModal } from '../components/Finance/AddAccountModal';
-import { CalendarModal } from '../components/Finance/CalendarModal';
-import { DatePickerModal } from '../components/Finance/DatePickerModal';
+import { SharedCalendarModal } from '../components/Shared/CalendarModal';
 import { EditBalanceModal, RenameModal, AddCategoryModal } from '../components/Finance/DialogModals';
 import { CategoryBreakdownCard } from '../components/Finance/CategoryBreakdownCard';
 import { CategoryBreakdownModal } from '../components/Finance/CategoryBreakdownModal';
@@ -20,6 +19,7 @@ import { CategoryBudgetModal } from '../components/Finance/CategoryBudgetModal';
 import { RecurringBillsCard } from '../components/Finance/RecurringBillsCard';
 import { ManageAccountsModal } from '../components/Finance/ManageAccountsModal';
 import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
+import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 import { TAB_BAR_HEIGHT } from '../constants/tabBar';
 import { financeStyles as styles } from '../styles/financeStyles';
 import { COLORS } from '../constants/theme';
@@ -214,7 +214,15 @@ export default function FinanceTracker() {
   const totalBalanceIDR = accounts.filter((a) => a.currency === 'IDR').reduce((sum, acc) => sum + getAccBalance(acc.id), 0);
   const totalBalanceUSD = accounts.filter((a) => a.currency === 'USD').reduce((sum, acc) => sum + getAccBalance(acc.id), 0);
 
+  const isInvestmentAccount = useCallback((accId: string) => {
+    return accounts.find((a) => a.id === accId)?.type === 'Investment';
+  }, [accounts]);
+
   const filteredMonthlyTransactions = transactions.filter((t) => {
+    // Exclude investment account transactions from global overview
+    if (isInvestmentAccount(t.accountId) || (t.toAccountId && isInvestmentAccount(t.toAccountId))) {
+      return false;
+    }
     const d = new Date(t.date);
     return d.getMonth() === selectedMonthFilter.getMonth() && d.getFullYear() === selectedMonthFilter.getFullYear();
   });
@@ -243,6 +251,10 @@ export default function FinanceTracker() {
 
   const historyTransactions = transactions
     .filter((t) => {
+      // Exclude investment account transactions from global history modal
+      if (isInvestmentAccount(t.accountId) || (t.toAccountId && isInvestmentAccount(t.toAccountId))) {
+        return false;
+      }
       if (historyTypeFilter !== 'all' && t.type !== historyTypeFilter) return false;
       if (historyCatFilter !== 'all' && t.category !== historyCatFilter) return false;
       return true;
@@ -635,8 +647,9 @@ export default function FinanceTracker() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
+    <ErrorBoundary fallbackTitle="Modul Finance Mengalami Kendala">
+      <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
 
       {/* HEADER WITH CLEAN ACTIONS */}
       <View style={styles.headerRow}>
@@ -924,9 +937,12 @@ export default function FinanceTracker() {
       </ScrollView>
 
       {/* MODALS */}
-      <CalendarModal
+      <SharedCalendarModal
         visible={filterCalendarVisible}
         selectedDate={selectedMonthFilter}
+        mode="month"
+        themeColor={COLORS.finance}
+        title="Select Period"
         onClose={() => setFilterCalendarVisible(false)}
         onSelectDate={(d) => {
           setSelectedMonthFilter(d);
@@ -971,9 +987,12 @@ export default function FinanceTracker() {
         onDeleteCategory={deleteCategory}
       />
 
-      <DatePickerModal
+      <SharedCalendarModal
         visible={datePickerVisible}
         selectedDate={txDate}
+        mode="day"
+        themeColor={COLORS.finance}
+        title="Select Transaction Date"
         onClose={() => setDatePickerVisible(false)}
         onSelectDate={(d) => {
           setTxDate(d);
@@ -1125,5 +1144,6 @@ export default function FinanceTracker() {
 
       <AppAlertModal config={alertConfig} onClose={closeAlert} />
     </SafeAreaView>
+  </ErrorBoundary>
   );
 }

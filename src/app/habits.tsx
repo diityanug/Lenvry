@@ -16,7 +16,7 @@ import { useFocusEffect } from 'expo-router';
 import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
 import AddCategoryModal from '../components/Habits/AddCategoryModal';
 import AddHabitModal from '../components/Habits/AddHabitModal';
-import CalendarModal from '../components/Habits/CalendarModal';
+import { SharedCalendarModal } from '../components/Shared/CalendarModal';
 import CategoryFilter from '../components/Habits/CategoryFilter';
 import DateNavigator from '../components/Habits/DateNavigator';
 import HabitCard from '../components/Habits/HabitCard';
@@ -37,11 +37,14 @@ import {
 } from '../constants/habits';
 import { TAB_BAR_HEIGHT } from '../constants/tabBar';
 import { COLORS } from '../constants/theme';
+import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 import { habitStyles as styles } from '../styles/habitStyles';
 import { FrequencyType, Habit, PriorityLevel, SubTask, TimeSlot } from '../types/habits';
+import { useHabitsStore } from '../stores';
 
 export default function HabitTrackerScreen() {
-  const [habits, setHabits] = useState<Habit[]>([]);
+  const habits = useHabitsStore((s) => s.habits);
+  const setHabits = useHabitsStore((s) => s.setHabits);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [customCategoryIcons, setCustomCategoryIcons] = useState<
     Record<string, { icon: string; color: string; bg: string }>
@@ -104,7 +107,7 @@ export default function HabitTrackerScreen() {
     } catch (e) {
       console.error('Failed to load habit data', e);
     }
-  }, []);
+  }, [setHabits]);
 
   const lastTodayKeyRef = useRef(formatDateKey(new Date()));
 
@@ -417,8 +420,9 @@ export default function HabitTrackerScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
+    <ErrorBoundary fallbackTitle="Modul To-Do Mengalami Kendala">
+      <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
 
       {/* Header with Notification Settings and Add Button */}
       <View style={styles.headerRow}>
@@ -539,9 +543,11 @@ export default function HabitTrackerScreen() {
       </ScrollView>
 
       {/* Calendar Modal */}
-      <CalendarModal
+      <SharedCalendarModal
         visible={calendarModalVisible}
         selectedDate={selectedDate}
+        themeColor={COLORS.habit}
+        title="Select Habit Date"
         onClose={() => setCalendarModalVisible(false)}
         onSelectDate={(d) => {
           setSelectedDate(d);
@@ -582,5 +588,6 @@ export default function HabitTrackerScreen() {
 
       <AppAlertModal config={alertConfig} onClose={closeAlert} />
     </SafeAreaView>
+  </ErrorBoundary>
   );
 }

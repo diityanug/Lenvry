@@ -25,7 +25,8 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 pland.md
-
+skills-lock.json
+wavespeed.json
 
 
 # Metro

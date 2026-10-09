@@ -17,6 +17,21 @@ import { ChecklistItem, NoteCategory, NOTE_CATEGORIES, StickyNote, StickyNoteCol
 import { DEFAULT_NUTRITION_TARGET, FoodCategory, FoodItem, MealType, NutritionLog, NutritionTarget, WaterLog } from '../types/nutrition';
 import { DEFAULT_NOTIFICATION_SETTINGS, NotificationSettings } from '../types/settings';
 import { META_KEY_NAMES, STORAGE_KEYS, StorageKeyName } from './keys';
+import {
+  AccountSchema,
+  CategoryBudgetSchema,
+  CategoryCustomIconSchema,
+  FoodItemSchema,
+  HabitSchema,
+  NotificationSettingsSchema,
+  NutritionLogSchema,
+  NutritionTargetSchema,
+  RecurringBillSchema,
+  StickyNoteSchema,
+  TransactionSchema,
+  WaterLogSchema,
+  WorkoutSchema,
+} from './zodSchemas';
 
 // ---------------------------------------------------------------------------
 // Version
@@ -432,28 +447,79 @@ export const PARSERS: { [K in StorageKeyName]: Parser<K> } = {
     return parsed.trim().length > 0 ? parsed : 'User';
   },
 
-  financeTransactions: (value) => records(value).map(parseTransaction),
-  financeAccounts: (value) => records(value).map(parseAccount),
+  financeTransactions: (value) =>
+    records(value).map((item) => {
+      const zRes = TransactionSchema.safeParse(item);
+      return zRes.success ? (zRes.data as Transaction) : parseTransaction(item);
+    }),
+  financeAccounts: (value) =>
+    records(value).map((item) => {
+      const zRes = AccountSchema.safeParse(item);
+      return zRes.success ? (zRes.data as Account) : parseAccount(item);
+    }),
   financeExpenseCategories: (value) => uniqueStrArray(value),
   financeIncomeCategories: (value) => uniqueStrArray(value),
-  financeCategoryBudgets: (value) => records(value).map(parseCategoryBudget),
-  financeRecurringBills: (value) => records(value).map(parseRecurringBill),
-  financeCustomCategoryIcons: (value) => records(value).map(parseCategoryCustomIcon),
+  financeCategoryBudgets: (value) =>
+    records(value).map((item) => {
+      const zRes = CategoryBudgetSchema.safeParse(item);
+      return zRes.success ? (zRes.data as CategoryBudget) : parseCategoryBudget(item);
+    }),
+  financeRecurringBills: (value) =>
+    records(value).map((item) => {
+      const zRes = RecurringBillSchema.safeParse(item);
+      return zRes.success ? (zRes.data as RecurringBill) : parseRecurringBill(item);
+    }),
+  financeCustomCategoryIcons: (value) =>
+    records(value).map((item) => {
+      const zRes = CategoryCustomIconSchema.safeParse(item);
+      return zRes.success ? (zRes.data as CategoryCustomIcon) : parseCategoryCustomIcon(item);
+    }),
 
-  habits: (value) => records(value).map(parseHabit),
+  habits: (value) =>
+    records(value).map((item) => {
+      const zRes = HabitSchema.safeParse(item);
+      return zRes.success ? (zRes.data as Habit) : parseHabit(item);
+    }),
   habitCategories: (value) => uniqueStrArray(value),
   habitCategoryIcons: parseHabitCategoryIcons,
-  notificationSettings: parseNotificationSettings,
+  notificationSettings: (value) => {
+    const zRes = NotificationSettingsSchema.safeParse(value);
+    return zRes.success ? (zRes.data as NotificationSettings) : parseNotificationSettings(value);
+  },
 
-  fitnessWorkouts: (value) => records(value).map(parseWorkout),
+  fitnessWorkouts: (value) =>
+    records(value).map((item) => {
+      const zRes = WorkoutSchema.safeParse(item);
+      return zRes.success ? (zRes.data as Workout) : parseWorkout(item);
+    }),
   fitnessInstallDate: (value) => str(value),
 
-  nutritionLogs: (value) => records(value).map(parseNutritionLog),
-  nutritionTargets: parseNutritionTarget,
-  customFoods: (value) => records(value).map(parseFoodItem),
-  waterLogs: (value) => records(value).map(parseWaterLog),
+  nutritionLogs: (value) =>
+    records(value).map((item) => {
+      const zRes = NutritionLogSchema.safeParse(item);
+      return zRes.success ? (zRes.data as NutritionLog) : parseNutritionLog(item);
+    }),
+  nutritionTargets: (value) => {
+    const source = Array.isArray(value) ? value[0] : value;
+    const zRes = NutritionTargetSchema.safeParse(source);
+    return zRes.success ? (zRes.data as NutritionTarget) : parseNutritionTarget(value);
+  },
+  customFoods: (value) =>
+    records(value).map((item) => {
+      const zRes = FoodItemSchema.safeParse(item);
+      return zRes.success ? (zRes.data as FoodItem) : parseFoodItem(item);
+    }),
+  waterLogs: (value) =>
+    records(value).map((item) => {
+      const zRes = WaterLogSchema.safeParse(item);
+      return zRes.success ? (zRes.data as WaterLog) : parseWaterLog(item);
+    }),
 
-  generalNotes: (value) => records(value).map(parseStickyNote),
+  generalNotes: (value) =>
+    records(value).map((item) => {
+      const zRes = StickyNoteSchema.safeParse(item);
+      return zRes.success ? (zRes.data as StickyNote) : parseStickyNote(item);
+    }),
 
   schemaVersion: (value) => Math.max(0, Math.round(num(value, 0))),
 };

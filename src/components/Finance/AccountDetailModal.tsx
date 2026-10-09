@@ -5,7 +5,7 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  TouchableWithoutFeedback,
+  Pressable,
   StyleSheet,
   Platform,
 } from 'react-native';
@@ -63,6 +63,7 @@ export const AccountDetailModal = ({
   onCloneTransaction,
 }: AccountDetailModalProps) => {
   const [subFilter, setSubFilter] = useState<string>('all');
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [visibleCount, setVisibleCount] = useState<number>(20);
   const [prevKey, setPrevKey] = useState<string>('');
 
@@ -70,8 +71,34 @@ export const AccountDetailModal = ({
   if (currentKey !== prevKey) {
     setPrevKey(currentKey);
     setSubFilter('all');
+    setHistoryTypeFilter('all');
     setVisibleCount(20);
   }
+
+  const isInvestment = account?.type === 'Investment';
+
+  // Total income & expense across all transactions for this account
+  const { totalIncome, totalExpense } = useMemo(() => {
+    if (!account) return { totalIncome: 0, totalExpense: 0 };
+    let inc = 0;
+    let exp = 0;
+    for (const tx of transactions) {
+      const isSource = tx.accountId === account.id;
+      const isDest = tx.type === 'transfer' && tx.toAccountId === account.id;
+      if (!isSource && !isDest) continue;
+
+      const srcMatches = isSource && (subFilter === 'all' || tx.subAccountId === subFilter);
+      const dstMatches = isDest && (subFilter === 'all' || tx.toSubAccountId === subFilter);
+      if (!srcMatches && !dstMatches) continue;
+
+      if (tx.type === 'income') {
+        inc += tx.amount;
+      } else if (tx.type === 'expense') {
+        exp += tx.amount;
+      }
+    }
+    return { totalIncome: inc, totalExpense: exp };
+  }, [account, transactions, subFilter]);
 
   const history = useMemo(() => {
     if (!account) return [];
@@ -85,6 +112,10 @@ export const AccountDetailModal = ({
       const dstMatches = isDest && (subFilter === 'all' || tx.toSubAccountId === subFilter);
       if (!srcMatches && !dstMatches) continue;
 
+      if (historyTypeFilter !== 'all' && tx.type !== historyTypeFilter) {
+        continue;
+      }
+
       let delta = 0;
       if (tx.type === 'income') delta = tx.amount;
       else if (tx.type === 'expense') delta = -tx.amount;
@@ -95,10 +126,7 @@ export const AccountDetailModal = ({
       rows.push({ tx, delta });
     }
     return rows.sort((a, b) => new Date(b.tx.date).getTime() - new Date(a.tx.date).getTime());
-  }, [account, transactions, subFilter]);
-
-  const totalIncome = history.reduce((s, r) => (r.tx.type === 'income' ? s + r.tx.amount : s), 0);
-  const totalExpense = history.reduce((s, r) => (r.tx.type === 'expense' ? s + r.tx.amount : s), 0);
+  }, [account, transactions, subFilter, historyTypeFilter]);
 
   if (!account) return null;
 
@@ -106,37 +134,39 @@ export const AccountDetailModal = ({
 
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={modalStyles.overlay}>
-          <TouchableWithoutFeedback onPress={() => {}}>
-            <View style={modalStyles.content}>
-              <View style={modalStyles.handle} />
+      <View style={modalStyles.overlay}>
+        <Pressable style={modalStyles.dismissArea} onPress={onClose} />
 
-              {/* Header Modal */}
-              <View style={modalStyles.headerRow}>
-                <View style={modalStyles.headerTextWrap}>
-                  <Text style={modalStyles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
-                    Account Settings
-                  </Text>
-                  <Text style={modalStyles.headerSubtitle} numberOfLines={1} ellipsizeMode="tail">
-                    Overview, pockets & history
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={onClose}
-                  activeOpacity={0.7}
-                  style={modalStyles.closeBtn}
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                >
-                  <Ionicons name="close" size={18} color={COLORS.textSecondary} />
-                </TouchableOpacity>
-              </View>
+        <View style={modalStyles.content}>
+          <View style={modalStyles.handle} />
 
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                nestedScrollEnabled={true}
-                contentContainerStyle={modalStyles.scrollContent}
-              >
+          {/* Header Modal */}
+          <View style={modalStyles.headerRow}>
+            <View style={modalStyles.headerTextWrap}>
+              <Text style={modalStyles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+                Account Settings
+              </Text>
+              <Text style={modalStyles.headerSubtitle} numberOfLines={1} ellipsizeMode="tail">
+                Overview, pockets & history
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={onClose}
+              activeOpacity={0.7}
+              style={modalStyles.closeBtn}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Ionicons name="close" size={18} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            scrollEventThrottle={16}
+            nestedScrollEnabled={true}
+            contentContainerStyle={modalStyles.scrollContent}
+          >
                 {/* MAIN ACCOUNT */}
                 <Text style={modalStyles.sectionLabel}>MAIN ACCOUNT</Text>
                 <View style={[modalStyles.mainAccountCard, { borderColor: accountTheme.border }]}>
@@ -195,6 +225,7 @@ export const AccountDetailModal = ({
                       style={modalStyles.outlineBtn}
                       onPress={() => onRenameAccount(account)}
                       activeOpacity={0.7}
+                      delayPressIn={60}
                     >
                       <Ionicons name="pencil" size={14} color={COLORS.finance} style={modalStyles.btnIcon} />
                       <Text style={modalStyles.outlineBtnText} numberOfLines={1} ellipsizeMode="tail">
@@ -206,6 +237,7 @@ export const AccountDetailModal = ({
                       style={modalStyles.dangerOutlineBtn}
                       onPress={() => onDeleteAccount(account.id)}
                       activeOpacity={0.7}
+                      delayPressIn={60}
                     >
                       <Ionicons name="trash-outline" size={14} color={COLORS.danger} style={modalStyles.btnIcon} />
                       <Text style={modalStyles.dangerOutlineBtnText} numberOfLines={1} ellipsizeMode="tail">
@@ -228,6 +260,7 @@ export const AccountDetailModal = ({
                       style={modalStyles.addPocketHeaderBtn}
                       onPress={onAddSubAccount}
                       activeOpacity={0.8}
+                      delayPressIn={60}
                     >
                       <Ionicons name="add" size={15} color="#08090C" />
                       <Text style={modalStyles.addPocketHeaderBtnText} numberOfLines={1} ellipsizeMode="tail">
@@ -274,6 +307,7 @@ export const AccountDetailModal = ({
                           style={modalStyles.adjustBalanceBtn}
                           onPress={() => onEditBalance(account.id, sub.id)}
                           activeOpacity={0.8}
+                          delayPressIn={60}
                         >
                           <Ionicons
                             name="calculator-outline"
@@ -290,6 +324,7 @@ export const AccountDetailModal = ({
                           style={modalStyles.subIconActionBtn}
                           onPress={() => onRenameSubAccount(account.id, sub.id, sub.name)}
                           activeOpacity={0.7}
+                          delayPressIn={60}
                         >
                           <Ionicons name="pencil" size={16} color={COLORS.finance} />
                         </TouchableOpacity>
@@ -298,6 +333,7 @@ export const AccountDetailModal = ({
                           style={modalStyles.subIconActionBtn}
                           onPress={() => onDeleteSubAccount(account.id, sub.id)}
                           activeOpacity={0.7}
+                          delayPressIn={60}
                         >
                           <Ionicons name="trash-outline" size={16} color={COLORS.danger} />
                         </TouchableOpacity>
@@ -309,19 +345,26 @@ export const AccountDetailModal = ({
                 {/* ACCOUNT HISTORY */}
                 <View style={modalStyles.subSectionHeader}>
                   <View style={modalStyles.subSectionTitleWrap}>
-                    <Text style={modalStyles.sectionLabel}>HISTORY ({history.length})</Text>
+                    <Text style={modalStyles.sectionLabel}>
+                      {isInvestment ? 'INVESTMENT HISTORY' : 'HISTORY'} ({history.length})
+                    </Text>
                     <Text style={modalStyles.subHelperText} numberOfLines={2} ellipsizeMode="tail">
-                      Income & expenses for this account
+                      {isInvestment
+                        ? 'Capital contributions, returns & withdrawals for this portfolio'
+                        : 'Income & expenses for this account'}
                     </Text>
                   </View>
                 </View>
 
                 <View style={modalStyles.historySummaryRow}>
-                  <View
+                  <TouchableOpacity
                     style={[
                       modalStyles.historySummaryBox,
                       { borderColor: TX_TYPE_THEME.income.border, backgroundColor: TX_TYPE_THEME.income.bg },
+                      historyTypeFilter === 'income' && { borderWidth: 2, borderColor: TX_TYPE_THEME.income.color },
                     ]}
+                    onPress={() => setHistoryTypeFilter((prev) => (prev === 'income' ? 'all' : 'income'))}
+                    activeOpacity={0.7}
                   >
                     <View style={modalStyles.summaryLabelRow}>
                       <Ionicons name="arrow-down" size={12} color={TX_TYPE_THEME.income.color} />
@@ -330,7 +373,7 @@ export const AccountDetailModal = ({
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
-                        INCOME
+                        {isInvestment ? 'INFLOW / GAIN' : 'INCOME'}
                       </Text>
                     </View>
                     <Text
@@ -342,12 +385,15 @@ export const AccountDetailModal = ({
                     >
                       {formatMoney(totalIncome, account.currency)}
                     </Text>
-                  </View>
-                  <View
+                  </TouchableOpacity>
+                  <TouchableOpacity
                     style={[
                       modalStyles.historySummaryBox,
                       { borderColor: TX_TYPE_THEME.expense.border, backgroundColor: TX_TYPE_THEME.expense.bg },
+                      historyTypeFilter === 'expense' && { borderWidth: 2, borderColor: TX_TYPE_THEME.expense.color },
                     ]}
+                    onPress={() => setHistoryTypeFilter((prev) => (prev === 'expense' ? 'all' : 'expense'))}
+                    activeOpacity={0.7}
                   >
                     <View style={modalStyles.summaryLabelRow}>
                       <Ionicons name="arrow-up" size={12} color={TX_TYPE_THEME.expense.color} />
@@ -356,7 +402,7 @@ export const AccountDetailModal = ({
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
-                        EXPENSE
+                        {isInvestment ? 'OUTFLOW / LOSS' : 'EXPENSE'}
                       </Text>
                     </View>
                     <Text
@@ -368,13 +414,14 @@ export const AccountDetailModal = ({
                     >
                       {formatMoney(totalExpense, account.currency)}
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
 
                 {account.subAccounts.length > 1 && (
                   <ScrollView
                     horizontal
                     nestedScrollEnabled={true}
+                    directionalLockEnabled={true}
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={modalStyles.historyChipRow}
                   >
@@ -395,6 +442,7 @@ export const AccountDetailModal = ({
                             setVisibleCount(20);
                           }}
                           activeOpacity={0.7}
+                          delayPressIn={60}
                         >
                           <Text
                             style={[
@@ -441,6 +489,7 @@ export const AccountDetailModal = ({
                         style={[modalStyles.historyRow, { borderLeftColor: theme.color }]}
                         onPress={() => onEditTransaction?.(tx)}
                         activeOpacity={0.7}
+                        delayPressIn={60}
                       >
                         <View
                           style={[
@@ -498,6 +547,7 @@ export const AccountDetailModal = ({
                     style={modalStyles.historyMoreBtn}
                     onPress={() => setVisibleCount((c) => c + 20)}
                     activeOpacity={0.7}
+                    delayPressIn={60}
                   >
                     <Text style={modalStyles.historyMoreText} numberOfLines={1} ellipsizeMode="tail">
                       Show more
@@ -507,9 +557,7 @@ export const AccountDetailModal = ({
                 )}
               </ScrollView>
             </View>
-          </TouchableWithoutFeedback>
         </View>
-      </TouchableWithoutFeedback>
     </Modal>
   );
 };
@@ -519,6 +567,9 @@ const modalStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
+  },
+  dismissArea: {
+    flex: 1,
   },
   content: {
     backgroundColor: COLORS.bgCard,

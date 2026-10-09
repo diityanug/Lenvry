@@ -108,7 +108,7 @@ export const WaterTrackerCard = ({
             <Ionicons name="add" size={13} color="#38BDF8" />
           </View>
           <View style={waterStyles.btnTextCol}>
-            <Text style={waterStyles.quickBtnTitle}>+250 ml</Text>
+            <Text style={waterStyles.quickBtnTitle}>250 ml</Text>
             <Text style={waterStyles.quickBtnSub}>Glass</Text>
           </View>
         </TouchableOpacity>
@@ -122,7 +122,7 @@ export const WaterTrackerCard = ({
             <Ionicons name="add" size={13} color="#38BDF8" />
           </View>
           <View style={waterStyles.btnTextCol}>
-            <Text style={waterStyles.quickBtnTitle}>+500 ml</Text>
+            <Text style={waterStyles.quickBtnTitle}>500 ml</Text>
             <Text style={waterStyles.quickBtnSub}>Bottle</Text>
           </View>
         </TouchableOpacity>
@@ -136,7 +136,7 @@ export const WaterTrackerCard = ({
             <Ionicons name="add" size={13} color="#38BDF8" />
           </View>
           <View style={waterStyles.btnTextCol}>
-            <Text style={waterStyles.quickBtnTitle}>+100 ml</Text>
+            <Text style={waterStyles.quickBtnTitle}>100 ml</Text>
             <Text style={waterStyles.quickBtnSub}>Sip</Text>
           </View>
         </TouchableOpacity>

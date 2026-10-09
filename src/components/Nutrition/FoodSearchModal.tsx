@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -11,13 +11,14 @@ import {
   Keyboard,
   Pressable,
   useWindowDimensions,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FoodCategory, FoodItem, MealType, NutritionLog } from '../../types/nutrition';
 import {
-  searchFoodItems,
+  searchFoodsAsync,
   calculateNutrientsForWeight,
-} from '../../constants/nutritionDatabase';
+} from '../../services/nutritionDatabaseService';
 import { nutritionStyles as styles } from '../../styles/nutritionStyles';
 import { COLORS } from '../../constants/theme';
 
@@ -97,18 +98,26 @@ function FoodSearchContent({
     };
   }, []);
 
-  // Filter food items
-  const filteredFoods = useMemo(() => {
-    let list = searchFoodItems(searchQuery, customFoods);
-    if (selectedCategory !== 'All') {
-      if (selectedCategory === 'Custom') {
-        list = list.filter((item) => item.isCustom);
-      } else {
-        list = list.filter((item) => item.category === selectedCategory);
-      }
-    }
-    return list;
-  }, [searchQuery, customFoods, selectedCategory]);
+  // Async filter food items from SQLite database
+  const [filteredFoods, setFilteredFoods] = useState<FoodItem[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    searchFoodsAsync(searchQuery, selectedCategory, customFoods)
+      .then((results) => {
+        if (isMounted) {
+          setFilteredFoods(results);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to query SQLite foods:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [searchQuery, selectedCategory, customFoods]);
 
   const handleSelectFood = (item: FoodItem) => {
     Keyboard.dismiss();
@@ -162,8 +171,12 @@ function FoodSearchContent({
     <View style={styles.modalOverlay}>
       <Pressable style={styles.dismissArea} onPress={handleDismiss} />
 
-      <View style={styles.modalContent}>
-        <View style={styles.modalHandle} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ width: '100%', justifyContent: 'flex-end' }}
+      >
+        <View style={[styles.modalContent, selectedFood && styles.modalContentPortion]}>
+          <View style={styles.modalHandle} />
 
           {/* VIEW MODE 1: SEARCH & SELECTION */}
           {!selectedFood ? (
@@ -360,7 +373,7 @@ function FoodSearchContent({
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               bounces={false}
-              contentContainerStyle={{ paddingBottom: 16 }}
+              contentContainerStyle={{ paddingBottom: isKeyboardVisible ? 160 : 28 }}
             >
               {/* Back to list button */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -373,7 +386,7 @@ function FoodSearchContent({
                   <Text style={{ color: COLORS.nutrition, fontSize: 13, fontWeight: '700' }}>Choose Different Food</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+                <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Ionicons name="close-circle" size={22} color={COLORS.textMuted} />
                 </TouchableOpacity>
               </View>
@@ -383,14 +396,14 @@ function FoodSearchContent({
                 style={{
                   backgroundColor: COLORS.bgCardSub,
                   borderRadius: 14,
-                  padding: 16,
-                  marginBottom: 16,
+                  padding: 14,
+                  marginBottom: 14,
                   borderWidth: 1,
                   borderColor: COLORS.border,
                 }}
               >
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <Text style={{ fontSize: 18, fontWeight: '800', color: COLORS.textPrimary, flex: 1 }}>
+                  <Text style={{ fontSize: 17, fontWeight: '800', color: COLORS.textPrimary, flex: 1, marginRight: 8 }} numberOfLines={2}>
                     {selectedFood.name}
                   </Text>
                   <View style={styles.todayBadge}>
@@ -403,139 +416,168 @@ function FoodSearchContent({
               </View>
 
               {/* Meal Target Selector */}
-              <Text style={styles.adjusterLabel}>SELECT MEAL</Text>
-              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16 }}>
-                {MEALS.map((m) => {
-                  const isActive = activeMeal === m.type;
-                  return (
+              <View style={{ marginBottom: 18 }}>
+                <Text style={[styles.adjusterLabel, { marginBottom: 10 }]}>SELECT MEAL</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {MEALS.map((m) => {
+                    const isActive = activeMeal === m.type;
+                    return (
+                      <TouchableOpacity
+                        key={m.type}
+                        onPress={() => setActiveMeal(m.type)}
+                        style={[
+                          {
+                            flex: 1,
+                            paddingVertical: 10,
+                            borderRadius: 10,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: COLORS.bgCardSub,
+                            borderWidth: 1.5,
+                            borderColor: COLORS.border,
+                          },
+                          isActive && {
+                            backgroundColor: COLORS.nutritionLight,
+                            borderColor: COLORS.nutrition,
+                          },
+                        ]}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+                            isActive && { color: COLORS.nutrition, fontWeight: '800' },
+                          ]}
+                        >
+                          {m.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Gram Portion Adjuster Card */}
+              <View style={styles.portionAdjusterCard}>
+                <View style={styles.portionHeaderRow}>
+                  <Text style={styles.adjusterLabel}>PORTION SIZE / WEIGHT</Text>
+                  {isKeyboardVisible && (
                     <TouchableOpacity
-                      key={m.type}
-                      onPress={() => setActiveMeal(m.type)}
-                      style={[
-                        {
-                          flex: 1,
-                          paddingVertical: 8,
-                          borderRadius: 10,
-                          alignItems: 'center',
-                          backgroundColor: COLORS.bgCardSub,
-                          borderWidth: 1,
-                          borderColor: COLORS.border,
-                        },
-                        isActive && {
-                          backgroundColor: COLORS.nutritionLight,
-                          borderColor: COLORS.nutrition,
-                        },
-                      ]}
+                      onPress={() => Keyboard.dismiss()}
+                      style={styles.doneKeyboardBtn}
                       activeOpacity={0.7}
                     >
-                      <Text
-                        style={[
-                          { fontSize: 11, fontWeight: '700', color: COLORS.textMuted },
-                          isActive && { color: COLORS.nutrition, fontWeight: '800' },
-                        ]}
-                      >
-                        {m.label}
-                      </Text>
+                      <Text style={styles.doneKeyboardBtnText}>Done ✕</Text>
                     </TouchableOpacity>
-                  );
-                })}
+                  )}
+                </View>
+
+                {/* Gram Controls: Stepper - Input - Stepper */}
+                <View style={styles.gramControlRow}>
+                  <TouchableOpacity
+                    onPress={() => adjustGramsBy(-25)}
+                    style={styles.stepperBtn}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  >
+                    <Ionicons name="remove" size={20} color={COLORS.textPrimary} />
+                  </TouchableOpacity>
+
+                  <View style={styles.gramInputWrapper}>
+                    <TextInput
+                      style={styles.gramInputLarge}
+                      keyboardType="numeric"
+                      value={portionGramsText}
+                      onChangeText={setPortionGramsText}
+                      maxLength={5}
+                      returnKeyType="done"
+                      onSubmitEditing={() => Keyboard.dismiss()}
+                      selectTextOnFocus
+                    />
+                    <Text style={styles.gramUnitSuffix}>g</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => adjustGramsBy(25)}
+                    style={styles.stepperBtn}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  >
+                    <Ionicons name="add" size={20} color={COLORS.textPrimary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Quick Preset Buttons */}
+                <View style={styles.quickServingGrid}>
+                  {[
+                    { label: '0.5x', grams: Math.round(selectedFood.defaultServingGrams * 0.5), action: () => handleQuickServing(0.5) },
+                    { label: '1x', grams: selectedFood.defaultServingGrams, action: () => handleQuickServing(1.0) },
+                    { label: '1.5x', grams: Math.round(selectedFood.defaultServingGrams * 1.5), action: () => handleQuickServing(1.5) },
+                    { label: '2x', grams: Math.round(selectedFood.defaultServingGrams * 2.0), action: () => handleQuickServing(2.0) },
+                    { label: '100g', grams: 100, action: () => setPortionGramsText('100') },
+                  ].map((preset) => {
+                    const isPresetActive = currentGrams === preset.grams;
+                    return (
+                      <TouchableOpacity
+                        key={preset.label}
+                        style={[
+                          styles.quickServingPill,
+                          isPresetActive && styles.quickServingPillActive,
+                        ]}
+                        onPress={preset.action}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.quickServingPillText,
+                            isPresetActive && styles.quickServingPillTextActive,
+                          ]}
+                        >
+                          {preset.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
 
-              {/* Gram Portion Adjuster with Stepper */}
-              <Text style={styles.adjusterLabel}>PORTION SIZE / WEIGHT</Text>
-              <View style={styles.gramInputRow}>
-                <TouchableOpacity
-                  onPress={() => adjustGramsBy(-25)}
-                  style={[styles.dateNavBtn, { width: 44, height: 44 }]}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="remove" size={18} color={COLORS.textPrimary} />
-                </TouchableOpacity>
-
-                <TextInput
-                  style={[styles.gramInput, { textAlign: 'center', fontSize: 18 }]}
-                  keyboardType="numeric"
-                  value={portionGramsText}
-                  onChangeText={setPortionGramsText}
-                  maxLength={5}
-                />
-                <Text style={styles.gramUnitText}>Grams</Text>
-
-                <TouchableOpacity
-                  onPress={() => adjustGramsBy(25)}
-                  style={[styles.dateNavBtn, { width: 44, height: 44 }]}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="add" size={18} color={COLORS.textPrimary} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Quick Preset Buttons */}
-              <View style={styles.quickServingPills}>
-                <TouchableOpacity
-                  style={[styles.quickServingPill, currentGrams === Math.round(selectedFood.defaultServingGrams * 0.5) && styles.quickServingPillActive]}
-                  onPress={() => handleQuickServing(0.5)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.quickServingPillText, currentGrams === Math.round(selectedFood.defaultServingGrams * 0.5) && styles.quickServingPillTextActive]}>
-                    0.5 Serving
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.quickServingPill, currentGrams === selectedFood.defaultServingGrams && styles.quickServingPillActive]}
-                  onPress={() => handleQuickServing(1.0)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.quickServingPillText, currentGrams === selectedFood.defaultServingGrams && styles.quickServingPillTextActive]}>
-                    1 Serving
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.quickServingPill, currentGrams === Math.round(selectedFood.defaultServingGrams * 1.5) && styles.quickServingPillActive]}
-                  onPress={() => handleQuickServing(1.5)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.quickServingPillText, currentGrams === Math.round(selectedFood.defaultServingGrams * 1.5) && styles.quickServingPillTextActive]}>
-                    1.5 Serving
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.quickServingPill, currentGrams === 100 && styles.quickServingPillActive]}
-                  onPress={() => setPortionGramsText('100')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.quickServingPillText, currentGrams === 100 && styles.quickServingPillTextActive]}>
-                    100g
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Live Nutrient Preview Cards */}
-              <Text style={[styles.adjusterLabel, { marginTop: 4 }]}>TOTAL NUTRITION FACTS</Text>
-              <View style={styles.macroPreviewGrid}>
-                <View style={styles.macroPreviewBox}>
-                  <Text style={[styles.macroPreviewValue, { color: COLORS.nutrition }]}>
-                    {liveNutrients.calories}
-                  </Text>
-                  <Text style={styles.macroPreviewLabel}>Calorie (kcal)</Text>
+              {/* Total Nutrition Facts Card */}
+              <View style={styles.nutritionPreviewSection}>
+                <Text style={styles.adjusterLabel}>TOTAL NUTRITION FACTS</Text>
+                
+                {/* Calories Banner */}
+                <View style={styles.calorieBannerBox}>
+                  <View>
+                    <Text style={styles.calorieBannerValue}>{liveNutrients.calories}</Text>
+                    <Text style={styles.calorieBannerSub}>
+                      {currentGrams}g portion ({(currentGrams / selectedFood.defaultServingGrams).toFixed(1)}x serving)
+                    </Text>
+                  </View>
+                  <Text style={styles.calorieBannerUnit}>TOTAL KCAL</Text>
                 </View>
-                <View style={styles.macroPreviewBox}>
-                  <Text style={[styles.macroPreviewValue, { color: COLORS.protein }]}>
-                    {liveNutrients.protein}g
-                  </Text>
-                  <Text style={styles.macroPreviewLabel}>Protein</Text>
-                </View>
-                <View style={styles.macroPreviewBox}>
-                  <Text style={[styles.macroPreviewValue, { color: COLORS.carbs }]}>
-                    {liveNutrients.carbs}g
-                  </Text>
-                  <Text style={styles.macroPreviewLabel}>Carbs</Text>
-                </View>
-                <View style={styles.macroPreviewBox}>
-                  <Text style={[styles.macroPreviewValue, { color: COLORS.fat }]}>
-                    {liveNutrients.fat}g
-                  </Text>
-                  <Text style={styles.macroPreviewLabel}>Fat</Text>
+
+                {/* Macro Pills Row */}
+                <View style={styles.macroColumnsRow}>
+                  <View style={[styles.macroPillBox, { borderColor: 'rgba(239, 68, 68, 0.25)' }]}>
+                    <Text style={[styles.macroPillVal, { color: COLORS.protein }]}>
+                      {liveNutrients.protein}g
+                    </Text>
+                    <Text style={styles.macroPillName}>Protein</Text>
+                  </View>
+
+                  <View style={[styles.macroPillBox, { borderColor: 'rgba(59, 130, 246, 0.25)' }]}>
+                    <Text style={[styles.macroPillVal, { color: COLORS.carbs }]}>
+                      {liveNutrients.carbs}g
+                    </Text>
+                    <Text style={styles.macroPillName}>Carbs</Text>
+                  </View>
+
+                  <View style={[styles.macroPillBox, { borderColor: 'rgba(234, 179, 8, 0.25)' }]}>
+                    <Text style={[styles.macroPillVal, { color: COLORS.fat }]}>
+                      {liveNutrients.fat}g
+                    </Text>
+                    <Text style={styles.macroPillName}>Fat</Text>
+                  </View>
                 </View>
               </View>
 
@@ -545,13 +587,15 @@ function FoodSearchContent({
                 onPress={handleConfirmLog}
                 activeOpacity={0.85}
               >
+                <Ionicons name="checkmark-circle" size={18} color="#08090C" style={{ marginRight: 6 }} />
                 <Text style={styles.logSaveBtnText}>
-                  LOG TO {activeMealLabel.toUpperCase()}
+                  LOG {currentGrams}G TO {activeMealLabel.toUpperCase()}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
           )}
         </View>
-      </View>
-    );
-  }
+      </KeyboardAvoidingView>
+    </View>
+  );
+}

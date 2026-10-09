@@ -8,7 +8,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  TouchableWithoutFeedback,
+  Pressable,
   Keyboard,
   StyleSheet,
 } from 'react-native';
@@ -136,10 +136,30 @@ function StickyNoteModalContent({
   };
 
   const handleSave = () => {
-    const trimmedTitle = title.trim();
+    let trimmedTitle = title.trim();
+    const currentChecklist = [...checklist];
+
+    // Auto-append unsubmitted checklist input if present
+    if (type === 'checklist' && newItemText.trim()) {
+      const autoItem: ChecklistItem = {
+        id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+        text: newItemText.trim(),
+        done: false,
+      };
+      currentChecklist.push(autoItem);
+      setChecklist(currentChecklist);
+      setNewItemText('');
+    }
+
+    // Never block user if title was left empty: use smart fallback
     if (!trimmedTitle) {
-      setError('Please enter a note title.');
-      return;
+      if (currentChecklist.length > 0 && currentChecklist[0]?.text?.trim()) {
+        trimmedTitle = currentChecklist[0].text.trim().slice(0, 32);
+      } else if (description.trim()) {
+        trimmedTitle = description.trim().split('\n')[0].slice(0, 32);
+      } else {
+        trimmedTitle = `${category} Note`;
+      }
     }
 
     const noteToSave: StickyNote = {
@@ -149,7 +169,7 @@ function StickyNoteModalContent({
       category,
       color,
       description: description.trim(),
-      checklist,
+      checklist: currentChecklist,
       createdAt: note?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -184,36 +204,37 @@ function StickyNoteModalContent({
   const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={{ flex: 1 }}
-    >
-      <TouchableWithoutFeedback onPress={handleDismiss}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback onPress={() => {}}>
-            <View
-              style={[
-                styles.modalCard,
-                {
-                  backgroundColor: COLORS.bgCard,
-                  borderColor: palette.border,
-                },
-              ]}
-            >
-              {/* Header Bar */}
-              <View style={styles.headerBar}>
-                <View style={styles.headerLeft}>
-                  <View style={[styles.pinCircle, { backgroundColor: palette.headerBg }]}>
-                    <Ionicons name="pin" size={16} color={palette.accent} />
-                  </View>
-                  <Text style={styles.headerTitle}>
-                    {!isEditMode
-                      ? 'Note Details'
-                      : isExisting
-                      ? 'Edit Note'
-                      : 'New Pinned Note'}
-                  </Text>
-                </View>
+    <View style={styles.overlay}>
+      {/* Tap outside to dismiss modal */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardAvoidWrapper}
+      >
+        <View
+          style={[
+            styles.modalCard,
+            {
+              backgroundColor: COLORS.bgCard,
+              borderColor: palette.border,
+            },
+          ]}
+        >
+          {/* Header Bar */}
+          <View style={styles.headerBar}>
+            <View style={styles.headerLeft}>
+              <View style={[styles.pinCircle, { backgroundColor: palette.headerBg }]}>
+                <Ionicons name="pin" size={16} color={palette.accent} />
+              </View>
+              <Text style={styles.headerTitle}>
+                {!isEditMode
+                  ? 'Note Details'
+                  : isExisting
+                  ? 'Edit Note'
+                  : 'New Pinned Note'}
+              </Text>
+            </View>
 
                 <View style={styles.headerActions}>
                   {isExisting && onDelete && (
@@ -388,140 +409,145 @@ function StickyNoteModalContent({
                 /* ======================================================== */
                 /* EDIT MODE */
                 /* ======================================================== */
-                <View style={{ flexShrink: 1 }}>
-                  {/* Category Picker Selector */}
-                  <Text style={styles.inputLabel}>CATEGORY</Text>
+                <View style={styles.editModeBody}>
                   <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.categoryPickerRow}
-                  >
-                    {(Object.keys(NOTE_CATEGORIES) as NoteCategory[]).map((catKey) => {
-                      const cfg = NOTE_CATEGORIES[catKey];
-                      const isSel = category === catKey;
-                      return (
-                        <TouchableOpacity
-                          key={catKey}
-                          style={[
-                            styles.categoryPill,
-                            { borderColor: isSel ? cfg.color : COLORS.border },
-                            isSel && { backgroundColor: cfg.color + '22' },
-                          ]}
-                          onPress={() => setCategory(catKey)}
-                          activeOpacity={0.75}
-                        >
-                          <Ionicons
-                            name={cfg.icon as any}
-                            size={14}
-                            color={isSel ? cfg.color : COLORS.textMuted}
-                          />
-                          <Text
-                            style={[
-                              styles.categoryPillText,
-                              { color: isSel ? cfg.color : COLORS.textMuted },
-                              isSel && { fontWeight: '700' },
-                            ]}
-                          >
-                            {cfg.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-
-                  {/* Color Picker Palette */}
-                  <Text style={[styles.inputLabel, { marginTop: 10 }]}>CARD COLOR</Text>
-                  <View style={styles.colorPickerRow}>
-                    {(['amber', 'blue', 'emerald', 'rose', 'purple'] as StickyNoteColor[]).map((c) => {
-                      const p = STICKY_COLORS[c];
-                      const isSelected = color === c;
-                      return (
-                        <TouchableOpacity
-                          key={c}
-                          style={[
-                            styles.colorCircle,
-                            { backgroundColor: p.accent },
-                            isSelected && styles.colorCircleSelected,
-                          ]}
-                          onPress={() => setColor(c)}
-                          activeOpacity={0.7}
-                        >
-                          {isSelected && <Ionicons name="checkmark" size={14} color="#08090C" />}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
-                  {/* Type Switcher (Text vs Checklist) */}
-                  <View style={styles.typeSwitcher}>
-                    <TouchableOpacity
-                      style={[
-                        styles.typeBtn,
-                        type === 'checklist' && [styles.typeBtnActive, { borderColor: palette.accent }],
-                      ]}
-                      onPress={() => setType('checklist')}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name="checkbox-outline"
-                        size={15}
-                        color={type === 'checklist' ? palette.accent : COLORS.textMuted}
-                      />
-                      <Text
-                        style={[
-                          styles.typeBtnText,
-                          type === 'checklist' && { color: palette.accent, fontWeight: '700' },
-                        ]}
-                      >
-                        Checklist
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.typeBtn,
-                        type === 'text' && [styles.typeBtnActive, { borderColor: palette.accent }],
-                      ]}
-                      onPress={() => setType('text')}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name="document-text-outline"
-                        size={15}
-                        color={type === 'text' ? palette.accent : COLORS.textMuted}
-                      />
-                      <Text
-                        style={[
-                          styles.typeBtnText,
-                          type === 'text' && { color: palette.accent, fontWeight: '700' },
-                        ]}
-                      >
-                        Text Note
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Title Input */}
-                  <Text style={styles.inputLabel}>NOTE TITLE</Text>
-                  <TextInput
-                    style={[styles.titleInput, Boolean(error) && { borderColor: COLORS.danger }]}
-                    placeholder={category === 'Personal' ? 'e.g. WiFi Password, Email Credentials' : 'e.g. Monthly Grocery, Project Ideas'}
-                    placeholderTextColor={COLORS.textMuted}
-                    value={title}
-                    onChangeText={(val) => {
-                      setTitle(val);
-                      if (error) setError('');
-                    }}
-                    autoFocus={!isExisting}
-                  />
-                  {Boolean(error) && <Text style={styles.errorText}>{error}</Text>}
-
-                  <ScrollView
-                    style={styles.scrollArea}
-                    contentContainerStyle={styles.scrollContent}
+                    style={styles.editScrollArea}
+                    contentContainerStyle={styles.editScrollContent}
                     showsVerticalScrollIndicator={true}
-                    keyboardShouldPersistTaps="handled"
+                    keyboardShouldPersistTaps="always"
+                    nestedScrollEnabled={true}
                   >
+                    {/* Category Picker Selector */}
+                    <Text style={styles.inputLabel}>CATEGORY</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      nestedScrollEnabled={true}
+                      contentContainerStyle={styles.categoryPickerRow}
+                    >
+                      {(Object.keys(NOTE_CATEGORIES) as NoteCategory[]).map((catKey) => {
+                        const cfg = NOTE_CATEGORIES[catKey];
+                        const isSel = category === catKey;
+                        return (
+                          <TouchableOpacity
+                            key={catKey}
+                            style={[
+                              styles.categoryPill,
+                              { borderColor: isSel ? cfg.color : COLORS.border },
+                              isSel && { backgroundColor: cfg.color + '22' },
+                            ]}
+                            onPress={() => setCategory(catKey)}
+                            activeOpacity={0.75}
+                            delayPressIn={50}
+                          >
+                            <Ionicons
+                              name={cfg.icon as any}
+                              size={14}
+                              color={isSel ? cfg.color : COLORS.textMuted}
+                            />
+                            <Text
+                              style={[
+                                styles.categoryPillText,
+                                { color: isSel ? cfg.color : COLORS.textMuted },
+                                isSel && { fontWeight: '700' },
+                              ]}
+                            >
+                              {cfg.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+
+                    {/* Color Picker Palette */}
+                    <Text style={[styles.inputLabel, { marginTop: 10 }]}>CARD COLOR</Text>
+                    <View style={styles.colorPickerRow}>
+                      {(['amber', 'blue', 'emerald', 'rose', 'purple'] as StickyNoteColor[]).map((c) => {
+                        const p = STICKY_COLORS[c];
+                        const isSelected = color === c;
+                        return (
+                          <TouchableOpacity
+                            key={c}
+                            style={[
+                              styles.colorCircle,
+                              { backgroundColor: p.accent },
+                              isSelected && styles.colorCircleSelected,
+                            ]}
+                            onPress={() => setColor(c)}
+                            activeOpacity={0.7}
+                            delayPressIn={50}
+                          >
+                            {isSelected && <Ionicons name="checkmark" size={14} color="#08090C" />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    {/* Type Switcher (Text vs Checklist) */}
+                    <View style={styles.typeSwitcher}>
+                      <TouchableOpacity
+                        style={[
+                          styles.typeBtn,
+                          type === 'checklist' && [styles.typeBtnActive, { borderColor: palette.accent }],
+                        ]}
+                        onPress={() => setType('checklist')}
+                        activeOpacity={0.7}
+                        delayPressIn={50}
+                      >
+                        <Ionicons
+                          name="checkbox-outline"
+                          size={15}
+                          color={type === 'checklist' ? palette.accent : COLORS.textMuted}
+                        />
+                        <Text
+                          style={[
+                            styles.typeBtnText,
+                            type === 'checklist' && { color: palette.accent, fontWeight: '700' },
+                          ]}
+                        >
+                          Checklist
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.typeBtn,
+                          type === 'text' && [styles.typeBtnActive, { borderColor: palette.accent }],
+                        ]}
+                        onPress={() => setType('text')}
+                        activeOpacity={0.7}
+                        delayPressIn={50}
+                      >
+                        <Ionicons
+                          name="document-text-outline"
+                          size={15}
+                          color={type === 'text' ? palette.accent : COLORS.textMuted}
+                        />
+                        <Text
+                          style={[
+                            styles.typeBtnText,
+                            type === 'text' && { color: palette.accent, fontWeight: '700' },
+                          ]}
+                        >
+                          Text Note
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Title Input */}
+                    <Text style={styles.inputLabel}>NOTE TITLE</Text>
+                    <TextInput
+                      style={[styles.titleInput, Boolean(error) && { borderColor: COLORS.danger }]}
+                      placeholder={category === 'Personal' ? 'e.g. WiFi Password, Email Credentials' : 'e.g. Monthly Grocery, Project Ideas'}
+                      placeholderTextColor={COLORS.textMuted}
+                      value={title}
+                      onChangeText={(val) => {
+                        setTitle(val);
+                        if (error) setError('');
+                      }}
+                    />
+                    {Boolean(error) && <Text style={styles.errorText}>{error}</Text>}
+
                     {/* Description Box */}
                     <Text style={styles.inputLabel}>
                       {type === 'checklist' ? 'DESCRIPTION' : 'NOTE CONTENT'}
@@ -580,6 +606,7 @@ function StickyNoteModalContent({
                                 onPress={() => handleToggleChecklistItem(item.id)}
                                 style={styles.checkboxTouch}
                                 activeOpacity={0.7}
+                                delayPressIn={50}
                               >
                                 <Ionicons
                                   name={item.done ? 'checkbox' : 'square-outline'}
@@ -600,6 +627,7 @@ function StickyNoteModalContent({
                                 onPress={() => handleDeleteChecklistItem(item.id)}
                                 style={styles.deleteItemBtn}
                                 activeOpacity={0.6}
+                                delayPressIn={50}
                               >
                                 <Ionicons name="close-circle-outline" size={18} color={COLORS.textMuted} />
                               </TouchableOpacity>
@@ -628,6 +656,7 @@ function StickyNoteModalContent({
                             style={[styles.addItemBtn, { backgroundColor: palette.accent }]}
                             onPress={handleAddChecklistItem}
                             activeOpacity={0.8}
+                            delayPressIn={50}
                           >
                             <Ionicons name="add" size={20} color="#08090C" />
                           </TouchableOpacity>
@@ -657,6 +686,12 @@ function StickyNoteModalContent({
                       onPress={handleSave}
                       activeOpacity={0.85}
                     >
+                      <Ionicons
+                        name={isExisting ? 'checkmark-circle' : 'pin'}
+                        size={15}
+                        color="#08090C"
+                        style={{ marginRight: 6 }}
+                      />
                       <Text style={styles.btnPrimaryText}>
                         {isExisting ? 'Save Changes' : 'Pin Note'}
                       </Text>
@@ -665,16 +700,14 @@ function StickyNoteModalContent({
                 </View>
               )}
             </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
 
-      {/* Custom Alert Modal for Delete */}
-      <AppAlertModal
-        config={alertConfig}
-        onClose={() => setAlertConfig((prev) => ({ ...prev, visible: false }))}
-      />
-    </KeyboardAvoidingView>
+          {/* Custom Alert Modal for Delete */}
+          <AppAlertModal
+            config={alertConfig}
+            onClose={() => setAlertConfig((prev) => ({ ...prev, visible: false }))}
+          />
+        </View>
   );
 }
 
@@ -686,10 +719,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
   },
-  modalCard: {
+  keyboardAvoidWrapper: {
     width: '100%',
     maxWidth: 420,
-    maxHeight: '90%',
+    maxHeight: '92%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCard: {
+    width: '100%',
+    maxHeight: '100%',
     borderRadius: RADIUS.xl,
     padding: 20,
     borderWidth: 1.5,
@@ -894,6 +933,7 @@ const styles = StyleSheet.create({
   },
   btnPrimary: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
@@ -1074,7 +1114,21 @@ const styles = StyleSheet.create({
   editActionRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 14,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  editModeBody: {
+    flexShrink: 1,
+    minHeight: 0,
+  },
+  editScrollArea: {
+    flexShrink: 1,
+    minHeight: 0,
+  },
+  editScrollContent: {
+    paddingBottom: 24,
   },
   btnCancelEdit: {
     paddingHorizontal: 16,

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { ensureSchema, updateStored } from '../storage';
+import { initializeAllStores } from '../stores';
 import CurvedTabBar from '../components/Navigation/CurvedTabBar';
 import HabitAlarmModal, { HabitAlarmData } from '../components/Habits/HabitAlarmModal';
 import {
@@ -10,6 +11,7 @@ import {
 } from '../services/habitNotificationService';
 import { isAndroidExpoGo } from '../utils/expoGoHelper';
 import { COLORS } from '../constants/theme';
+import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 
 let Notifications: any = null;
 if (!isAndroidExpoGo) {
@@ -25,7 +27,9 @@ export default function AppLayout() {
 
   useEffect(() => {
     // Validate storage schema once per launch.
-    ensureSchema();
+    ensureSchema().then(() => {
+      initializeAllStores();
+    });
 
     // Init notifications.
     initializeNotifications();
@@ -140,31 +144,33 @@ export default function AppLayout() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.bgCanvas }}>
-      <Tabs
-        initialRouteName="index"
-        backBehavior="initialRoute"
-        tabBar={(props: any) => <CurvedTabBar {...props} />}
-        screenOptions={{
-          headerShown: false,
-          animation: 'none',
-        }}
-      >
-        <Tabs.Screen name="fitness" options={{ title: 'Fitness' }} />
-        <Tabs.Screen name="habits" options={{ title: 'To-Do' }} />
-        <Tabs.Screen name="index" options={{ title: 'Home' }} />
-        <Tabs.Screen name="nutrition" options={{ title: 'Meal' }} />
-        <Tabs.Screen name="finance" options={{ title: 'Finance' }} />
-      </Tabs>
+    <ErrorBoundary fallbackTitle="Lenvry Mengalami Kendala">
+      <View style={{ flex: 1, backgroundColor: COLORS.bgCanvas }}>
+        <Tabs
+          initialRouteName="index"
+          backBehavior="initialRoute"
+          tabBar={(props: any) => <CurvedTabBar {...props} />}
+          screenOptions={{
+            headerShown: false,
+            animation: 'none',
+          }}
+        >
+          <Tabs.Screen name="fitness" options={{ title: 'Fitness' }} />
+          <Tabs.Screen name="habits" options={{ title: 'To-Do' }} />
+          <Tabs.Screen name="index" options={{ title: 'Home' }} />
+          <Tabs.Screen name="nutrition" options={{ title: 'Meal' }} />
+          <Tabs.Screen name="finance" options={{ title: 'Finance' }} />
+        </Tabs>
 
-      {/* Global full-screen alarm */}
-      <HabitAlarmModal
-        visible={!!alarmData}
-        data={alarmData}
-        onComplete={handleCompleteHabit}
-        onSnooze={handleSnoozeHabit}
-        onDismiss={handleDismissAlarm}
-      />
-    </View>
+        {/* Global full-screen alarm */}
+        <HabitAlarmModal
+          visible={!!alarmData}
+          data={alarmData}
+          onComplete={handleCompleteHabit}
+          onSnooze={handleSnoozeHabit}
+          onDismiss={handleDismissAlarm}
+        />
+      </View>
+    </ErrorBoundary>
   );
 }
