@@ -1,4 +1,4 @@
-export type NoteCategory = 'General' | 'Personal' | 'Work' | 'Ideas' | 'Lists';
+export type NoteCategory = 'General' | 'Personal' | 'Finance' | 'Work' | 'Ideas' | 'Lists';
 
 export interface NoteCategoryConfig {
   id: NoteCategory;
@@ -10,10 +10,11 @@ export interface NoteCategoryConfig {
 
 export const NOTE_CATEGORIES: Record<NoteCategory, NoteCategoryConfig> = {
   General: { id: 'General', label: 'General Note', icon: 'document-text-outline', color: '#F59E0B' },
-  Personal: { id: 'Personal', label: 'Personal & Credentials', icon: 'shield-checkmark-outline', color: '#EC4899', isSensitive: true },
-  Work: { id: 'Work', label: 'Work & Study', icon: 'briefcase-outline', color: '#38BDF8' },
-  Ideas: { id: 'Ideas', label: 'Ideas & Thoughts', icon: 'bulb-outline', color: '#A855F7' },
-  Lists: { id: 'Lists', label: 'Lists & Shopping', icon: 'list-outline', color: '#10B981' },
+  Personal: { id: 'Personal', label: 'Personal', icon: 'shield-checkmark-outline', color: '#EC4899', isSensitive: true },
+  Finance: { id: 'Finance', label: 'Finance', icon: 'wallet-outline', color: '#10B981', isSensitive: true },
+  Work: { id: 'Work', label: 'Work', icon: 'briefcase-outline', color: '#38BDF8' },
+  Ideas: { id: 'Ideas', label: 'Ideas', icon: 'bulb-outline', color: '#A855F7' },
+  Lists: { id: 'Lists', label: 'Lists', icon: 'list-outline', color: '#F97316' },
 };
 
 export type StickyNoteColor = 'amber' | 'blue' | 'emerald' | 'rose' | 'purple';
@@ -24,12 +25,19 @@ export interface ChecklistItem {
   done: boolean;
 }
 
+export interface NoteEntry {
+  id: string;
+  title: string;
+  content: string;
+}
+
 export interface StickyNote {
   id: string;
   title: string;
   type: 'text' | 'checklist';
   category?: NoteCategory;
   description?: string;
+  entries?: NoteEntry[];
   checklist?: ChecklistItem[];
   color?: StickyNoteColor;
   createdAt: string;

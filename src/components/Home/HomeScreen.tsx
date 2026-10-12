@@ -25,7 +25,10 @@ import DailyOverviewCard from './DailyOverviewCard';
 import HomeSettingsModal from './HomeSettingsModal';
 import StickyNotesSection from './StickyNotesSection';
 import StickyNoteModal from './StickyNoteModal';
+import LearningTrackerSection from './LearningTrackerSection';
+import LearningCourseModal from './LearningCourseModal';
 import { StickyNote } from '../../types/notes';
+import { LearningCourse } from '../../types/learning';
 import { useHomeDashboard } from '../../hooks/useHomeDashboard';
 
 function getGreeting(hour = new Date().getHours()) {
@@ -39,6 +42,8 @@ export function HomeScreen() {
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isStickyModalVisible, setIsStickyModalVisible] = useState(false);
   const [selectedNote, setSelectedNote] = useState<StickyNote | null>(null);
+  const [isCourseModalVisible, setIsCourseModalVisible] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<LearningCourse | null>(null);
 
   const {
     userName,
@@ -51,10 +56,14 @@ export function HomeScreen() {
     todayCaloriesConsumed,
     calorieTarget,
     notes,
+    courses,
     fetchDashboardData,
     toggleHabitOnHome,
     handleSaveStickyNote,
     handleDeleteStickyNote,
+    handleSaveCourse,
+    handleDeleteCourse,
+    handleUpdateCourseStatus,
   } = useHomeDashboard();
 
   const today = new Date().toLocaleDateString('en-US', {
@@ -72,6 +81,16 @@ export function HomeScreen() {
   const handleSelectNote = (note: StickyNote) => {
     setSelectedNote(note);
     setIsStickyModalVisible(true);
+  };
+
+  const handleOpenCreateCourse = () => {
+    setSelectedCourse(null);
+    setIsCourseModalVisible(true);
+  };
+
+  const handleSelectCourse = (course: LearningCourse) => {
+    setSelectedCourse(course);
+    setIsCourseModalVisible(true);
   };
 
   const todayDateObj = new Date();
@@ -229,6 +248,14 @@ export function HomeScreen() {
             })}
           </View>
         )}
+
+        {/* Learning Tracker Section */}
+        <LearningTrackerSection
+          courses={courses}
+          onSelectCourse={handleSelectCourse}
+          onCreateCourse={handleOpenCreateCourse}
+          onUpdateStatus={handleUpdateCourseStatus}
+        />
       </ScrollView>
 
       {/* Settings Modal */}
@@ -247,6 +274,15 @@ export function HomeScreen() {
         onClose={() => setIsStickyModalVisible(false)}
         onSave={handleSaveStickyNote}
         onDelete={handleDeleteStickyNote}
+      />
+
+      {/* Learning Course Editor Modal */}
+      <LearningCourseModal
+        visible={isCourseModalVisible}
+        course={selectedCourse}
+        onClose={() => setIsCourseModalVisible(false)}
+        onSave={handleSaveCourse}
+        onDelete={handleDeleteCourse}
       />
     </SafeAreaView>
   </ErrorBoundary>

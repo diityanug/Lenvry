@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -8,6 +8,7 @@ import {
   Keyboard,
   Pressable,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NutritionTarget } from '../../types/nutrition';
@@ -47,6 +48,22 @@ function TargetModalContent({
   const [protein, setProtein] = useState(target.protein.toString());
   const [carbs, setCarbs] = useState(target.carbs.toString());
   const [fat, setFat] = useState(target.fat.toString());
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleDismiss = () => {
     Keyboard.dismiss();
@@ -75,15 +92,12 @@ function TargetModalContent({
     <View style={styles.modalOverlay}>
       <Pressable style={styles.dismissArea} onPress={handleDismiss} />
 
-      <View style={styles.modalContent}>
+      <View style={[styles.modalContent, { maxHeight: '90%' }]}>
         <View style={styles.modalHandle} />
 
           <View style={styles.modalHeaderRow}>
             <View>
               <Text style={styles.modalTitle}>Daily Goals</Text>
-              <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 0 }}>
-                
-              </Text>
             </View>
             <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
@@ -92,9 +106,10 @@ function TargetModalContent({
 
           <ScrollView
             keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true}
             keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 16 }}
+            contentContainerStyle={{ paddingBottom: Math.max(20, keyboardHeight + 20) }}
           >
             {/* Quick Presets */}
             <Text style={styles.formLabel}>QUICK PRESETS</Text>

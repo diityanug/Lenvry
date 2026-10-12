@@ -360,6 +360,7 @@ export const HeroSummaryCard = ({
   onCurrencyChange,
 }: HeroSummaryProps) => {
   const [internalCurrency, setInternalCurrency] = useState<'IDR' | 'USD'>('IDR');
+  const [isNetWorthHidden, setIsNetWorthHidden] = useState<boolean>(false);
 
   const selectedCurrency = activeCurrency !== undefined ? activeCurrency : internalCurrency;
   const setCurrency = (c: 'IDR' | 'USD') => {
@@ -388,6 +389,18 @@ export const HeroSummaryCard = ({
           <View style={styles.heroLabelGroup}>
             <View style={[styles.heroIndicatorDot, { backgroundColor: isIDR ? COLORS.finance : COLORS.success }]} />
             <Text style={styles.balanceLabel}>TOTAL NET WORTH</Text>
+            <TouchableOpacity
+              onPress={() => setIsNetWorthHidden((prev) => !prev)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ marginLeft: 6, padding: 2 }}
+            >
+              <Ionicons
+                name={isNetWorthHidden ? 'eye-off-outline' : 'eye-outline'}
+                size={16}
+                color={COLORS.textMuted}
+              />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.currencyToggle}>
@@ -414,7 +427,11 @@ export const HeroSummaryCard = ({
           adjustsFontSizeToFit={true}
           minimumFontScale={0.7}
         >
-          {formatMoney(currentTotal, selectedCurrency)}
+          {isNetWorthHidden
+            ? isIDR
+              ? 'Rp ••••••••'
+              : '$ ••••••••'
+            : formatMoney(currentTotal, selectedCurrency)}
         </Text>
 
         {/* Bottom Stats Row */}

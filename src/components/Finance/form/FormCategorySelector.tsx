@@ -71,7 +71,6 @@ export const FormCategorySelector = ({
                   styles.categoryLabel,
                   isSelected && { color: COLORS.textPrimary, fontWeight: '700' },
                 ]}
-                numberOfLines={1}
               >
                 {cat}
               </Text>
@@ -112,15 +111,17 @@ const styles = StyleSheet.create({
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
   },
   categoryChip: {
-    width: '22.5%',
-    aspectRatio: 1,
+    width: '23%',
+    minHeight: 86,
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 6,
+    justifyContent: 'flex-start',
+    paddingTop: 10,
+    paddingBottom: 8,
+    paddingHorizontal: 4,
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
@@ -135,9 +136,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   categoryLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
+    lineHeight: 13.5,
     color: COLORS.textSecondary,
-    fontWeight: '500',
+    fontWeight: '600',
     textAlign: 'center',
+    width: '100%',
   },
 });

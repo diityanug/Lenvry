@@ -1,11 +1,11 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StatusBar, ScrollView, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { readManyStored, updateStored, writeStored } from '../storage';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 
-import { Account, Transaction, CategoryBudget, CategoryCustomIcon, RecurringBill, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, MONTHS } from '../types/finance';
+import { Account, Transaction, CategoryBudget, CategoryCustomIcon, DebtItem, RecurringBill, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, MONTHS } from '../types/finance';
 import { TransactionCard, AccountCard, AddAccountCard, HeroSummaryCard } from '../components/Finance/FinanceCards';
 import { TransactionModal } from '../components/Finance/TransactionModal';
 import { AccountDetailModal } from '../components/Finance/AccountDetailModal';
@@ -17,6 +17,7 @@ import { CategoryBreakdownCard } from '../components/Finance/CategoryBreakdownCa
 import { CategoryBreakdownModal } from '../components/Finance/CategoryBreakdownModal';
 import { CategoryBudgetModal } from '../components/Finance/CategoryBudgetModal';
 import { RecurringBillsCard } from '../components/Finance/RecurringBillsCard';
+import { DebtsCard } from '../components/Finance/DebtsCard';
 import { ManageAccountsModal } from '../components/Finance/ManageAccountsModal';
 import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
 import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
@@ -75,6 +76,7 @@ export default function FinanceTracker() {
   const [txDate, setTxDate] = useState(new Date());
   const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudget[]>([]);
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
+  const [debts, setDebts] = useState<DebtItem[]>([]);
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
 
   // Account Form State
@@ -111,6 +113,7 @@ export default function FinanceTracker() {
         'financeCategoryBudgets',
         'financeRecurringBills',
         'financeCustomCategoryIcons',
+        'financeDebts',
       ]);
 
       if (data.financeTransactions) setTransactions(data.financeTransactions);
@@ -119,6 +122,7 @@ export default function FinanceTracker() {
       if (data.financeCategoryBudgets) setCategoryBudgets(data.financeCategoryBudgets);
       if (data.financeRecurringBills) setRecurringBills(data.financeRecurringBills);
       if (data.financeCustomCategoryIcons) setCustomCategoryIcons(data.financeCustomCategoryIcons);
+      if (data.financeDebts) setDebts(data.financeDebts);
 
       if (data.financeAccounts) {
         // The 'IDR' fallback for legacy rows now lives in the storage schema.
@@ -239,6 +243,18 @@ export default function FinanceTracker() {
   const monthlyExpenseUSD = filteredMonthlyTransactions
     .filter((t) => t.type === 'expense' && accounts.find((a) => a.id === t.accountId)?.currency === 'USD')
     .reduce((sum, t) => sum + t.amount, 0);
+
+  const monthlyTransactionsForActiveCurrency = useMemo(() => {
+    return filteredMonthlyTransactions.filter((t) => {
+      const acc = accounts.find((a) => a.id === t.accountId);
+      const accCurrency = acc?.currency || 'IDR';
+      return accCurrency === activeCurrency;
+    });
+  }, [filteredMonthlyTransactions, accounts, activeCurrency]);
+
+  const activeCategoryBudgets = useMemo(() => {
+    return categoryBudgets.filter((b) => (b.currency || 'IDR') === activeCurrency);
+  }, [categoryBudgets, activeCurrency]);
 
   const sortedTransactions = [...filteredMonthlyTransactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -420,6 +436,84 @@ export default function FinanceTracker() {
       }
     }
     setTxModalVisible(true);
+  };
+
+  const saveDebts = async (newDebts: DebtItem[]) => {
+    setDebts(newDebts);
+    await writeStored('financeDebts', newDebts);
+  };
+
+  const handleAddDebt = async (
+    newDebtData: Omit<DebtItem, 'id' | 'createdAt' | 'paidAmount' | 'remainingAmount' | 'status'>
+  ) => {
+    const newItem: DebtItem = {
+      ...newDebtData,
+      id: Date.now().toString(),
+      paidAmount: 0,
+      remainingAmount: newDebtData.originalAmount,
+      createdAt: new Date().toISOString(),
+      status: 'active',
+    };
+    const updated = [newItem, ...debts];
+    await saveDebts(updated);
+  };
+
+  const handleDeleteDebt = async (id: string) => {
+    const updated = debts.filter((d) => d.id !== id);
+    await saveDebts(updated);
+  };
+
+  const handleSettleDebtPayment = async ({
+    debtId,
+    amountPaid,
+    accountId,
+    subAccountId,
+    notes,
+  }: {
+    debtId: string;
+    amountPaid: number;
+    accountId: string;
+    subAccountId: string;
+    notes?: string;
+  }) => {
+    const target = debts.find((d) => d.id === debtId);
+    if (!target) return;
+
+    const newPaid = target.paidAmount + amountPaid;
+    const newRemaining = Math.max(0, target.originalAmount - newPaid);
+    const newStatus = newRemaining === 0 ? 'settled' : 'active';
+
+    const updatedDebts = debts.map((d) =>
+      d.id === debtId
+        ? {
+            ...d,
+            paidAmount: newPaid,
+            remainingAmount: newRemaining,
+            status: newStatus as 'active' | 'settled',
+          }
+        : d
+    );
+    await saveDebts(updatedDebts);
+
+    // Record corresponding transaction in financeTransactions to immediately adjust account balance!
+    const isReceivable = target.type === 'receivable';
+    const txDescription = isReceivable
+      ? `Received from ${target.personName}: ${target.title}${notes ? ` (${notes})` : ''}`
+      : `Paid debt to ${target.personName}: ${target.title}${notes ? ` (${notes})` : ''}`;
+
+    const newTx: Transaction = {
+      id: Date.now().toString(),
+      type: isReceivable ? 'income' : 'expense',
+      amount: amountPaid,
+      description: txDescription,
+      category: isReceivable ? 'Others' : 'Bills & Utilities',
+      date: new Date().toISOString(),
+      accountId,
+      subAccountId,
+    };
+
+    const updatedTransactions = [newTx, ...transactions];
+    setTransactions(await writeStored('financeTransactions', updatedTransactions));
   };
 
   const saveAccount = async () => {
@@ -910,8 +1004,8 @@ export default function FinanceTracker() {
           >
             {/* CATEGORY EXPENSE BREAKDOWN & BUDGETS */}
             <CategoryBreakdownCard
-              transactions={filteredMonthlyTransactions}
-              budgets={categoryBudgets}
+              transactions={monthlyTransactionsForActiveCurrency}
+              budgets={activeCategoryBudgets}
               currency={activeCurrency}
               customCategoryIcons={customCategoryIcons}
               onOpenSetBudget={() => setBudgetModalVisible(true)}
@@ -920,7 +1014,7 @@ export default function FinanceTracker() {
             {/* RECURRING BILLS CARD */}
             <RecurringBillsCard
               bills={recurringBills}
-              monthlyTransactions={filteredMonthlyTransactions}
+              monthlyTransactions={monthlyTransactionsForActiveCurrency}
               categories={expenseCategories}
               currency={activeCurrency}
               onAddBill={(bill) => {
@@ -931,6 +1025,16 @@ export default function FinanceTracker() {
                 saveRecurringBills(recurringBills.filter((b) => b.id !== id));
               }}
               onQuickLogBill={handleQuickLogBill}
+            />
+
+            {/* RECEIVABLES & DEBTS CARD */}
+            <DebtsCard
+              debts={debts}
+              accounts={accounts}
+              currency={activeCurrency}
+              onAddDebt={handleAddDebt}
+              onDeleteDebt={handleDeleteDebt}
+              onSettlePayment={handleSettleDebtPayment}
             />
           </Animated.View>
         )}
@@ -1111,12 +1215,16 @@ export default function FinanceTracker() {
         customCategoryIcons={customCategoryIcons}
         onClose={() => setBudgetModalVisible(false)}
         onSaveBudget={(cat, limit) => {
-          const existing = categoryBudgets.find((b) => b.category === cat);
+          const existingIndex = categoryBudgets.findIndex(
+            (b) => b.category === cat && (b.currency || 'IDR') === activeCurrency
+          );
           let updated: CategoryBudget[];
-          if (existing) {
-            updated = categoryBudgets.map((b) => (b.category === cat ? { ...b, limit } : b));
+          if (existingIndex >= 0) {
+            updated = categoryBudgets.map((b, idx) =>
+              idx === existingIndex ? { ...b, limit, currency: activeCurrency } : b
+            );
           } else {
-            updated = [...categoryBudgets, { category: cat, limit }];
+            updated = [...categoryBudgets, { category: cat, limit, currency: activeCurrency }];
           }
           saveCategoryBudgets(updated);
         }}
@@ -1124,8 +1232,8 @@ export default function FinanceTracker() {
 
       <CategoryBreakdownModal
         visible={categoryBreakdownModalVisible}
-        transactions={filteredMonthlyTransactions}
-        budgets={categoryBudgets}
+        transactions={monthlyTransactionsForActiveCurrency}
+        budgets={activeCategoryBudgets}
         currency={activeCurrency}
         customCategoryIcons={customCategoryIcons}
         onClose={() => setCategoryBreakdownModalVisible(false)}

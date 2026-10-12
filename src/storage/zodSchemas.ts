@@ -141,6 +141,7 @@ export const TransactionSchema = z.object({
 export const CategoryBudgetSchema = z.object({
   category: safeStr(''),
   limit: safeNum(0),
+  currency: z.enum(['IDR', 'USD']).optional(),
 });
 
 export const CategoryCustomIconSchema = z.object({
@@ -158,6 +159,30 @@ export const RecurringBillSchema = z.object({
   dueDateDay: safeNum(1).transform((v) => Math.min(31, Math.max(1, Math.round(v)))),
   currency: z.enum(['IDR', 'USD']).catch('IDR'),
 });
+
+export const DebtItemSchema = z
+  .object({
+    id: safeStr().transform((v) => v || genUid('debt')),
+    type: z.enum(['debt', 'receivable']).catch('receivable'),
+    personName: safeStr('Friend').transform((v) => v.trim() || 'Friend'),
+    title: safeStr('').transform((v) => v.trim()),
+    originalAmount: safeNum(0),
+    paidAmount: safeNum(0),
+    remainingAmount: safeNum(0),
+    currency: z.enum(['IDR', 'USD']).catch('IDR'),
+    dueDate: safeOptStr(),
+    createdAt: safeStr().transform((v) => v || new Date().toISOString()),
+    status: z.enum(['active', 'settled']).catch('active'),
+    notes: safeOptStr(),
+  })
+  .transform((item) => {
+    const rem = Math.max(0, item.originalAmount - item.paidAmount);
+    return {
+      ...item,
+      remainingAmount: rem,
+      status: rem <= 0 ? ('settled' as const) : ('active' as const),
+    };
+  });
 
 // ---------------------------------------------------------------------------
 // Fitness Schemas
@@ -269,3 +294,22 @@ export const NotificationSettingsSchema = z.object({
   vibrate: safeBool(DEFAULT_NOTIFICATION_SETTINGS.vibrate),
   fullScreenAlarm: safeBool(DEFAULT_NOTIFICATION_SETTINGS.fullScreenAlarm),
 });
+
+// ---------------------------------------------------------------------------
+// Learning Schemas
+// ---------------------------------------------------------------------------
+export const LearningCourseSchema = z.object({
+  id: safeStr().transform((v) => v || genUid('course')),
+  title: safeStr('Untitled Course').transform((v) => v.trim() || 'Untitled Course'),
+  status: z.enum(['Not Started', 'In Progress', 'Completed', 'On Hold']).catch('In Progress'),
+  link: safeOptStr(),
+  startDate: safeStr().transform((v) => v || getTodayKey()),
+  provider: safeStr('Udemy').transform((v) => v.trim() || 'Udemy'),
+  level: z.enum(['Beginner', 'Intermediate', 'Advanced', 'All Levels']).catch('Beginner'),
+  hours: safeNum(0).transform((v) => Math.max(0, v)),
+  notes: safeOptStr(),
+  color: z.enum(['violet', 'blue', 'emerald', 'rose', 'amber', 'cyan']).optional().catch(undefined),
+  createdAt: safeStr().transform((v) => v || new Date().toISOString()),
+  updatedAt: safeStr().transform((v) => v || new Date().toISOString()),
+});
+

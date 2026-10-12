@@ -28,6 +28,7 @@ export interface Transaction {
 export interface CategoryBudget {
   category: string;
   limit: number;
+  currency?: 'IDR' | 'USD';
 }
 
 export interface CategoryCustomIcon {
@@ -44,6 +45,21 @@ export interface RecurringBill {
   category: string;
   dueDateDay: number;
   currency: 'IDR' | 'USD';
+}
+
+export interface DebtItem {
+  id: string;
+  type: 'debt' | 'receivable'; // 'debt' (You Owe / Utang) vs 'receivable' (Owed to You / Piutang)
+  personName: string;
+  title: string;
+  originalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  currency: 'IDR' | 'USD';
+  dueDate?: string;
+  createdAt: string;
+  status: 'active' | 'settled';
+  notes?: string;
 }
 
 

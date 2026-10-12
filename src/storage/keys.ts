@@ -16,6 +16,7 @@ export const STORAGE_KEYS = {
   financeCategoryBudgets: '@finance_category_budgets',
   financeRecurringBills: '@finance_recurring',
   financeCustomCategoryIcons: '@finance_custom_cat_icons',
+  financeDebts: '@finance_debts',
 
   habits: '@lenvry_habits',
   habitCategories: '@lenvry_habit_categories',
@@ -31,6 +32,7 @@ export const STORAGE_KEYS = {
   waterLogs: '@wakemove_water_logs',
 
   generalNotes: '@lenvry_general_notes',
+  learningCourses: '@lenvry_learning_courses',
 
   /** Internal: shape version of the persisted data. */
   schemaVersion: '@lenvry_schema_version',

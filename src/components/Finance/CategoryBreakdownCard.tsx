@@ -108,8 +108,9 @@ export const CategoryBreakdownCard = ({
     0
   );
 
-  // Budgets Calculations
-  const budgetedCategories = budgets.filter((b) => b.limit > 0);
+  // Budgets Calculations (Filtered by active currency)
+  const currentCurrencyBudgets = budgets.filter((b) => (b.currency || 'IDR') === currency);
+  const budgetedCategories = currentCurrencyBudgets.filter((b) => b.limit > 0);
   const totalBudgetLimit = budgetedCategories.reduce((sum, b) => sum + b.limit, 0);
   const totalBudgetSpent = budgetedCategories.reduce((sum, b) => sum + (expenseCatTotals[b.category]?.amount || 0), 0);
   const overallBudgetPercent = totalBudgetLimit > 0 ? Math.round((totalBudgetSpent / totalBudgetLimit) * 100) : 0;

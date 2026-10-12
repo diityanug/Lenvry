@@ -42,10 +42,26 @@ export const CategoryBudgetModal = ({
   onSaveBudget,
 }: CategoryBudgetModalProps) => {
   const [selectedCat, setSelectedCat] = useState(categories[0] || 'Food & Beverages');
+  const currentCurrencyBudgets = budgets.filter((b) => (b.currency || 'IDR') === currency);
   const [limitText, setLimitText] = useState(() => {
-    const existing = budgets.find((b) => b.category === (categories[0] || 'Food & Beverages'));
+    const existing = currentCurrencyBudgets.find((b) => b.category === (categories[0] || 'Food & Beverages'));
     return existing && existing.limit > 0 ? existing.limit.toString() : '';
   });
+
+  const [prevVisible, setPrevVisible] = useState(visible);
+  const [prevCat, setPrevCat] = useState(selectedCat);
+  const [prevCurrency, setPrevCurrency] = useState(currency);
+
+  if (visible !== prevVisible || selectedCat !== prevCat || currency !== prevCurrency) {
+    setPrevVisible(visible);
+    setPrevCat(selectedCat);
+    setPrevCurrency(currency);
+    if (visible) {
+      const existing = currentCurrencyBudgets.find((b) => b.category === selectedCat);
+      setLimitText(existing && existing.limit > 0 ? existing.limit.toString() : '');
+    }
+  }
+
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
@@ -63,13 +79,13 @@ export const CategoryBudgetModal = ({
     };
   }, []);
 
-  const currentBudget = budgets.find((b) => b.category === selectedCat);
+  const currentBudget = currentCurrencyBudgets.find((b) => b.category === selectedCat);
   const theme = getCategoryTheme(selectedCat, customCategoryIcons);
   const selectedIcon = getCategoryIcon(selectedCat, 'expense', customCategoryIcons);
 
   const handleSelectCategory = (cat: string) => {
     setSelectedCat(cat);
-    const existing = budgets.find((b) => b.category === cat);
+    const existing = currentCurrencyBudgets.find((b) => b.category === cat);
     setLimitText(existing && existing.limit > 0 ? existing.limit.toString() : '');
   };
 
@@ -147,7 +163,7 @@ export const CategoryBudgetModal = ({
                   const isSelected = selectedCat === cat;
                   const catTheme = getCategoryTheme(cat, customCategoryIcons);
                   const catIcon = getCategoryIcon(cat, 'expense', customCategoryIcons);
-                  const hasBudget = budgets.some((b) => b.category === cat && b.limit > 0);
+                  const hasBudget = currentCurrencyBudgets.some((b) => b.category === cat && b.limit > 0);
 
                   return (
                     <TouchableOpacity

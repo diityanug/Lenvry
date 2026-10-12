@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { COLORS, RADIUS } from '../../constants/theme';
-import { StickyNote, NoteCategory, NOTE_CATEGORIES } from '../../types/notes';
+import { NOTE_CATEGORIES, NoteCategory, StickyNote } from '../../types/notes';
 
 interface StickyNotesSectionProps {
   notes: StickyNote[];
@@ -27,12 +27,15 @@ export default function StickyNotesSection({
 }: StickyNotesSectionProps) {
   const [activeCategory, setActiveCategory] = useState<string>('All');
 
-  const categoriesList = ['All', 'Personal', 'General', 'Work', 'Ideas', 'Lists'];
+  const categoriesList = ['All', 'Personal', 'Finance', 'General', 'Work', 'Ideas', 'Lists'];
 
+  // Personal and Finance notes are sensitive / private: they only appear under their own category tabs
   const filteredNotes =
     activeCategory === 'All'
-      ? notes
+      ? notes.filter((n) => n.category !== 'Personal' && n.category !== 'Finance')
       : notes.filter((n) => (n.category || 'General') === activeCategory);
+
+  const allNotesCount = notes.filter((n) => n.category !== 'Personal' && n.category !== 'Finance').length;
 
   return (
     <View style={styles.sectionContainer}>
@@ -67,7 +70,7 @@ export default function StickyNotesSection({
             const isSelected = activeCategory === catKey;
 
             const count = isAll
-              ? notes.length
+              ? allNotesCount
               : notes.filter((n) => (n.category || 'General') === catKey).length;
 
             if (count === 0 && !isAll && !isSelected) return null;
@@ -98,7 +101,7 @@ export default function StickyNotesSection({
                     isSelected && styles.filterPillTextActive,
                   ]}
                 >
-                  {catKey === 'Personal' ? 'Personal & Pass' : catKey} ({count})
+                  {catKey === 'Personal' ? 'Personal' : catKey === 'Finance' ? 'Finance' : catKey} ({count})
                 </Text>
               </TouchableOpacity>
             );
@@ -134,6 +137,9 @@ export default function StickyNotesSection({
             const completedItems = note.checklist?.filter((item) => item.done).length || 0;
             const pct = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
+            const isSensitive = note.category === 'Personal';
+            const hasEntries = Array.isArray(note.entries) && note.entries.length > 0;
+
             return (
               <TouchableOpacity
                 key={note.id}
@@ -149,7 +155,9 @@ export default function StickyNotesSection({
                       {catConfig.id}
                     </Text>
                   </View>
-                  <Ionicons name="pin" size={13} color={paper.ink} style={{ opacity: 0.65 }} />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="pin" size={13} color={paper.ink} style={{ opacity: 0.65 }} />
+                  </View>
                 </View>
 
                 {/* Title */}
@@ -177,7 +185,7 @@ export default function StickyNotesSection({
                             ]}
                             numberOfLines={1}
                           >
-                            {item.text}
+                            {isSensitive ? '****' : item.text}
                           </Text>
                         </View>
                       ))}
@@ -192,12 +200,36 @@ export default function StickyNotesSection({
                         </Text>
                       )}
                     </View>
+                  ) : hasEntries ? (
+                    <View style={{ gap: 4 }}>
+                      {(note.entries || []).slice(0, 2).map((entry, idx) => (
+                        <View key={entry.id || idx} style={{ marginBottom: 2 }}>
+                          {Boolean(entry.title?.trim()) && (
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: paper.ink, opacity: 0.85 }} numberOfLines={1}>
+                              {entry.title}:
+                            </Text>
+                          )}
+                          <Text style={[styles.descText, { color: paper.ink, opacity: 0.9 }]} numberOfLines={1}>
+                            {isSensitive ? '****' : (entry.content || 'No content')}
+                          </Text>
+                        </View>
+                      ))}
+                      {(note.entries?.length || 0) > 2 && (
+                        <Text style={[styles.moreText, { color: paper.ink }]}>
+                          +{(note.entries?.length || 0) - 2} more entries
+                        </Text>
+                      )}
+                    </View>
                   ) : (
                     <Text
                       style={[styles.descText, { color: paper.ink, opacity: 0.9 }]}
                       numberOfLines={3}
                     >
-                      {note.description?.trim() ? note.description : 'No description'}
+                      {isSensitive
+                        ? '****'
+                        : note.description?.trim()
+                        ? note.description
+                        : 'No description'}
                     </Text>
                   )}
                 </View>
@@ -221,7 +253,7 @@ export default function StickyNotesSection({
                   ) : (
                     <View style={styles.tapToOpenRow}>
                       <Text style={[styles.tapToOpenText, { color: paper.ink }]}>
-                        Tap to view / copy
+                        Tap to view
                       </Text>
                       <Ionicons
                         name="chevron-forward"
@@ -353,8 +385,8 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   stickyCard: {
-    width: 202,
-    minHeight: 200,
+    width: 206,
+    height: 220,
     borderRadius: 20,
     padding: 16,
     justifyContent: 'space-between',
@@ -369,7 +401,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   categoryBadge: {
     flexDirection: 'row',
@@ -388,11 +420,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: -0.3,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   cardBody: {
     flex: 1,
-    marginBottom: 12,
+    justifyContent: 'flex-start',
+    marginBottom: 10,
+    overflow: 'hidden',
   },
   checklistPreview: {
     gap: 6,

@@ -10,10 +10,11 @@
  * Parsers must be total: they never throw, they always return a valid value.
  */
 import { DEFAULT_CATEGORIES } from '../constants/habits';
-import { Account, CategoryBudget, CategoryCustomIcon, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, RecurringBill, Transaction } from '../types/finance';
+import { Account, CategoryBudget, CategoryCustomIcon, DebtItem, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, RecurringBill, Transaction } from '../types/finance';
 import { Workout } from '../types/fitness';
 import { FrequencyType, Habit, PriorityLevel, SubTask, TimeSlot } from '../types/habits';
-import { ChecklistItem, NoteCategory, NOTE_CATEGORIES, StickyNote, StickyNoteColor } from '../types/notes';
+import { ChecklistItem, NoteCategory, NOTE_CATEGORIES, NoteEntry, StickyNote, StickyNoteColor } from '../types/notes';
+import { CourseColor, CourseLevel, LearningCourse, LearningStatus } from '../types/learning';
 import { DEFAULT_NUTRITION_TARGET, FoodCategory, FoodItem, MealType, NutritionLog, NutritionTarget, WaterLog } from '../types/nutrition';
 import { DEFAULT_NOTIFICATION_SETTINGS, NotificationSettings } from '../types/settings';
 import { META_KEY_NAMES, STORAGE_KEYS, StorageKeyName } from './keys';
@@ -21,8 +22,10 @@ import {
   AccountSchema,
   CategoryBudgetSchema,
   CategoryCustomIconSchema,
+  DebtItemSchema,
   FoodItemSchema,
   HabitSchema,
+  LearningCourseSchema,
   NotificationSettingsSchema,
   NutritionLogSchema,
   NutritionTargetSchema,
@@ -71,6 +74,7 @@ export interface StorageMap {
   financeCategoryBudgets: CategoryBudget[];
   financeRecurringBills: RecurringBill[];
   financeCustomCategoryIcons: CategoryCustomIcon[];
+  financeDebts: DebtItem[];
 
   habits: Habit[];
   habitCategories: string[];
@@ -86,6 +90,7 @@ export interface StorageMap {
   waterLogs: WaterLog[];
 
   generalNotes: StickyNote[];
+  learningCourses: LearningCourse[];
 
   schemaVersion: number;
 }
@@ -228,7 +233,12 @@ const parseTransaction = (value: unknown): Transaction => {
 
 const parseCategoryBudget = (value: unknown): CategoryBudget => {
   const item = isRecord(value) ? value : {};
-  return { category: str(item.category), limit: num(item.limit, 0) };
+  const curr = optStr(item.currency);
+  return {
+    category: str(item.category),
+    limit: num(item.limit, 0),
+    currency: curr === 'USD' ? 'USD' : curr === 'IDR' ? 'IDR' : undefined,
+  };
 };
 
 const parseCategoryCustomIcon = (value: unknown): CategoryCustomIcon => {
@@ -250,6 +260,27 @@ const parseRecurringBill = (value: unknown): RecurringBill => {
     category: str(item.category, 'Bills & Utilities'),
     dueDateDay: Math.min(31, Math.max(1, Math.round(num(item.dueDateDay, 1)))),
     currency: oneOf(item.currency, ['IDR', 'USD'], 'IDR'),
+  };
+};
+
+const parseDebtItem = (value: unknown): DebtItem => {
+  const item = isRecord(value) ? value : {};
+  const orig = num(item.originalAmount, 0);
+  const paid = num(item.paidAmount, 0);
+  const rem = Math.max(0, orig - paid);
+  return {
+    id: str(item.id) || uid('debt'),
+    type: oneOf(item.type, ['debt', 'receivable'], 'receivable'),
+    personName: str(item.personName, 'Friend'),
+    title: str(item.title),
+    originalAmount: orig,
+    paidAmount: paid,
+    remainingAmount: rem,
+    currency: oneOf(item.currency, ['IDR', 'USD'], 'IDR'),
+    dueDate: optStr(item.dueDate),
+    createdAt: str(item.createdAt) || new Date().toISOString(),
+    status: rem <= 0 ? 'settled' : 'active',
+    notes: optStr(item.notes),
   };
 };
 
@@ -360,6 +391,15 @@ const parseChecklistItem = (value: unknown): ChecklistItem => {
   };
 };
 
+const parseNoteEntry = (value: unknown): NoteEntry => {
+  const item = isRecord(value) ? value : {};
+  return {
+    id: str(item.id) || uid('entry'),
+    title: str(item.title),
+    content: str(item.content),
+  };
+};
+
 const STICKY_COLORS: readonly StickyNoteColor[] = ['amber', 'blue', 'emerald', 'rose', 'purple'];
 const NOTE_CATEGORY_KEYS = Object.keys(NOTE_CATEGORIES) as NoteCategory[];
 
@@ -370,6 +410,7 @@ const NOTE_CATEGORY_KEYS = Object.keys(NOTE_CATEGORIES) as NoteCategory[];
 const parseStickyNote = (value: unknown): StickyNote => {
   const item = isRecord(value) ? value : {};
   const checklist = records(item.checklist).map(parseChecklistItem);
+  const entries = records(item.entries).map(parseNoteEntry);
   const type = oneOf(item.type, ['text', 'checklist'], checklist.length > 0 ? 'checklist' : 'text');
   const createdAt = str(item.createdAt) || new Date().toISOString();
   const category =
@@ -382,6 +423,7 @@ const parseStickyNote = (value: unknown): StickyNote => {
     type,
     category,
     description: str(item.description ?? item.content),
+    entries: entries.length > 0 ? entries : undefined,
     checklist,
     color: oneOf(item.color, STICKY_COLORS, 'amber'),
     createdAt,
@@ -396,6 +438,37 @@ const parseNotificationSettings = (value: unknown): NotificationSettings => {
     defaultSound: str(item.defaultSound, DEFAULT_NOTIFICATION_SETTINGS.defaultSound),
     vibrate: bool(item.vibrate, DEFAULT_NOTIFICATION_SETTINGS.vibrate),
     fullScreenAlarm: bool(item.fullScreenAlarm, DEFAULT_NOTIFICATION_SETTINGS.fullScreenAlarm),
+  };
+};
+
+const parseLearningCourse = (value: unknown): LearningCourse => {
+  const item = isRecord(value) ? value : {};
+  const createdAt = str(item.createdAt) || new Date().toISOString();
+  return {
+    id: str(item.id) || uid('course'),
+    title: str(item.title, 'Untitled Course').trim() || 'Untitled Course',
+    status: oneOf(
+      item.status,
+      ['Not Started', 'In Progress', 'Completed', 'On Hold'],
+      'In Progress'
+    ) as LearningStatus,
+    link: str(item.link) || undefined,
+    startDate: str(item.startDate) || createdAt.split('T')[0],
+    provider: str(item.provider, 'Udemy').trim() || 'Udemy',
+    level: oneOf(
+      item.level,
+      ['Beginner', 'Intermediate', 'Advanced', 'All Levels'],
+      'Beginner'
+    ) as CourseLevel,
+    hours: Math.max(0, num(item.hours, 0)),
+    notes: str(item.notes) || undefined,
+    color:
+      typeof item.color === 'string' &&
+      (['violet', 'blue', 'emerald', 'rose', 'amber', 'cyan'] as const).includes(item.color as any)
+        ? (item.color as CourseColor)
+        : undefined,
+    createdAt,
+    updatedAt: str(item.updatedAt) || createdAt,
   };
 };
 
@@ -419,6 +492,7 @@ export const DEFAULTS: { [K in StorageKeyName]: StorageMap[K] } = {
   financeCategoryBudgets: [],
   financeRecurringBills: [],
   financeCustomCategoryIcons: [],
+  financeDebts: [],
 
   habits: [],
   habitCategories: DEFAULT_CATEGORIES,
@@ -434,6 +508,7 @@ export const DEFAULTS: { [K in StorageKeyName]: StorageMap[K] } = {
   waterLogs: [],
 
   generalNotes: [],
+  learningCourses: [],
 
   schemaVersion: SCHEMA_VERSION,
 };
@@ -473,6 +548,11 @@ export const PARSERS: { [K in StorageKeyName]: Parser<K> } = {
     records(value).map((item) => {
       const zRes = CategoryCustomIconSchema.safeParse(item);
       return zRes.success ? (zRes.data as CategoryCustomIcon) : parseCategoryCustomIcon(item);
+    }),
+  financeDebts: (value) =>
+    records(value).map((item) => {
+      const zRes = DebtItemSchema.safeParse(item);
+      return zRes.success ? (zRes.data as DebtItem) : parseDebtItem(item);
     }),
 
   habits: (value) =>
@@ -519,6 +599,12 @@ export const PARSERS: { [K in StorageKeyName]: Parser<K> } = {
     records(value).map((item) => {
       const zRes = StickyNoteSchema.safeParse(item);
       return zRes.success ? (zRes.data as StickyNote) : parseStickyNote(item);
+    }),
+
+  learningCourses: (value) =>
+    records(value).map((item) => {
+      const zRes = LearningCourseSchema.safeParse(item);
+      return zRes.success ? (zRes.data as LearningCourse) : parseLearningCourse(item);
     }),
 
   schemaVersion: (value) => Math.max(0, Math.round(num(value, 0))),

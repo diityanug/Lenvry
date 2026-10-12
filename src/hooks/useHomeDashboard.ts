@@ -11,9 +11,11 @@ import {
   useNutritionStore,
   useFinanceStore,
   useNotesStore,
+  useLearningStore,
   initializeAllStores,
 } from '../stores';
 import { StickyNote } from '../types/notes';
+import { LearningCourse, LearningStatus } from '../types/learning';
 
 export function useHomeDashboard() {
   const userName = useUserStore((s) => s.userName);
@@ -31,6 +33,11 @@ export function useHomeDashboard() {
   const notes = useNotesStore((s) => s.notes);
   const saveNote = useNotesStore((s) => s.saveNote);
   const deleteNote = useNotesStore((s) => s.deleteNote);
+
+  const courses = useLearningStore((s) => s.courses);
+  const saveCourse = useLearningStore((s) => s.saveCourse);
+  const deleteCourse = useLearningStore((s) => s.deleteCourse);
+  const updateCourseStatus = useLearningStore((s) => s.updateCourseStatus);
 
   const todayDateObj = useMemo(() => new Date(), []);
   const habitKey = useMemo(() => formatDateKey(todayDateObj), [todayDateObj]);
@@ -90,6 +97,27 @@ export function useHomeDashboard() {
     [deleteNote]
   );
 
+  const handleSaveCourse = useCallback(
+    async (savedCourse: LearningCourse) => {
+      await saveCourse(savedCourse);
+    },
+    [saveCourse]
+  );
+
+  const handleDeleteCourse = useCallback(
+    async (id: string) => {
+      await deleteCourse(id);
+    },
+    [deleteCourse]
+  );
+
+  const handleUpdateCourseStatus = useCallback(
+    async (id: string, status: LearningStatus) => {
+      await updateCourseStatus(id, status);
+    },
+    [updateCourseStatus]
+  );
+
   const fetchDashboardData = useCallback(async () => {
     await initializeAllStores();
   }, []);
@@ -105,9 +133,13 @@ export function useHomeDashboard() {
     todayCaloriesConsumed,
     calorieTarget,
     notes,
+    courses,
     fetchDashboardData,
     toggleHabitOnHome,
     handleSaveStickyNote,
     handleDeleteStickyNote,
+    handleSaveCourse,
+    handleDeleteCourse,
+    handleUpdateCourseStatus,
   };
 }

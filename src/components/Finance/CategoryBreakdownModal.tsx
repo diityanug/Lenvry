@@ -70,7 +70,8 @@ export const CategoryBreakdownModal = ({
   const sortedIncomeCats = Object.entries(incomeCatTotals).sort((a, b) => b[1].amount - a[1].amount);
 
   // Budgets Calculations
-  const budgetedCategories = budgets.filter((b) => b.limit > 0);
+  const currentCurrencyBudgets = budgets.filter((b) => (b.currency || 'IDR') === currency);
+  const budgetedCategories = currentCurrencyBudgets.filter((b) => b.limit > 0);
   const totalBudgetLimit = budgetedCategories.reduce((sum, b) => sum + b.limit, 0);
   const totalBudgetSpent = budgetedCategories.reduce((sum, b) => sum + (expenseCatTotals[b.category]?.amount || 0), 0);
   const overallBudgetPercent = totalBudgetLimit > 0 ? Math.round((totalBudgetSpent / totalBudgetLimit) * 100) : 0;
@@ -289,7 +290,7 @@ export const CategoryBreakdownModal = ({
                         const percent = totalExpense > 0 ? Math.round((data.amount / totalExpense) * 100) : 0;
                         const theme = getCategoryTheme(category, customCategoryIcons);
                         const icon = getCategoryIcon(category, 'expense', customCategoryIcons);
-                        const budget = budgets.find((b) => b.category === category);
+                        const budget = currentCurrencyBudgets.find((b) => b.category === category);
                         const isOverBudget = Boolean(budget && budget.limit > 0 && data.amount > budget.limit);
 
                         return (
