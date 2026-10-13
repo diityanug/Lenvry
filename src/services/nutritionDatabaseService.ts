@@ -34,21 +34,26 @@ export async function getNutritionDb(): Promise<SQLite.SQLiteDatabase> {
       CREATE INDEX IF NOT EXISTS idx_foods_is_custom ON foods(is_custom);
     `);
 
-    // Check if initial seeding or update is needed (e.g. Imperial Kitchen menu update)
+    // Seed version tracking: increment this whenever foods_seed.json is updated.
+    const CURRENT_SEED_VERSION = 3;
+    const versionResult = await db.getFirstAsync<{ user_version: number }>(
+      'PRAGMA user_version;'
+    );
+    const currentDbVersion = versionResult?.user_version ?? 0;
+
     const countResult = await db.getFirstAsync<{ count: number }>(
       'SELECT COUNT(*) as count FROM foods WHERE is_custom = 0;'
     );
-    const garlicChickenCheck = await db.getFirstAsync<{ count: number }>(
-      "SELECT COUNT(*) as count FROM foods WHERE id = 'brand_imperial_kitchen_ayam_goreng_bawang_putih';"
-    );
+    const masterItemsCount = (foodsSeedData as FoodItem[]).length;
 
+    // Reseed if database version is outdated, empty, or master food count doesn't match seed json
     if (
+      currentDbVersion < CURRENT_SEED_VERSION ||
       !countResult ||
-      countResult.count === 0 ||
-      !garlicChickenCheck ||
-      garlicChickenCheck.count === 0
+      countResult.count < masterItemsCount
     ) {
       await seedMasterFoods(db);
+      await db.execAsync(`PRAGMA user_version = ${CURRENT_SEED_VERSION};`);
     }
 
     dbInstance = db;

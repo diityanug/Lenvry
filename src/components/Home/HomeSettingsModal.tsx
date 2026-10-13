@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  Pressable,
   ScrollView,
   Keyboard,
+  Platform,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { writeStored } from '../../storage';
@@ -58,6 +59,23 @@ function HomeSettingsContent({
   onDataResetOrRestored,
 }: Omit<HomeSettingsModalProps, 'visible'>) {
   const [userName, setUserName] = useState(currentUserName);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   const [alertConfig, setAlertConfig] = useState<AppAlertConfig>({
     visible: false,
     title: '',
@@ -154,10 +172,9 @@ function HomeSettingsContent({
   return (
     <>
       <View style={styles.modalOverlay}>
-        <Pressable
-          style={styles.dismissArea}
-          onPress={handleDismissOverlay}
-        />
+        <TouchableWithoutFeedback onPress={handleDismissOverlay}>
+          <View style={styles.dismissArea} />
+        </TouchableWithoutFeedback>
 
         <View style={styles.modalContent}>
           <View style={styles.modalHandle} />
@@ -181,8 +198,9 @@ function HomeSettingsContent({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
+              automaticallyAdjustKeyboardInsets={true}
               bounces={false}
-              contentContainerStyle={{ paddingBottom: 16 }}
+              contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
             >
               {/* Profile Section */}
               <View style={styles.settingsGroup}>

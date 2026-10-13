@@ -105,12 +105,17 @@ export const CategoryBudgetModal = ({
     onClose();
   };
 
+  const handleDismiss = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
+
   const presets = currency === 'USD' ? [100, 250, 500, 1000] : [500000, 1000000, 2000000, 5000000];
 
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
+        <TouchableWithoutFeedback onPress={handleDismiss}>
           <View style={styles.dismissArea} />
         </TouchableWithoutFeedback>
 
@@ -306,7 +311,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 36 : 24,
-    maxHeight: '90%',
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },

@@ -5,9 +5,9 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   ScrollView,
   Keyboard,
-  Pressable,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -110,7 +110,9 @@ function CustomFoodContent({
 
   return (
     <View style={styles.modalOverlay}>
-      <Pressable style={styles.dismissArea} onPress={handleDismiss} />
+      <TouchableWithoutFeedback onPress={handleDismiss}>
+        <View style={styles.dismissArea} />
+      </TouchableWithoutFeedback>
 
       <View style={styles.modalContent}>
         <View style={styles.modalHandle} />
@@ -119,7 +121,7 @@ function CustomFoodContent({
             <View>
               <Text style={styles.modalTitle}>Add Custom Food</Text>
             </View>
-            <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={handleDismiss} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
             </TouchableOpacity>
           </View>
@@ -129,7 +131,7 @@ function CustomFoodContent({
             automaticallyAdjustKeyboardInsets={true}
             keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: Math.max(16, keyboardHeight + 16) }}
+            contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
           >
             {/* Food Name */}
             <View style={styles.formGroup}>

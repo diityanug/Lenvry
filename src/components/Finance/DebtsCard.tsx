@@ -1,14 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
   View,
 } from 'react-native';
 import { COLORS, RADIUS } from '../../constants/theme';
@@ -54,6 +55,32 @@ export function DebtsCard({
   // Modals
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [selectedDebtForSettle, setSelectedDebtForSettle] = useState<DebtItem | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const handleCloseSettleModal = () => {
+    Keyboard.dismiss();
+    setSelectedDebtForSettle(null);
+  };
+
+  const handleCloseAddModal = () => {
+    Keyboard.dismiss();
+    setIsAddModalVisible(false);
+  };
 
   // Add Form State
   const [newType, setNewType] = useState<'receivable' | 'debt'>('receivable');
@@ -497,13 +524,13 @@ export function DebtsCard({
         visible={Boolean(selectedDebtForSettle)}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setSelectedDebtForSettle(null)}
+        onRequestClose={handleCloseSettleModal}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setSelectedDebtForSettle(null)}
-        >
-          <Pressable style={styles.settleModalSheet} onPress={(e) => e.stopPropagation()}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={handleCloseSettleModal}>
+            <View style={styles.dismissArea} />
+          </TouchableWithoutFeedback>
+          <View style={styles.settleModalSheet}>
             <View style={styles.modalHandle} />
 
             <View style={styles.modalHeaderRow}>
@@ -518,7 +545,7 @@ export function DebtsCard({
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => setSelectedDebtForSettle(null)}
+                onPress={handleCloseSettleModal}
                 style={styles.modalCloseBtn}
                 activeOpacity={0.7}
               >
@@ -526,7 +553,12 @@ export function DebtsCard({
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 28 }}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets={true}
+              contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
+            >
               {/* CURRENT BALANCE BANNER */}
               <View style={styles.currentBalanceBanner}>
                 <Text style={styles.currentBalanceLabel}>Current Remaining Balance</Text>
@@ -717,8 +749,8 @@ export function DebtsCard({
                 </Text>
               </TouchableOpacity>
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* ======================================================== */}
@@ -728,13 +760,13 @@ export function DebtsCard({
         visible={isAddModalVisible}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setIsAddModalVisible(false)}
+        onRequestClose={handleCloseAddModal}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setIsAddModalVisible(false)}
-        >
-          <Pressable style={styles.settleModalSheet} onPress={(e) => e.stopPropagation()}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={handleCloseAddModal}>
+            <View style={styles.dismissArea} />
+          </TouchableWithoutFeedback>
+          <View style={styles.settleModalSheet}>
             <View style={styles.modalHandle} />
 
             <View style={styles.modalHeaderRow}>
@@ -743,7 +775,7 @@ export function DebtsCard({
                 <Text style={styles.modalSheetSubtitle}>Keep track of money lent or borrowed</Text>
               </View>
               <TouchableOpacity
-                onPress={() => setIsAddModalVisible(false)}
+                onPress={handleCloseAddModal}
                 style={styles.modalCloseBtn}
                 activeOpacity={0.7}
               >
@@ -751,7 +783,12 @@ export function DebtsCard({
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 28 }}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets={true}
+              contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
+            >
               {/* TYPE SWITCHER: RECEIVABLE VS DEBT */}
               <Text style={styles.inputLabel}>TYPE</Text>
               <View style={styles.typeSwitcherRow}>
@@ -889,8 +926,8 @@ export function DebtsCard({
                 <Text style={styles.btnConfirmSettleText}>Save Record</Text>
               </TouchableOpacity>
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* ALERT MODAL */}
@@ -1212,6 +1249,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
+  dismissArea: {
+    flex: 1,
+  },
   settleModalSheet: {
     backgroundColor: COLORS.bgCard,
     borderTopLeftRadius: RADIUS.xxl,
@@ -1223,7 +1263,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 10,
     paddingBottom: Platform.OS === 'ios' ? 36 : 24,
-    maxHeight: '90%',
+    maxHeight: '85%',
   },
   modalHandle: {
     width: 40,

@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   Modal,
   TextInput,
   ScrollView,
   StyleSheet,
   Platform,
   Keyboard,
-  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -155,6 +155,22 @@ export const RecurringBillsCard = ({
   const [amount, setAmount] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(BILL_CATEGORIES[0]);
   const [dueDateDay, setDueDateDay] = useState('1');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleCloseModal = () => {
     Keyboard.dismiss();
@@ -630,7 +646,9 @@ export const RecurringBillsCard = ({
         statusBarTranslucent={true}
       >
         <View style={cardStyles.modalOverlay}>
-          <Pressable style={cardStyles.modalDismissArea} onPress={handleCloseModal} />
+          <TouchableWithoutFeedback onPress={handleCloseModal}>
+            <View style={cardStyles.modalDismissArea} />
+          </TouchableWithoutFeedback>
 
           <View style={cardStyles.modalContent}>
             <View style={cardStyles.modalHandle} />
@@ -663,7 +681,11 @@ export const RecurringBillsCard = ({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
-              contentContainerStyle={cardStyles.modalScrollContent}
+              automaticallyAdjustKeyboardInsets={true}
+              contentContainerStyle={[
+                cardStyles.modalScrollContent,
+                { paddingBottom: Math.max(28, keyboardHeight + 28) },
+              ]}
             >
               {/* Quick Templates */}
               <View style={cardStyles.presetHeaderRow}>
@@ -1377,7 +1399,7 @@ const cardStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: Platform.OS === 'ios' ? 34 : 24,
-    maxHeight: '90%',
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },

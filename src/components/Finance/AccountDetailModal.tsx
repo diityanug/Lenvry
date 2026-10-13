@@ -578,7 +578,7 @@ const modalStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 38 : 28,
-    maxHeight: '90%',
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.border,
   },

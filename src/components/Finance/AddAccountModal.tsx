@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Text,
   View,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   TouchableWithoutFeedback,
+  Keyboard,
+  Platform,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,10 +52,32 @@ export const AddAccountModal = ({
   setNewAccCurrency,
   setParentAccId,
 }: AddAccountModalProps) => {
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const handleDismiss = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
+
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
+        <TouchableWithoutFeedback onPress={handleDismiss}>
           <View style={styles.dismissArea} />
         </TouchableWithoutFeedback>
 
@@ -66,7 +90,7 @@ export const AddAccountModal = ({
               <Text style={styles.headerTitle}>New Account / Pocket</Text>
               <Text style={styles.headerSubtitle}>Create a master ledger or sub-pocket</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
+            <TouchableOpacity onPress={handleDismiss} style={styles.closeBtn} activeOpacity={0.7}>
               <Ionicons name="close" size={20} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -74,7 +98,11 @@ export const AddAccountModal = ({
           <ScrollView
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.scrollContent}
+            automaticallyAdjustKeyboardInsets={true}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingBottom: Math.max(28, keyboardHeight + 28) },
+            ]}
           >
             {/* Account Form Type Switcher */}
             <View style={styles.typeSwitcher}>
@@ -217,7 +245,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: RADIUS.xxl,
     borderTopWidth: 1,
     borderColor: COLORS.border,
-    maxHeight: '88%',
+    maxHeight: '85%',
   },
   handle: {
     width: 36,

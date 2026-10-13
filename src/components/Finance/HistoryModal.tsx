@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Text,
   View,
@@ -10,6 +10,7 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -70,6 +71,27 @@ export const HistoryModal = ({
   onEdit,
 }: HistoryModalProps) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
 
   const filteredList = useMemo(() => {
     let result = historyTransactions;
@@ -115,9 +137,9 @@ export const HistoryModal = ({
   }, [historyTransactions, searchQuery, accounts]);
 
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
+    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={handleClose}>
       <View style={modalStyles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
+        <TouchableWithoutFeedback onPress={handleClose}>
           <View style={StyleSheet.absoluteFill} />
         </TouchableWithoutFeedback>
 
@@ -139,7 +161,7 @@ export const HistoryModal = ({
                 </View>
               </View>
               <TouchableOpacity
-                onPress={onClose}
+                onPress={handleClose}
                 activeOpacity={0.7}
                 style={modalStyles.closeBtn}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -270,8 +292,12 @@ export const HistoryModal = ({
             data={filteredList}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={true}
+            keyboardShouldPersistTaps="handled"
             style={modalStyles.flatList}
-            contentContainerStyle={modalStyles.listContent}
+            contentContainerStyle={[
+              modalStyles.listContent,
+              { paddingBottom: Math.max(32, keyboardHeight + 32) },
+            ]}
             ListEmptyComponent={
               <View style={modalStyles.emptyState}>
                 <View style={modalStyles.emptyIconWrap}>
@@ -313,8 +339,7 @@ const modalStyles = StyleSheet.create({
     borderTopRightRadius: RADIUS.modal,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 38 : 28,
-    height: '90%',
-    maxHeight: '90%',
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },

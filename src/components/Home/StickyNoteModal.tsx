@@ -2,17 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Dimensions,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { COLORS, RADIUS } from '../../constants/theme';
@@ -27,9 +25,6 @@ import {
 } from '../../types/notes';
 import AppAlertModal, { AppAlertConfig } from '../Common/AppAlertModal';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-// Fixed modal height (approx 78% of screen, min 620px, max 730px) to provide a spacious, consistent view container
-const FIXED_MODAL_HEIGHT = Math.min(Math.max(Math.round(SCREEN_HEIGHT * 0.78), 620), 730);
 
 interface StickyNoteModalProps {
   visible: boolean;
@@ -287,25 +282,23 @@ function StickyNoteModalContent({
   return (
     <View style={styles.overlay}>
       {/* Tap outside to dismiss modal */}
-      <Pressable style={styles.dismissArea} onPress={handleDismiss} />
+      <TouchableWithoutFeedback onPress={handleDismiss}>
+        <View style={styles.dismissArea} />
+      </TouchableWithoutFeedback>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardAvoidWrapper}
+      <View
+        style={[
+          styles.modalSheet,
+          {
+            backgroundColor: COLORS.bgCard,
+            borderTopColor: palette.border,
+            borderLeftColor: palette.border,
+            borderRightColor: palette.border,
+          },
+        ]}
       >
-        <View
-          style={[
-            styles.modalSheet,
-            {
-              backgroundColor: COLORS.bgCard,
-              borderTopColor: palette.border,
-              borderLeftColor: palette.border,
-              borderRightColor: palette.border,
-            },
-          ]}
-        >
-          {/* Top Sheet Drag Handle */}
-          <View style={[styles.modalHandle, { backgroundColor: palette.accent + '44' }]} />
+        {/* Top Sheet Drag Handle */}
+        <View style={[styles.modalHandle, { backgroundColor: palette.accent + '44' }]} />
 
           {/* Header Bar */}
           <View style={styles.headerBar}>
@@ -563,12 +556,12 @@ function StickyNoteModalContent({
                 style={styles.editScrollArea}
                 contentContainerStyle={[
                   styles.editScrollContent,
-                  { paddingBottom: Math.max(36, keyboardHeight + 36) },
+                  { paddingBottom: Math.max(28, keyboardHeight + 28) },
                 ]}
-                showsVerticalScrollIndicator={true}
+                showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="on-drag"
-                automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+                automaticallyAdjustKeyboardInsets={true}
                 nestedScrollEnabled={true}
               >
                 {/* Category Picker Selector */}
@@ -909,44 +902,43 @@ function StickyNoteModalContent({
                     </View>
                   </View>
                 )}
-              </ScrollView>
 
-              {/* Edit Mode Bottom Actions */}
-              <View style={styles.editActionRow}>
-                {isExisting && (
+                {/* Edit Mode Bottom Actions */}
+                <View style={styles.editActionRow}>
+                  {isExisting && (
+                    <TouchableOpacity
+                      style={styles.btnCancelEdit}
+                      onPress={() => setIsEditMode(false)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.btnCancelEditText}>Cancel</Text>
+                    </TouchableOpacity>
+                  )}
+
                   <TouchableOpacity
-                    style={styles.btnCancelEdit}
-                    onPress={() => setIsEditMode(false)}
-                    activeOpacity={0.7}
+                    style={[
+                      styles.btnPrimary,
+                      { backgroundColor: palette.accent },
+                      !isExisting && { flex: 1 },
+                    ]}
+                    onPress={handleSave}
+                    activeOpacity={0.85}
                   >
-                    <Text style={styles.btnCancelEditText}>Cancel</Text>
+                    <Ionicons
+                      name={isExisting ? 'checkmark-circle' : 'pin'}
+                      size={16}
+                      color="#08090C"
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={styles.btnPrimaryText}>
+                      {isExisting ? 'Save Changes' : 'Pin Note'}
+                    </Text>
                   </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                  style={[
-                    styles.btnPrimary,
-                    { backgroundColor: palette.accent },
-                    !isExisting && { flex: 1 },
-                  ]}
-                  onPress={handleSave}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons
-                    name={isExisting ? 'checkmark-circle' : 'pin'}
-                    size={16}
-                    color="#08090C"
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text style={styles.btnPrimaryText}>
-                    {isExisting ? 'Save Changes' : 'Pin Note'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                </View>
+              </ScrollView>
             </View>
           )}
         </View>
-      </KeyboardAvoidingView>
 
       {/* Custom Alert Modal for Delete */}
       <AppAlertModal
@@ -966,24 +958,20 @@ const styles = StyleSheet.create({
   dismissArea: {
     flex: 1,
   },
-  keyboardAvoidWrapper: {
-    width: '100%',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
   modalSheet: {
     width: '100%',
     maxWidth: 540,
-    height: FIXED_MODAL_HEIGHT,
+    alignSelf: 'center',
+    maxHeight: '85%',
     backgroundColor: COLORS.bgCard,
-    borderTopLeftRadius: RADIUS.xxl,
-    borderTopRightRadius: RADIUS.xxl,
+    borderTopLeftRadius: RADIUS.modal,
+    borderTopRightRadius: RADIUS.modal,
     borderTopWidth: 1.5,
     borderLeftWidth: 1.5,
     borderRightWidth: 1.5,
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 14,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.45,

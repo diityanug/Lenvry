@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  ScrollView,
   Platform,
   Keyboard,
-  Pressable,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,12 +59,33 @@ function EditPortionContent({
   const fPerGram = logItem.fat / baseGrams;
 
   const [portionText, setPortionText] = useState(logItem.portionGrams.toString());
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const currentGrams = Math.max(1, parseInt(portionText, 10) || 1);
   const liveCals = Math.round(currentGrams * calPerGram);
   const liveP = Math.round(currentGrams * pPerGram * 10) / 10;
   const liveC = Math.round(currentGrams * cPerGram * 10) / 10;
   const liveF = Math.round(currentGrams * fPerGram * 10) / 10;
+
+  const handleDismiss = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
 
   const handleSave = () => {
     Keyboard.dismiss();
@@ -81,21 +103,29 @@ function EditPortionContent({
 
   return (
     <View style={styles.overlay}>
-      <Pressable style={styles.dismissArea} onPress={onClose} />
+      <TouchableWithoutFeedback onPress={handleDismiss}>
+        <View style={styles.dismissArea} />
+      </TouchableWithoutFeedback>
 
       <View style={styles.content}>
         <View style={styles.handle} />
 
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.title}>Edit Portion Size</Text>
-              <Text style={styles.subtitle}>{logItem.foodName}</Text>
-            </View>
-            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-              <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
-            </TouchableOpacity>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.title}>Edit Portion Size</Text>
+            <Text style={styles.subtitle}>{logItem.foodName}</Text>
           </View>
+          <TouchableOpacity onPress={handleDismiss} activeOpacity={0.7}>
+            <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </View>
 
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={true}
+          contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
+        >
           {/* Portion Input Card */}
           <View style={styles.sectionCard}>
             <Text style={styles.label}>PORTION WEIGHT (Gr.)</Text>
@@ -137,10 +167,11 @@ function EditPortionContent({
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
             <Text style={styles.saveBtnText}>UPDATE PORTION</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
-    );
-  }
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   overlay: {

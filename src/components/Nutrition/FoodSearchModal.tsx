@@ -5,13 +5,12 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   ScrollView,
   FlatList,
   Platform,
   Keyboard,
-  Pressable,
   useWindowDimensions,
-  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FoodCategory, FoodItem, MealType, NutritionLog } from '../../types/nutrition';
@@ -80,17 +79,18 @@ function FoodSearchContent({
   const [activeMeal, setActiveMeal] = useState<MealType>(defaultMealType);
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [portionGramsText, setPortionGramsText] = useState('100');
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const isKeyboardVisible = keyboardHeight > 0;
   const { height: windowHeight } = useWindowDimensions();
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setIsKeyboardVisible(true)
+      (e) => setKeyboardHeight(e.endCoordinates.height)
     );
     const hideSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setIsKeyboardVisible(false)
+      () => setKeyboardHeight(0)
     );
     return () => {
       showSub.remove();
@@ -169,32 +169,30 @@ function FoodSearchContent({
 
   return (
     <View style={styles.modalOverlay}>
-      <Pressable style={styles.dismissArea} onPress={handleDismiss} />
+      <TouchableWithoutFeedback onPress={handleDismiss}>
+        <View style={styles.dismissArea} />
+      </TouchableWithoutFeedback>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ width: '100%', justifyContent: 'flex-end' }}
-      >
-        <View style={[styles.modalContent, selectedFood && styles.modalContentPortion]}>
-          <View style={styles.modalHandle} />
+      <View style={[styles.modalContent, selectedFood && styles.modalContentPortion]}>
+        <View style={styles.modalHandle} />
 
-          {/* VIEW MODE 1: SEARCH & SELECTION */}
-          {!selectedFood ? (
-            <>
-              {/* Modal Header */}
-              <View style={styles.modalHeaderRow}>
-                <View>
-                  <Text style={styles.modalTitle}>Add Food</Text>
-                  {!isKeyboardVisible && (
-                    <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>
-                      
-                    </Text>
-                  )}
-                </View>
-                <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
-                </TouchableOpacity>
+        {/* VIEW MODE 1: SEARCH & SELECTION */}
+        {!selectedFood ? (
+          <>
+            {/* Modal Header */}
+            <View style={styles.modalHeaderRow}>
+              <View>
+                <Text style={styles.modalTitle}>Add Food</Text>
+                {!isKeyboardVisible && (
+                  <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>
+                    
+                  </Text>
+                )}
               </View>
+              <TouchableOpacity onPress={handleDismiss} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
 
               {/* Meal Switcher Pills */}
               <View style={{ flexDirection: 'row', gap: 6, marginBottom: isKeyboardVisible ? 8 : 14 }}>
@@ -312,7 +310,7 @@ function FoodSearchContent({
                 style={{
                   maxHeight: isKeyboardVisible ? windowHeight * 0.35 : windowHeight * 0.52,
                 }}
-                contentContainerStyle={{ paddingBottom: 16 }}
+                contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
                 ListEmptyComponent={
                   <View style={{ alignItems: 'center', paddingVertical: 36 }}>
                     <Ionicons name="restaurant-outline" size={36} color={COLORS.textMuted} />
@@ -372,8 +370,9 @@ function FoodSearchContent({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
+              automaticallyAdjustKeyboardInsets={true}
               bounces={false}
-              contentContainerStyle={{ paddingBottom: isKeyboardVisible ? 160 : 28 }}
+              contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
             >
               {/* Back to list button */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -386,7 +385,7 @@ function FoodSearchContent({
                   <Text style={{ color: COLORS.nutrition, fontSize: 13, fontWeight: '700' }}>Choose Different Food</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <TouchableOpacity onPress={handleDismiss} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Ionicons name="close-circle" size={22} color={COLORS.textMuted} />
                 </TouchableOpacity>
               </View>
@@ -595,7 +594,6 @@ function FoodSearchContent({
             </ScrollView>
           )}
         </View>
-      </KeyboardAvoidingView>
     </View>
   );
 }

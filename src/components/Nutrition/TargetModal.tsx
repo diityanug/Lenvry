@@ -5,8 +5,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   Keyboard,
-  Pressable,
   ScrollView,
   Platform,
 } from 'react-native';
@@ -90,16 +90,18 @@ function TargetModalContent({
 
   return (
     <View style={styles.modalOverlay}>
-      <Pressable style={styles.dismissArea} onPress={handleDismiss} />
+      <TouchableWithoutFeedback onPress={handleDismiss}>
+        <View style={styles.dismissArea} />
+      </TouchableWithoutFeedback>
 
-      <View style={[styles.modalContent, { maxHeight: '90%' }]}>
+      <View style={styles.modalContent}>
         <View style={styles.modalHandle} />
 
           <View style={styles.modalHeaderRow}>
             <View>
               <Text style={styles.modalTitle}>Daily Goals</Text>
             </View>
-            <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={handleDismiss} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
             </TouchableOpacity>
           </View>
@@ -109,7 +111,7 @@ function TargetModalContent({
             automaticallyAdjustKeyboardInsets={true}
             keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: Math.max(20, keyboardHeight + 20) }}
+            contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
           >
             {/* Quick Presets */}
             <Text style={styles.formLabel}>QUICK PRESETS</Text>

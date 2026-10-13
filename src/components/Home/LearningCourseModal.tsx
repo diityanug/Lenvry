@@ -6,12 +6,11 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
-  Pressable,
   Keyboard,
   Linking,
   StyleSheet,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -240,15 +239,13 @@ function LearningCourseModalContent({
 
   return (
     <View style={styles.overlay}>
-      <Pressable style={styles.dismissArea} onPress={handleDismiss} />
+      <TouchableWithoutFeedback onPress={handleDismiss}>
+        <View style={styles.dismissArea} />
+      </TouchableWithoutFeedback>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardAvoidWrapper}
-      >
-        <View style={styles.modalSheet}>
-          {/* Sheet Handle */}
-          <View style={styles.modalHandle} />
+      <View style={styles.modalSheet}>
+        {/* Sheet Handle */}
+        <View style={styles.modalHandle} />
 
           {/* Header Bar */}
           <View style={styles.headerBar}>
@@ -303,12 +300,12 @@ function LearningCourseModalContent({
             style={styles.formScrollArea}
             contentContainerStyle={[
               styles.formScrollContent,
-              { paddingBottom: Math.max(36, keyboardHeight + 36) },
+              { paddingBottom: Math.max(28, keyboardHeight + 28) },
             ]}
-            showsVerticalScrollIndicator={true}
+            showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
-            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+            automaticallyAdjustKeyboardInsets={true}
             nestedScrollEnabled={true}
           >
             {/* 1. Course Name */}
@@ -579,38 +576,36 @@ function LearningCourseModalContent({
                 onFocus={scrollToBottom}
               />
             </View>
-          </ScrollView>
+            {/* Bottom Action Row */}
+            <View style={styles.modalActionRow}>
+              {isExisting && (
+                <TouchableOpacity
+                  style={styles.btnSecondary}
+                  onPress={onClose}
+                  activeOpacity={0.75}
+                >
+                  <Text style={styles.btnSecondaryText}>Cancel</Text>
+                </TouchableOpacity>
+              )}
 
-          {/* Bottom Action Row */}
-          <View style={styles.modalActionRow}>
-            {isExisting && (
               <TouchableOpacity
-                style={styles.btnSecondary}
-                onPress={onClose}
-                activeOpacity={0.75}
+                style={[styles.btnPrimary, !isExisting && { flex: 1 }]}
+                onPress={handleSave}
+                activeOpacity={0.85}
               >
-                <Text style={styles.btnSecondaryText}>Cancel</Text>
+                <Ionicons
+                  name={isExisting ? 'checkmark-circle' : 'add-circle'}
+                  size={18}
+                  color="#08090C"
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={styles.btnPrimaryText}>
+                  {isExisting ? 'Save Changes' : 'Add Course'}
+                </Text>
               </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={[styles.btnPrimary, !isExisting && { flex: 1 }]}
-              onPress={handleSave}
-              activeOpacity={0.85}
-            >
-              <Ionicons
-                name={isExisting ? 'checkmark-circle' : 'add-circle'}
-                size={18}
-                color="#08090C"
-                style={{ marginRight: 6 }}
-              />
-              <Text style={styles.btnPrimaryText}>
-                {isExisting ? 'Save Changes' : 'Add Course'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+          </ScrollView>
         </View>
-      </KeyboardAvoidingView>
 
       <AppAlertModal
         config={alertConfig}
@@ -629,25 +624,21 @@ const styles = StyleSheet.create({
   dismissArea: {
     flex: 1,
   },
-  keyboardAvoidWrapper: {
-    width: '100%',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
   modalSheet: {
     width: '100%',
     maxWidth: 520,
-    maxHeight: '92%',
+    alignSelf: 'center',
+    maxHeight: '85%',
     backgroundColor: COLORS.bgCard,
-    borderTopLeftRadius: RADIUS.xxl,
-    borderTopRightRadius: RADIUS.xxl,
+    borderTopLeftRadius: RADIUS.modal,
+    borderTopRightRadius: RADIUS.modal,
     borderTopWidth: 1.5,
     borderLeftWidth: 1.5,
     borderRightWidth: 1.5,
     borderColor: COLORS.borderLight,
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 14,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.45,

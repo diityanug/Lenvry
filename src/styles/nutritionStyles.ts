@@ -538,7 +538,7 @@ export const nutritionStyles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   modalContentPortion: {
-    maxHeight: '92%',
+    maxHeight: '85%',
     paddingBottom: Platform.OS === 'ios' ? 32 : 24,
   },
   portionAdjusterCard: {
