@@ -304,7 +304,6 @@ function LearningCourseModalContent({
             ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
             automaticallyAdjustKeyboardInsets={true}
             nestedScrollEnabled={true}
           >

@@ -560,7 +560,6 @@ function StickyNoteModalContent({
                 ]}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
                 automaticallyAdjustKeyboardInsets={true}
                 nestedScrollEnabled={true}
               >
@@ -768,7 +767,6 @@ function StickyNoteModalContent({
                               onChangeText={(val) => handleUpdateEntry(entry.id, 'content', val)}
                               multiline={true}
                               textAlignVertical="top"
-                              onFocus={scrollToBottom}
                             />
                           </View>
                         ))}
@@ -789,7 +787,7 @@ function StickyNoteModalContent({
                 ) : (
                   <View style={{ marginBottom: 16 }}>
                     <Text style={styles.inputLabel}>
-                      {type === 'checklist' ? 'DESCRIPTION' : 'NOTE CONTENT'}
+                       {type === 'checklist' ? 'DESCRIPTION' : 'NOTE CONTENT'}
                     </Text>
                     <TextInput
                       style={[
@@ -806,7 +804,6 @@ function StickyNoteModalContent({
                       onChangeText={setDescription}
                       multiline={true}
                       textAlignVertical="top"
-                      onFocus={scrollToBottom}
                     />
                   </View>
                 )}
