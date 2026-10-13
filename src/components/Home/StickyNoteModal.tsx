@@ -962,7 +962,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 540,
     alignSelf: 'center',
-    maxHeight: '85%',
+    // A definite height is required: the view/edit containers and their ScrollViews use flex: 1,
+    // which collapses to 0 when the parent only has maxHeight (content-sized).
+    height: '85%',
     backgroundColor: COLORS.bgCard,
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
