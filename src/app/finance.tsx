@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StatusBar, ScrollView, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { readManyStored, updateStored, writeStored } from '../storage';
+import { updateStored } from '../storage';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 
-import { Account, Transaction, CategoryBudget, CategoryCustomIcon, DebtItem, RecurringBill, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, MONTHS } from '../types/finance';
+import { Account, Transaction, CategoryBudget, CategoryCustomIcon, DebtItem, RecurringBill, DEFAULT_EXPENSE_CATEGORIES, MONTHS } from '../types/finance';
 import { TransactionCard, AccountCard, AddAccountCard, HeroSummaryCard } from '../components/Finance/FinanceCards';
 import { TransactionModal } from '../components/Finance/TransactionModal';
 import { AccountDetailModal } from '../components/Finance/AccountDetailModal';
@@ -19,6 +19,7 @@ import { CategoryBudgetModal } from '../components/Finance/CategoryBudgetModal';
 import { RecurringBillsCard } from '../components/Finance/RecurringBillsCard';
 import { DebtsCard } from '../components/Finance/DebtsCard';
 import { ManageAccountsModal } from '../components/Finance/ManageAccountsModal';
+import { ManageCategoriesModal } from '../components/Finance/ManageCategoriesModal';
 import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
 import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 import { TAB_BAR_HEIGHT } from '../constants/tabBar';
@@ -26,17 +27,30 @@ import { financeStyles as styles } from '../styles/financeStyles';
 import { COLORS } from '../constants/theme';
 
 import { useFocusEffect } from 'expo-router';
+import { useFinanceStore } from '../stores';
 
 export default function FinanceTracker() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-
-  const [expenseCategories, setExpenseCategories] = useState<string[]>(DEFAULT_EXPENSE_CATEGORIES);
-  const [incomeCategories, setIncomeCategories] = useState<string[]>(DEFAULT_INCOME_CATEGORIES);
+  const transactions = useFinanceStore((s) => s.transactions);
+  const setTransactions = useFinanceStore((s) => s.setTransactions);
+  const accounts = useFinanceStore((s) => s.accounts);
+  const setAccounts = useFinanceStore((s) => s.setAccounts);
+  const expenseCategories = useFinanceStore((s) => s.expenseCategories);
+  const setExpenseCategories = useFinanceStore((s) => s.setExpenseCategories);
+  const incomeCategories = useFinanceStore((s) => s.incomeCategories);
+  const setIncomeCategories = useFinanceStore((s) => s.setIncomeCategories);
+  const categoryBudgets = useFinanceStore((s) => s.categoryBudgets);
+  const setCategoryBudgets = useFinanceStore((s) => s.setCategoryBudgets);
+  const recurringBills = useFinanceStore((s) => s.recurringBills);
+  const setRecurringBills = useFinanceStore((s) => s.setRecurringBills);
+  const customCategoryIcons = useFinanceStore((s) => s.customCategoryIcons);
+  const setCustomCategoryIcons = useFinanceStore((s) => s.setCustomCategoryIcons);
+  const debts = useFinanceStore((s) => s.debts);
+  const setDebts = useFinanceStore((s) => s.setDebts);
+  const loadFinance = useFinanceStore((s) => s.loadFinance);
 
   // In-Screen Quick Filter
   const [financeViewMode, setFinanceViewMode] = useState<'overview' | 'insights'>('overview');
-  const [homeTxFilter, setHomeTxFilter] = useState<'all' | 'expense' | 'income'>('all');
+  const [homeTxFilter, setHomeTxFilter] = useState<'all' | 'expense' | 'income' | 'transfer'>('all');
   const [activeCurrency, setActiveCurrency] = useState<'IDR' | 'USD'>('IDR');
 
   // Modals Visibility
@@ -51,6 +65,7 @@ export default function FinanceTracker() {
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [categoryBreakdownModalVisible, setCategoryBreakdownModalVisible] = useState(false);
   const [manageAccModalVisible, setManageAccModalVisible] = useState(false);
+  const [manageCatModalVisible, setManageCatModalVisible] = useState(false);
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
   const [isPayingBill, setIsPayingBill] = useState(false);
 
@@ -67,6 +82,7 @@ export default function FinanceTracker() {
   // Transaction Form State
   const [type, setType] = useState<'income' | 'expense' | 'transfer'>('expense');
   const [amount, setAmount] = useState('');
+  const [toAmount, setToAmount] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(DEFAULT_EXPENSE_CATEGORIES[0]);
   const [selectedAccId, setSelectedAccId] = useState('');
@@ -74,9 +90,6 @@ export default function FinanceTracker() {
   const [selectedToAccId, setSelectedToAccId] = useState('');
   const [selectedToSubAccId, setSelectedToSubAccId] = useState('');
   const [txDate, setTxDate] = useState(new Date());
-  const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudget[]>([]);
-  const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
-  const [debts, setDebts] = useState<DebtItem[]>([]);
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
 
   // Account Form State
@@ -86,8 +99,6 @@ export default function FinanceTracker() {
   const [newAccType, setNewAccType] = useState<Account['type']>('Bank');
   const [newAccCurrency, setNewAccCurrency] = useState<'IDR' | 'USD'>('IDR');
   const [parentAccId, setParentAccId] = useState('');
-
-  const [customCategoryIcons, setCustomCategoryIcons] = useState<CategoryCustomIcon[]>([]);
 
   // Helpers State
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -100,44 +111,12 @@ export default function FinanceTracker() {
   const [renameDescValue, setRenameDescValue] = useState('');
 
   // History Filter
-  const [historyTypeFilter, setHistoryTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<'all' | 'income' | 'expense' | 'transfer'>('all');
   const [historyCatFilter, setHistoryCatFilter] = useState<string>('all');
 
-  const loadData = useCallback(async () => {
-    try {
-      const data = await readManyStored([
-        'financeTransactions',
-        'financeAccounts',
-        'financeExpenseCategories',
-        'financeIncomeCategories',
-        'financeCategoryBudgets',
-        'financeRecurringBills',
-        'financeCustomCategoryIcons',
-        'financeDebts',
-      ]);
-
-      if (data.financeTransactions) setTransactions(data.financeTransactions);
-      if (data.financeExpenseCategories) setExpenseCategories(data.financeExpenseCategories);
-      if (data.financeIncomeCategories) setIncomeCategories(data.financeIncomeCategories);
-      if (data.financeCategoryBudgets) setCategoryBudgets(data.financeCategoryBudgets);
-      if (data.financeRecurringBills) setRecurringBills(data.financeRecurringBills);
-      if (data.financeCustomCategoryIcons) setCustomCategoryIcons(data.financeCustomCategoryIcons);
-      if (data.financeDebts) setDebts(data.financeDebts);
-
-      if (data.financeAccounts) {
-        // The 'IDR' fallback for legacy rows now lives in the storage schema.
-        setAccounts(data.financeAccounts);
-      } else {
-        // First launch: seed a wallet so the screen has somewhere to record to.
-        const defaultAcc: Account[] = [
-          { id: 'acc_1', name: 'Cash', type: 'Cash', currency: 'IDR', subAccounts: [{ id: 'sub_1', name: 'Main' }] },
-        ];
-        setAccounts(await writeStored('financeAccounts', defaultAcc));
-      }
-    } catch (e) {
-      console.error('Failed to load finance data', e);
-    }
-  }, []);
+  const loadData = useCallback(() => {
+    loadFinance();
+  }, [loadFinance]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
@@ -202,7 +181,11 @@ export default function FinanceTracker() {
           return sum - t.amount;
         }
         if (t.toAccountId === accId && t.toSubAccountId === subId) {
-          return sum + t.amount;
+          const received =
+            typeof t.toAmount === 'number' && Number.isFinite(t.toAmount) && t.toAmount > 0
+              ? t.toAmount
+              : t.amount;
+          return sum + received;
         }
       }
       return sum;
@@ -218,18 +201,16 @@ export default function FinanceTracker() {
   const totalBalanceIDR = accounts.filter((a) => a.currency === 'IDR').reduce((sum, acc) => sum + getAccBalance(acc.id), 0);
   const totalBalanceUSD = accounts.filter((a) => a.currency === 'USD').reduce((sum, acc) => sum + getAccBalance(acc.id), 0);
 
-  const isInvestmentAccount = useCallback((accId: string) => {
-    return accounts.find((a) => a.id === accId)?.type === 'Investment';
-  }, [accounts]);
 
-  const filteredMonthlyTransactions = transactions.filter((t) => {
-    // Exclude investment account transactions from global overview
-    if (isInvestmentAccount(t.accountId) || (t.toAccountId && isInvestmentAccount(t.toAccountId))) {
-      return false;
-    }
-    const d = new Date(t.date);
-    return d.getMonth() === selectedMonthFilter.getMonth() && d.getFullYear() === selectedMonthFilter.getFullYear();
-  });
+  const filteredMonthlyTransactions = useMemo(() => {
+    return transactions.filter((t) => {
+      const d = new Date(t.date);
+      return (
+        d.getMonth() === selectedMonthFilter.getMonth() &&
+        d.getFullYear() === selectedMonthFilter.getFullYear()
+      );
+    });
+  }, [transactions, selectedMonthFilter]);
 
   const monthlyIncomeIDR = filteredMonthlyTransactions
     .filter((t) => t.type === 'income' && accounts.find((a) => a.id === t.accountId)?.currency !== 'USD')
@@ -256,39 +237,42 @@ export default function FinanceTracker() {
     return categoryBudgets.filter((b) => (b.currency || 'IDR') === activeCurrency);
   }, [categoryBudgets, activeCurrency]);
 
-  const sortedTransactions = [...filteredMonthlyTransactions].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  const sortedTransactions = useMemo(() => {
+    return [...filteredMonthlyTransactions].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [filteredMonthlyTransactions]);
 
-  const displayedHomeTransactions = sortedTransactions.filter((t) => {
-    if (homeTxFilter === 'all') return true;
-    return t.type === homeTxFilter;
-  });
+  const displayedHomeTransactions = useMemo(() => {
+    return sortedTransactions.filter((t) => {
+      if (homeTxFilter === 'all') return true;
+      return t.type === homeTxFilter;
+    });
+  }, [sortedTransactions, homeTxFilter]);
 
-  const historyTransactions = transactions
-    .filter((t) => {
-      // Exclude investment account transactions from global history modal
-      if (isInvestmentAccount(t.accountId) || (t.toAccountId && isInvestmentAccount(t.toAccountId))) {
-        return false;
-      }
-      if (historyTypeFilter !== 'all' && t.type !== historyTypeFilter) return false;
-      if (historyCatFilter !== 'all' && t.category !== historyCatFilter) return false;
-      return true;
-    })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const historyTransactions = useMemo(() => {
+    return transactions
+      .filter((t) => {
+        if (historyTypeFilter !== 'all' && t.type !== historyTypeFilter) return false;
+        if (historyCatFilter !== 'all' && t.category !== historyCatFilter) return false;
+        return true;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [transactions, historyTypeFilter, historyCatFilter]);
 
-  const historyAvailableCategories =
-    historyTypeFilter === 'expense'
-      ? expenseCategories
-      : historyTypeFilter === 'income'
-      ? incomeCategories
-      : Array.from(new Set([...expenseCategories, ...incomeCategories]));
+  const historyAvailableCategories = useMemo(() => {
+    if (historyTypeFilter === 'expense') return expenseCategories;
+    if (historyTypeFilter === 'income') return incomeCategories;
+    if (historyTypeFilter === 'transfer') return ['Transfer'];
+    return Array.from(new Set([...expenseCategories, ...incomeCategories, 'Transfer']));
+  }, [historyTypeFilter, expenseCategories, incomeCategories]);
 
   const openNewTransaction = (txType: 'income' | 'expense' | 'transfer' = 'expense') => {
     setEditingTxId(null);
     setIsPayingBill(false);
     setType(txType);
     setAmount('');
+    setToAmount('');
     setDescription('');
     setTxDate(new Date());
     setSelectedCategory(txType === 'expense' ? expenseCategories[0] : txType === 'income' ? incomeCategories[0] : 'Transfer');
@@ -315,6 +299,7 @@ export default function FinanceTracker() {
     setIsPayingBill(false);
     setType(tx.type);
     setAmount(tx.amount.toString());
+    setToAmount(tx.toAmount !== undefined && tx.toAmount !== null ? tx.toAmount.toString() : '');
     setDescription(tx.description);
     setSelectedCategory(tx.category);
     setSelectedAccId(tx.accountId);
@@ -332,6 +317,7 @@ export default function FinanceTracker() {
     setIsPayingBill(false);
     setType(tx.type);
     setAmount(tx.amount.toString());
+    setToAmount(tx.toAmount !== undefined && tx.toAmount !== null ? tx.toAmount.toString() : '');
     setDescription(tx.description);
     setSelectedCategory(tx.category);
     setSelectedAccId(tx.accountId);
@@ -361,7 +347,31 @@ export default function FinanceTracker() {
       }
     }
 
+    const fromAcc = accounts.find((a) => a.id === selectedAccId);
+    const toAcc = type === 'transfer' ? accounts.find((a) => a.id === selectedToAccId) : undefined;
+    const isCrossCurrency = type === 'transfer' && Boolean(fromAcc && toAcc && fromAcc.currency !== toAcc.currency);
+
     const parsedAmount = parseFloat(amount.replace(/[^0-9.]/g, '')) || 0;
+    if (parsedAmount <= 0) {
+      showAlert('warning', 'Invalid Amount', 'Please enter a valid amount.');
+      return;
+    }
+
+    let parsedToAmount: number | undefined;
+    let exchangeRate: number | undefined;
+
+    if (isCrossCurrency) {
+      parsedToAmount = parseFloat(toAmount.replace(/[^0-9.]/g, '')) || 0;
+      if (!parsedToAmount || parsedToAmount <= 0) {
+        showAlert('warning', 'Incomplete Transfer Data', 'Please fill in the received amount for the destination account.');
+        return;
+      }
+      if (fromAcc?.currency === 'IDR' && toAcc?.currency === 'USD') {
+        exchangeRate = parsedAmount / parsedToAmount;
+      } else if (fromAcc?.currency === 'USD' && toAcc?.currency === 'IDR') {
+        exchangeRate = parsedToAmount / parsedAmount;
+      }
+    }
 
     let updatedTx: Transaction[];
     if (editingTxId) {
@@ -378,6 +388,8 @@ export default function FinanceTracker() {
               subAccountId: selectedSubAccId,
               toAccountId: type === 'transfer' ? selectedToAccId : undefined,
               toSubAccountId: type === 'transfer' ? selectedToSubAccId : undefined,
+              toAmount: isCrossCurrency ? parsedToAmount : undefined,
+              exchangeRate: isCrossCurrency ? exchangeRate : undefined,
             }
           : t
       );
@@ -393,12 +405,15 @@ export default function FinanceTracker() {
         subAccountId: selectedSubAccId,
         toAccountId: type === 'transfer' ? selectedToAccId : undefined,
         toSubAccountId: type === 'transfer' ? selectedToSubAccId : undefined,
+        toAmount: isCrossCurrency ? parsedToAmount : undefined,
+        exchangeRate: isCrossCurrency ? exchangeRate : undefined,
       };
       updatedTx = [newTx, ...transactions];
     }
 
-    setTransactions(await writeStored('financeTransactions', updatedTx));
+    await setTransactions(updatedTx);
     setAmount('');
+    setToAmount('');
     setDescription('');
     setEditingTxId(null);
     setIsPayingBill(false);
@@ -406,11 +421,11 @@ export default function FinanceTracker() {
   };
 
   const saveCategoryBudgets = async (budgets: CategoryBudget[]) => {
-    setCategoryBudgets(await writeStored('financeCategoryBudgets', budgets));
+    await setCategoryBudgets(budgets);
   };
 
   const saveRecurringBills = async (bills: RecurringBill[]) => {
-    setRecurringBills(await writeStored('financeRecurringBills', bills));
+    await setRecurringBills(bills);
   };
 
 
@@ -439,8 +454,7 @@ export default function FinanceTracker() {
   };
 
   const saveDebts = async (newDebts: DebtItem[]) => {
-    setDebts(newDebts);
-    await writeStored('financeDebts', newDebts);
+    await setDebts(newDebts);
   };
 
   const handleAddDebt = async (
@@ -513,7 +527,7 @@ export default function FinanceTracker() {
     };
 
     const updatedTransactions = [newTx, ...transactions];
-    setTransactions(await writeStored('financeTransactions', updatedTransactions));
+    await setTransactions(updatedTransactions);
   };
 
   const saveAccount = async () => {
@@ -540,7 +554,7 @@ export default function FinanceTracker() {
         return acc;
       });
     }
-    setAccounts(await writeStored('financeAccounts', updatedAccounts));
+    await setAccounts(updatedAccounts);
     setNewAccName('');
     setNewAccDesc('');
     setAccModalVisible(false);
@@ -662,19 +676,19 @@ export default function FinanceTracker() {
       } else {
         updatedIcons = [...customCategoryIcons, { category: catName, ...iconConfig }];
       }
-      setCustomCategoryIcons(await writeStored('financeCustomCategoryIcons', updatedIcons));
+      await setCustomCategoryIcons(updatedIcons);
     }
 
     if (type === 'expense') {
       if (!expenseCategories.includes(catName)) {
         const updated = [...expenseCategories, catName];
-        setExpenseCategories(await writeStored('financeExpenseCategories', updated));
+        await setExpenseCategories(updated);
       }
       setSelectedCategory(catName);
     } else {
       if (!incomeCategories.includes(catName)) {
         const updated = [...incomeCategories, catName];
-        setIncomeCategories(await writeStored('financeIncomeCategories', updated));
+        await setIncomeCategories(updated);
       }
       setSelectedCategory(catName);
     }
@@ -689,26 +703,66 @@ export default function FinanceTracker() {
       showAlert('warning', 'Cannot Delete', 'At least one category must remain.');
       return;
     }
+
+    const fallbackCategory = 'Others';
+    if (catToDelete === fallbackCategory) {
+      showAlert('warning', 'Cannot Delete', `The default category "${fallbackCategory}" cannot be removed.`);
+      return;
+    }
+
+    const affectedTxCount = transactions.filter((t) => t.category === catToDelete && (t.type === (isExpense ? 'expense' : 'income'))).length;
+    const warningDetail = affectedTxCount > 0
+      ? `Remove category "${catToDelete}"?\n\n${affectedTxCount} transaction${affectedTxCount > 1 ? 's' : ''} using this category will be automatically moved to "${fallbackCategory}".`
+      : `Remove category "${catToDelete}"?`;
+
     showAlert(
       'danger',
       'Delete Category?',
-      `Remove category "${catToDelete}"?`,
+      warningDetail,
       'DELETE',
       'CANCEL',
       async () => {
-        const updated = list.filter((c) => c !== catToDelete);
-        if (isExpense) {
-          setExpenseCategories(await writeStored('financeExpenseCategories', updated));
-        } else {
-          setIncomeCategories(await writeStored('financeIncomeCategories', updated));
+        let updated = list.filter((c) => c !== catToDelete);
+        // Ensure fallback category exists in list
+        if (!updated.includes(fallbackCategory)) {
+          updated.push(fallbackCategory);
         }
-        if (selectedCategory === catToDelete) setSelectedCategory(updated[0]);
+
+        if (isExpense) {
+          await setExpenseCategories(updated);
+        } else {
+          await setIncomeCategories(updated);
+        }
+
+        // Option 1: Reassign transactions that used this deleted category to 'Others'
+        if (affectedTxCount > 0) {
+          const updatedTxList = await updateStored('financeTransactions', (current) =>
+            current.map((t) =>
+              t.category === catToDelete && t.type === (isExpense ? 'expense' : 'income')
+                ? { ...t, category: fallbackCategory }
+                : t
+            )
+          );
+          await setTransactions(updatedTxList);
+        }
+
+        // Also clean up any budgets tied to this category
+        if (categoryBudgets.some((b) => b.category === catToDelete)) {
+          const nextBudgets = await updateStored('financeCategoryBudgets', (current) =>
+            current.filter((b) => b.category !== catToDelete)
+          );
+          await setCategoryBudgets(nextBudgets);
+        }
+
+        if (selectedCategory === catToDelete) {
+          setSelectedCategory(fallbackCategory);
+        }
 
         // Remove custom icon only if the category no longer exists in either list
         const stillUsed = expenseCategories.concat(incomeCategories).filter((c) => c === catToDelete).length > 1;
         if (!stillUsed && customCategoryIcons.some((c) => c.category === catToDelete)) {
           const nextIcons = customCategoryIcons.filter((c) => c.category !== catToDelete);
-          setCustomCategoryIcons(await writeStored('financeCustomCategoryIcons', nextIcons));
+          await setCustomCategoryIcons(nextIcons);
         }
       }
     );
@@ -947,6 +1001,21 @@ export default function FinanceTracker() {
                   Income
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.filterTabItem, homeTxFilter === 'transfer' && styles.filterTabItemActive]}
+                onPress={() => setHomeTxFilter('transfer')}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.filterTabItemText,
+                    homeTxFilter === 'transfer' && { color: COLORS.finance, fontWeight: '700' },
+                  ]}
+                >
+                  Transfer
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* NATURAL SCROLLABLE TRANSACTIONS LIST */}
@@ -1009,6 +1078,7 @@ export default function FinanceTracker() {
               currency={activeCurrency}
               customCategoryIcons={customCategoryIcons}
               onOpenSetBudget={() => setBudgetModalVisible(true)}
+              onOpenManageCategories={() => setManageCatModalVisible(true)}
             />
 
             {/* RECURRING BILLS CARD */}
@@ -1080,6 +1150,8 @@ export default function FinanceTracker() {
         onSave={saveTransaction}
         setType={setType}
         setAmount={setAmount}
+        toAmount={toAmount}
+        setToAmount={setToAmount}
         setDescription={setDescription}
         setSelectedCategory={setSelectedCategory}
         setSelectedAccId={setSelectedAccId}
@@ -1228,6 +1300,24 @@ export default function FinanceTracker() {
           }
           saveCategoryBudgets(updated);
         }}
+        onOpenAddCategory={() => setCatModalVisible(true)}
+        onDeleteCategory={deleteCategory}
+      />
+
+      <ManageCategoriesModal
+        visible={manageCatModalVisible}
+        expenseCategories={expenseCategories}
+        incomeCategories={incomeCategories}
+        customCategoryIcons={customCategoryIcons}
+        onClose={() => setManageCatModalVisible(false)}
+        onOpenAddCategory={(catType) => {
+          setType(catType);
+          setCatModalVisible(true);
+        }}
+        onDeleteCategory={(cat, catType) => {
+          setType(catType);
+          deleteCategory(cat);
+        }}
       />
 
       <CategoryBreakdownModal
@@ -1246,7 +1336,7 @@ export default function FinanceTracker() {
         getAccBalance={getAccBalance}
         onClose={() => setManageAccModalVisible(false)}
         onReorderAccounts={async (newAccounts) => {
-          setAccounts(await writeStored('financeAccounts', newAccounts));
+          await setAccounts(newAccounts);
         }}
       />
 

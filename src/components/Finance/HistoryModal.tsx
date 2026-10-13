@@ -27,20 +27,20 @@ interface HistoryModalProps {
   visible: boolean;
   historyTransactions: Transaction[];
   accounts: Account[];
-  historyTypeFilter: 'all' | 'income' | 'expense';
+  historyTypeFilter: 'all' | 'income' | 'expense' | 'transfer';
   historyCatFilter: string;
   historyAvailableCategories: string[];
   onClose: () => void;
-  setTypeFilter: (filter: 'all' | 'income' | 'expense') => void;
+  setTypeFilter: (filter: 'all' | 'income' | 'expense' | 'transfer') => void;
   setCatFilter: (cat: string) => void;
   onClone: (tx: Transaction) => void;
   onDelete: (id: string) => void;
   onEdit?: (tx: Transaction) => void;
 }
 
-const FILTER_ORDER = ['all', 'expense', 'income'] as const;
+const FILTER_ORDER = ['all', 'expense', 'income', 'transfer'] as const;
 
-const FILTER_THEME: Record<'all' | 'income' | 'expense', { color: string; bg: string; border: string }> = {
+const FILTER_THEME: Record<'all' | 'income' | 'expense' | 'transfer', { color: string; bg: string; border: string }> = {
   all: {
     color: '#38BDF8',
     bg: 'rgba(56, 189, 248, 0.16)',
@@ -48,6 +48,7 @@ const FILTER_THEME: Record<'all' | 'income' | 'expense', { color: string; bg: st
   },
   expense: TX_TYPE_THEME.expense,
   income: TX_TYPE_THEME.income,
+  transfer: TX_TYPE_THEME.transfer,
 };
 
 const ALL_CATEGORIES_THEME = {
@@ -113,11 +114,17 @@ export const HistoryModal = ({
         const accName = acc?.name?.toLowerCase() || '';
         const subAccName = acc?.subAccounts?.find((s) => s.id === tx.subAccountId)?.name?.toLowerCase() || '';
 
+        const toAcc = tx.toAccountId ? accounts.find((a) => a.id === tx.toAccountId) : undefined;
+        const toAccName = toAcc?.name?.toLowerCase() || '';
+        const toSubAccName = toAcc?.subAccounts?.find((s) => s.id === tx.toSubAccountId)?.name?.toLowerCase() || '';
+
         const searchableTokensString = [
           tx.description?.toLowerCase() || '',
           tx.category?.toLowerCase() || '',
           accName,
           subAccName,
+          toAccName,
+          toSubAccName,
           yearStr,
           monthNum,
           monthNumPadded,
@@ -218,7 +225,7 @@ export const HistoryModal = ({
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
-                      {flt === 'all' ? 'All' : flt === 'expense' ? 'Expenses' : 'Income'}
+                      {flt === 'all' ? 'All' : flt === 'expense' ? 'Expenses' : flt === 'income' ? 'Income' : 'Transfers'}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -290,6 +297,7 @@ export const HistoryModal = ({
           {/* TRANSACTION LIST */}
           <FlatList
             data={filteredList}
+            extraData={filteredList}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={true}
             keyboardShouldPersistTaps="handled"

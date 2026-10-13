@@ -95,6 +95,13 @@ export const AccountDetailModal = ({
         inc += tx.amount;
       } else if (tx.type === 'expense') {
         exp += tx.amount;
+      } else if (tx.type === 'transfer') {
+        const received = typeof tx.toAmount === 'number' && tx.toAmount > 0 ? tx.toAmount : tx.amount;
+        if (dstMatches && !srcMatches) {
+          inc += received;
+        } else if (srcMatches && !dstMatches) {
+          exp += tx.amount;
+        }
       }
     }
     return { totalIncome: inc, totalExpense: exp };
@@ -112,17 +119,22 @@ export const AccountDetailModal = ({
       const dstMatches = isDest && (subFilter === 'all' || tx.toSubAccountId === subFilter);
       if (!srcMatches && !dstMatches) continue;
 
-      if (historyTypeFilter !== 'all' && tx.type !== historyTypeFilter) {
-        continue;
-      }
-
       let delta = 0;
       if (tx.type === 'income') delta = tx.amount;
       else if (tx.type === 'expense') delta = -tx.amount;
       else {
         // Transfer: money out of the source, into the destination
-        delta = (dstMatches ? tx.amount : 0) - (srcMatches ? tx.amount : 0);
+        const received = typeof tx.toAmount === 'number' && tx.toAmount > 0 ? tx.toAmount : tx.amount;
+        delta = (dstMatches ? received : 0) - (srcMatches ? tx.amount : 0);
       }
+
+      if (historyTypeFilter === 'income' && delta <= 0) {
+        continue;
+      }
+      if (historyTypeFilter === 'expense' && delta >= 0) {
+        continue;
+      }
+
       rows.push({ tx, delta });
     }
     return rows.sort((a, b) => new Date(b.tx.date).getTime() - new Date(a.tx.date).getTime());
@@ -504,7 +516,7 @@ export const AccountDetailModal = ({
                           />
                         </View>
                         <View style={modalStyles.historyTextWrap}>
-                          <Text style={modalStyles.historyDesc} numberOfLines={1} ellipsizeMode="tail">
+                          <Text style={modalStyles.historyDesc} numberOfLines={2}>
                             {(tx.description || '').trim() || tx.category || 'Transaction'}
                           </Text>
                           <View style={modalStyles.historyMetaRow}>
@@ -520,7 +532,7 @@ export const AccountDetailModal = ({
                                 />
                               </View>
                             )}
-                            <Text style={modalStyles.historyMeta} numberOfLines={1} ellipsizeMode="tail">
+                            <Text style={modalStyles.historyMeta} numberOfLines={2}>
                               {formatTxShortDate(tx.date)} • {meta}
                             </Text>
                           </View>
@@ -534,7 +546,7 @@ export const AccountDetailModal = ({
                             ellipsizeMode="tail"
                           >
                             {delta > 0 ? '+' : delta < 0 ? '-' : ''}
-                            {formatMoney(tx.amount, account.currency)}
+                            {formatMoney(Math.abs(delta), account.currency)}
                           </Text>
                         </View>
                       </TouchableOpacity>

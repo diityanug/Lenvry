@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Keyboard,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,6 +22,7 @@ import {
 import { CalculatorModal } from './CalculatorModal';
 import { getCategoryTheme as getCategoryVisualTheme } from './CategoryBreakdownCard';
 import { FormAccountSelector } from './form/FormAccountSelector';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { FormCategorySelector } from './form/FormCategorySelector';
 
 interface TransactionModalProps {
@@ -56,6 +56,8 @@ interface TransactionModalProps {
   onOpenAddCategory: () => void;
   onDeleteCategory?: (cat: string) => void;
   hideTypeSwitcher?: boolean;
+  toAmount?: string;
+  setToAmount?: (val: string) => void;
 }
 
 export const TransactionModal = ({
@@ -88,24 +90,13 @@ export const TransactionModal = ({
   setSelectedToSubAccId,
   onOpenDatePicker,
   onOpenAddCategory,
+  onDeleteCategory,
+  toAmount = '',
+  setToAmount,
 }: TransactionModalProps) => {
   const [calcVisible, setCalcVisible] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
+  const [toCalcVisible, setToCalcVisible] = useState(false);
+  const keyboardHeight = useKeyboardHeight();
 
   const handleDismiss = () => {
     Keyboard.dismiss();
@@ -113,14 +104,33 @@ export const TransactionModal = ({
   };
 
   const selectedAccount = accounts.find((a) => a.id === selectedAccId);
+  const selectedToAccount = type === 'transfer' ? accounts.find((a) => a.id === selectedToAccId) : undefined;
   const currency = selectedAccount?.currency || 'IDR';
+  const toCurrency = selectedToAccount?.currency || currency;
   const currencySymbol = currency === 'USD' ? '$' : 'Rp';
+  const toCurrencySymbol = toCurrency === 'USD' ? '$' : 'Rp';
+  const isCrossCurrency = type === 'transfer' && Boolean(selectedAccount && selectedToAccount && currency !== toCurrency);
+
   const isExpense = type === 'expense';
   const isTransfer = type === 'transfer';
   const activeCategories = isExpense ? expenseCategories : incomeCategories;
 
   const typeTheme = TX_TYPE_THEME[type];
   const typeIcon = isExpense ? 'arrow-up-circle' : isTransfer ? 'swap-horizontal' : 'arrow-down-circle';
+
+  const effectiveExchangeRate = React.useMemo(() => {
+    if (!isCrossCurrency) return 0;
+    const sendVal = parseFloat(amount.replace(/[^0-9.]/g, '')) || 0;
+    const recvVal = parseFloat(toAmount.replace(/[^0-9.]/g, '')) || 0;
+    if (sendVal <= 0 || recvVal <= 0) return 0;
+    if (currency === 'IDR' && toCurrency === 'USD') {
+      return sendVal / recvVal;
+    }
+    if (currency === 'USD' && toCurrency === 'IDR') {
+      return recvVal / sendVal;
+    }
+    return 0;
+  }, [isCrossCurrency, amount, toAmount, currency, toCurrency]);
 
   // Suggestions from previous transactions
   const descriptionSuggestions = React.useMemo(() => {
@@ -185,6 +195,10 @@ export const TransactionModal = ({
 
   const formattedDisplayAmount = amount
     ? formatMoney(parseFloat(amount) || 0, currency).replace(/[^0-9.,]/g, '').trim()
+    : '0';
+
+  const formattedDisplayToAmount = toAmount
+    ? formatMoney(parseFloat(toAmount) || 0, toCurrency).replace(/[^0-9.,]/g, '').trim()
     : '0';
 
   return (
@@ -303,7 +317,9 @@ export const TransactionModal = ({
 
             {/* Amount Input & Calculator */}
             <View style={txStyles.amountCard}>
-              <Text style={txStyles.amountLabel}>AMOUNT</Text>
+              <Text style={txStyles.amountLabel}>
+                {isCrossCurrency ? `NOMINAL DIKIRIM (${currency})` : 'AMOUNT'}
+              </Text>
               <View style={txStyles.amountInputRow}>
                 <Text style={[txStyles.currencyPrefix, { color: typeTheme.color }]}>
                   {currencySymbol}
@@ -312,9 +328,20 @@ export const TransactionModal = ({
                   style={[txStyles.amountInput, { color: typeTheme.color }]}
                   placeholder="0"
                   placeholderTextColor={COLORS.textMuted}
-                  keyboardType="numeric"
+                  keyboardType={currency === 'USD' ? 'decimal-pad' : 'numeric'}
                   value={amount}
-                  onChangeText={(val) => setAmount(val.replace(/[^0-9]/g, ''))}
+                  onChangeText={(val) => {
+                    const clean = currency === 'USD' ? val.replace(/[^0-9.]/g, '') : val.replace(/[^0-9]/g, '');
+                    setAmount(clean);
+                    if (isCrossCurrency && setToAmount && (!toAmount || toAmount === '0')) {
+                      const num = parseFloat(clean) || 0;
+                      if (currency === 'IDR' && toCurrency === 'USD' && num > 0) {
+                        setToAmount((num / 16000).toFixed(2));
+                      } else if (currency === 'USD' && toCurrency === 'IDR' && num > 0) {
+                        setToAmount(Math.round(num * 16000).toString());
+                      }
+                    }
+                  }}
                   maxLength={15}
                 />
                 <TouchableOpacity
@@ -331,6 +358,70 @@ export const TransactionModal = ({
                 </Text>
               )}
             </View>
+
+            {/* Received Amount Input for Cross-Currency Transfer */}
+            {isCrossCurrency && (
+              <View style={[txStyles.amountCard, txStyles.receivedCard]}>
+                <View style={txStyles.receivedLabelRow}>
+                  <Text style={[txStyles.amountLabel, { color: COLORS.finance, marginBottom: 0 }]}>
+                    NOMINAL DITERIMA ({toCurrency})
+                  </Text>
+                  <View style={txStyles.receivedPill}>
+                    <Text style={txStyles.receivedPillText}>{toCurrency}</Text>
+                  </View>
+                </View>
+                <View style={txStyles.amountInputRow}>
+                  <Text style={[txStyles.currencyPrefix, { color: COLORS.finance }]}>
+                    {toCurrencySymbol}
+                  </Text>
+                  <TextInput
+                    style={[txStyles.amountInput, { color: COLORS.finance }]}
+                    placeholder="0"
+                    placeholderTextColor={COLORS.textMuted}
+                    keyboardType={toCurrency === 'USD' ? 'decimal-pad' : 'numeric'}
+                    value={toAmount}
+                    onChangeText={(val) => {
+                      if (setToAmount) {
+                        const clean = toCurrency === 'USD' ? val.replace(/[^0-9.]/g, '') : val.replace(/[^0-9]/g, '');
+                        setToAmount(clean);
+                      }
+                    }}
+                    maxLength={15}
+                  />
+                  <TouchableOpacity
+                    style={txStyles.calcBtn}
+                    onPress={() => setToCalcVisible(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="calculator-outline" size={20} color={COLORS.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+                {toAmount !== '' && (
+                  <Text style={txStyles.formattedSubAmount}>
+                    {toCurrencySymbol} {formattedDisplayToAmount}
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {/* Live Exchange Rate Badge */}
+            {isCrossCurrency && (
+              <View style={txStyles.rateBadgeCard}>
+                <View style={txStyles.rateBadgeRow}>
+                  <Ionicons name="swap-horizontal" size={14} color={COLORS.finance} />
+                  <Text style={txStyles.rateBadgeTitle}>
+                    {effectiveExchangeRate > 0
+                      ? `Kurs: 1 USD = Rp ${Math.round(effectiveExchangeRate).toLocaleString('id-ID')}`
+                      : 'Ketik nominal terima untuk hitung kurs'}
+                  </Text>
+                </View>
+                <Text style={txStyles.rateBadgeSub}>
+                  {effectiveExchangeRate > 0
+                    ? `Kirim ${currencySymbol} ${formattedDisplayAmount} ➔ Terima ${toCurrencySymbol} ${formattedDisplayToAmount}`
+                    : 'Nilai tukar akan dihitung otomatis secara realtime'}
+                </Text>
+              </View>
+            )}
 
             {/* Account Selectors */}
             <FormAccountSelector
@@ -360,6 +451,7 @@ export const TransactionModal = ({
                 selectedCategory={selectedCategory}
                 onSelectCategory={setSelectedCategory}
                 onOpenAddCategory={onOpenAddCategory}
+                onDeleteCategory={onDeleteCategory}
                 getCategoryTheme={(cat) => getCategoryVisualTheme(cat, isExpense ? 'expense' : 'income', customCategoryIcons)}
                 type={isExpense ? 'expense' : 'income'}
               />
@@ -434,12 +526,35 @@ export const TransactionModal = ({
         visible={calcVisible}
         initialValue={amount}
         currency={currency}
+        title={isCrossCurrency ? `Nominal Kirim (${currency})` : 'Enter Amount'}
         onClose={() => setCalcVisible(false)}
         onConfirm={(val) => {
           setAmount(val);
           setCalcVisible(false);
+          if (isCrossCurrency && setToAmount && (!toAmount || toAmount === '0')) {
+            const num = parseFloat(val) || 0;
+            if (currency === 'IDR' && toCurrency === 'USD' && num > 0) {
+              setToAmount((num / 16000).toFixed(2));
+            } else if (currency === 'USD' && toCurrency === 'IDR' && num > 0) {
+              setToAmount(Math.round(num * 16000).toString());
+            }
+          }
         }}
       />
+
+      {isCrossCurrency && (
+        <CalculatorModal
+          visible={toCalcVisible}
+          initialValue={toAmount}
+          currency={toCurrency}
+          title={`Nominal Terima (${toCurrency})`}
+          onClose={() => setToCalcVisible(false)}
+          onConfirm={(val) => {
+            if (setToAmount) setToAmount(val);
+            setToCalcVisible(false);
+          }}
+        />
+      )}
     </Modal>
   );
 };
@@ -569,6 +684,55 @@ const txStyles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textMuted,
     marginTop: 4,
+  },
+  receivedCard: {
+    marginTop: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+    backgroundColor: 'rgba(56, 189, 248, 0.05)',
+  },
+  receivedLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  receivedPill: {
+    backgroundColor: 'rgba(56, 189, 248, 0.16)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+  },
+  receivedPillText: {
+    color: COLORS.finance,
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  rateBadgeCard: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    gap: 4,
+  },
+  rateBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  rateBadgeTitle: {
+    color: COLORS.finance,
+    fontSize: 12.5,
+    fontWeight: '800',
+  },
+  rateBadgeSub: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '500',
   },
   fieldSection: {
     marginTop: 16,

@@ -329,9 +329,6 @@ export const AddCategoryModal = ({
                     <Ionicons name={activeIconItem.icon as any} size={30} color={activeIconItem.color} />
                   </View>
                   <Text style={dialogStyles.titleCenter} numberOfLines={1}>New Category</Text>
-                  <Text style={dialogStyles.subtitleCenter} numberOfLines={2}>
-                    Name your category and pick an icon for instant recognition.
-                  </Text>
                 </View>
 
                 {/* Name Input */}
@@ -339,7 +336,7 @@ export const AddCategoryModal = ({
                   <Text style={dialogStyles.fieldLabel} numberOfLines={1}>CATEGORY NAME</Text>
                   <TextInput
                     style={dialogStyles.inputField}
-                    placeholder="e.g. Subscriptions, Freelance, Tech..."
+                    placeholder="e.g. Subscriptions, etc..."
                     placeholderTextColor={COLORS.textMuted}
                     value={value}
                     onChangeText={onChangeValue}
@@ -351,20 +348,6 @@ export const AddCategoryModal = ({
                 <View style={dialogStyles.fieldBlock}>
                   <View style={dialogStyles.iconLabelRow}>
                     <Text style={dialogStyles.fieldLabelInline} numberOfLines={1}>CHOOSE ICON</Text>
-                    <View
-                      style={[
-                        dialogStyles.iconChipPreview,
-                        { backgroundColor: hexToRgba(activeIconItem.color, 0.14), borderColor: hexToRgba(activeIconItem.color, 0.34) },
-                      ]}
-                    >
-                      <Text
-                        style={[dialogStyles.iconChipPreviewText, { color: activeIconItem.color }]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {activeIconItem.label}
-                      </Text>
-                    </View>
                   </View>
                   <ScrollView
                     nestedScrollEnabled={true}

@@ -34,6 +34,15 @@ const safeOptStr = () =>
       return undefined;
     });
 
+const safeOptNum = () =>
+  z
+    .unknown()
+    .transform((val) => {
+      if (typeof val === 'number' && Number.isFinite(val)) return val;
+      const parsed = Number(val);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    });
+
 const safeBool = (fallback = false) =>
   z
     .unknown()
@@ -136,6 +145,8 @@ export const TransactionSchema = z.object({
   subAccountId: safeStr(''),
   toAccountId: safeOptStr(),
   toSubAccountId: safeOptStr(),
+  toAmount: safeOptNum(),
+  exchangeRate: safeOptNum(),
 });
 
 export const CategoryBudgetSchema = z.object({

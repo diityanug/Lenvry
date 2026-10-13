@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -21,6 +21,7 @@ import {
 } from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
 import { getCategoryIcon } from './CategoryBreakdownCard';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 interface CategoryBudgetModalProps {
   visible: boolean;
@@ -30,6 +31,8 @@ interface CategoryBudgetModalProps {
   customCategoryIcons?: CategoryCustomIcon[];
   onClose: () => void;
   onSaveBudget: (category: string, limit: number) => void;
+  onOpenAddCategory?: () => void;
+  onDeleteCategory?: (category: string) => void;
 }
 
 export const CategoryBudgetModal = ({
@@ -40,7 +43,10 @@ export const CategoryBudgetModal = ({
   customCategoryIcons,
   onClose,
   onSaveBudget,
+  onOpenAddCategory,
+  onDeleteCategory,
 }: CategoryBudgetModalProps) => {
+  const keyboardHeight = useKeyboardHeight();
   const [selectedCat, setSelectedCat] = useState(categories[0] || 'Food & Beverages');
   const currentCurrencyBudgets = budgets.filter((b) => (b.currency || 'IDR') === currency);
   const [limitText, setLimitText] = useState(() => {
@@ -62,22 +68,6 @@ export const CategoryBudgetModal = ({
     }
   }
 
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
 
   const currentBudget = currentCurrencyBudgets.find((b) => b.category === selectedCat);
   const theme = getCategoryTheme(selectedCat, customCategoryIcons);
@@ -181,6 +171,7 @@ export const CategoryBudgetModal = ({
                         },
                       ]}
                       onPress={() => handleSelectCategory(cat)}
+                      onLongPress={() => onDeleteCategory?.(cat)}
                       activeOpacity={0.75}
                     >
                       <Ionicons
@@ -200,6 +191,17 @@ export const CategoryBudgetModal = ({
                     </TouchableOpacity>
                   );
                 })}
+
+                {onOpenAddCategory && (
+                  <TouchableOpacity
+                    style={[styles.chipBtn, { borderColor: hexToRgba(COLORS.finance, 0.4), backgroundColor: hexToRgba(COLORS.finance, 0.08) }]}
+                    onPress={onOpenAddCategory}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="add" size={16} color={COLORS.finance} />
+                    <Text style={[styles.chipText, { color: COLORS.finance }]}>Add Category</Text>
+                  </TouchableOpacity>
+                )}
               </ScrollView>
             </View>
 
@@ -311,7 +313,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 36 : 24,
-    maxHeight: '85%',
+    height: '85%',
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },

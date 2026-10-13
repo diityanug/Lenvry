@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -7,15 +7,15 @@ import {
   TouchableOpacity,
   ScrollView,
   Keyboard,
-  Platform,
   TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { writeStored } from '../../storage';
 import { homeStyles as styles } from '../../styles/homeStyles';
 import { COLORS } from '../../constants/theme';
-import { exportBackup, importRestore, clearAllAppData } from '../../services/backupService';
+import { exportBackup, importRestore, clearAllAppData, exportTransactionsCsv } from '../../services/backupService';
 import AppAlertModal, { AppAlertConfig } from '../Common/AppAlertModal';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 interface HomeSettingsModalProps {
   visible: boolean;
@@ -59,22 +59,7 @@ function HomeSettingsContent({
   onDataResetOrRestored,
 }: Omit<HomeSettingsModalProps, 'visible'>) {
   const [userName, setUserName] = useState(currentUserName);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
+  const keyboardHeight = useKeyboardHeight();
 
   const [alertConfig, setAlertConfig] = useState<AppAlertConfig>({
     visible: false,
@@ -125,6 +110,15 @@ function HomeSettingsContent({
     const res = await exportBackup();
     if (!res.success && res.message) {
       showAlert('danger', 'Backup Failed', res.message);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    const res = await exportTransactionsCsv();
+    if (res.success) {
+      showAlert('success', 'CSV Exported', `Exported ${res.count || 0} financial transactions to CSV.`);
+    } else if (res.message) {
+      showAlert('danger', 'Export Failed', res.message);
     }
   };
 
@@ -243,6 +237,21 @@ function HomeSettingsContent({
                   <View style={styles.menuTextContainer}>
                     <Text style={styles.menuItemTitle}>Backup Data</Text>
                     <Text style={styles.menuItemDesc}>Export JSON archive to storage</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleExportCsv}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.menuIconBox}>
+                    <Ionicons name="document-text-outline" size={18} color="#10B981" />
+                  </View>
+                  <View style={styles.menuTextContainer}>
+                    <Text style={styles.menuItemTitle}>Export Transactions (CSV)</Text>
+                    <Text style={styles.menuItemDesc}>Download spreadsheet for Excel / Sheets</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
                 </TouchableOpacity>

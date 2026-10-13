@@ -10,15 +10,90 @@ interface StickyNotesSectionProps {
   onCreateNote: () => void;
 }
 
-// Vivid "paper" treatment for the home note cards.
-// On a dark canvas, saturated note cards pop far more than dark ones.
-const NOTE_PAPER: Record<string, { paper: string; deep: string; ink: string }> = {
-  amber: { paper: '#FBBF24', deep: '#B45309', ink: '#3A2400' },
-  blue: { paper: '#5EB6F7', deep: '#1D4ED8', ink: '#06203D' },
-  emerald: { paper: '#3FD79B', deep: '#047857', ink: '#00301C' },
-  rose: { paper: '#FB7F97', deep: '#BE123C', ink: '#42060F' },
-  purple: { paper: '#C08CFA', deep: '#7E22CE', ink: '#26064A' },
+const CATEGORY_THEMES: Record<
+  NoteCategory,
+  {
+    bg: string;
+    ink: string;
+    icon: string;
+    tileBg: string;
+    iconColor: string;
+    label: string;
+  }
+> = {
+  Personal: {
+    bg: '#FDA4AF',
+    ink: '#4C0519',
+    icon: 'shield-checkmark',
+    tileBg: 'rgba(255, 255, 255, 0.32)',
+    iconColor: '#BE123C',
+    label: 'Personal',
+  },
+  Finance: {
+    bg: '#6EE7B7',
+    ink: '#022C22',
+    icon: 'wallet',
+    tileBg: 'rgba(255, 255, 255, 0.32)',
+    iconColor: '#047857',
+    label: 'Finance',
+  },
+  Work: {
+    bg: '#7DD3FC',
+    ink: '#082F49',
+    icon: 'briefcase',
+    tileBg: 'rgba(255, 255, 255, 0.32)',
+    iconColor: '#0369A1',
+    label: 'Work',
+  },
+  Ideas: {
+    bg: '#D8B4FE',
+    ink: '#3B0764',
+    icon: 'bulb',
+    tileBg: 'rgba(255, 255, 255, 0.32)',
+    iconColor: '#7E22CE',
+    label: 'Ideas',
+  },
+  Lists: {
+    bg: '#FDBA74',
+    ink: '#431407',
+    icon: 'checkbox',
+    tileBg: 'rgba(255, 255, 255, 0.32)',
+    iconColor: '#C2410C',
+    label: 'Lists',
+  },
+  General: {
+    bg: '#FDE047',
+    ink: '#422006',
+    icon: 'document-text',
+    tileBg: 'rgba(255, 255, 255, 0.32)',
+    iconColor: '#B45309',
+    label: 'General',
+  },
 };
+
+const COLOR_OVERRIDES: Record<string, { bg: string; ink: string; tileBg: string; iconColor: string }> = {
+  amber: { bg: '#FDE047', ink: '#422006', tileBg: 'rgba(255, 255, 255, 0.32)', iconColor: '#B45309' },
+  blue: { bg: '#7DD3FC', ink: '#082F49', tileBg: 'rgba(255, 255, 255, 0.32)', iconColor: '#0369A1' },
+  emerald: { bg: '#6EE7B7', ink: '#022C22', tileBg: 'rgba(255, 255, 255, 0.32)', iconColor: '#047857' },
+  rose: { bg: '#FDA4AF', ink: '#4C0519', tileBg: 'rgba(255, 255, 255, 0.32)', iconColor: '#BE123C' },
+  purple: { bg: '#D8B4FE', ink: '#3B0764', tileBg: 'rgba(255, 255, 255, 0.32)', iconColor: '#7E22CE' },
+};
+
+function getNoteCardTheme(category?: NoteCategory, colorKey?: string) {
+  const cat = (category || 'General') as NoteCategory;
+  const base = CATEGORY_THEMES[cat] || CATEGORY_THEMES.General;
+  if (colorKey && COLOR_OVERRIDES[colorKey] && (!category || category === 'General')) {
+    const override = COLOR_OVERRIDES[colorKey];
+    return {
+      ...base,
+      bg: override.bg,
+      ink: override.ink,
+      tileBg: override.tileBg,
+      iconColor: override.iconColor,
+    };
+  }
+  return base;
+}
 
 export default function StickyNotesSection({
   notes,
@@ -129,138 +204,75 @@ export default function StickyNotesSection({
           contentContainerStyle={styles.scrollContent}
         >
           {filteredNotes.map((note) => {
-            const colorKey = note.color || 'amber';
-            const paper = NOTE_PAPER[colorKey] || NOTE_PAPER.amber;
+            const theme = getNoteCardTheme(note.category, note.color);
             const isChecklist = note.type === 'checklist';
-            const catConfig = NOTE_CATEGORIES[note.category || 'General'] || NOTE_CATEGORIES.General;
             const totalItems = note.checklist?.length || 0;
             const completedItems = note.checklist?.filter((item) => item.done).length || 0;
-            const pct = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-
             const isSensitive = note.category === 'Personal';
             const hasEntries = Array.isArray(note.entries) && note.entries.length > 0;
 
             return (
               <TouchableOpacity
                 key={note.id}
-                style={[styles.stickyCard, { backgroundColor: paper.paper }]}
+                style={[styles.stickyCard, { backgroundColor: theme.bg }]}
                 onPress={() => onSelectNote(note)}
-                activeOpacity={0.85}
+                activeOpacity={0.88}
               >
-                {/* Card Header: Category badge & Pin */}
+                {/* Background Watermark Tile: Category signature icon */}
+                <View style={[styles.watermarkTile, { backgroundColor: theme.tileBg }]}>
+                  <Ionicons
+                    name={theme.icon as any}
+                    size={48}
+                    color={theme.iconColor}
+                    style={styles.watermarkIcon}
+                  />
+                </View>
+
+                {/* Top Header Row: Category Eyebrow & Circular Arrow Button */}
                 <View style={styles.cardHeaderRow}>
-                  <View style={[styles.categoryBadge, { backgroundColor: 'rgba(0, 0, 0, 0.13)' }]}>
-                    <Ionicons name={catConfig.icon as any} size={11} color={paper.ink} />
-                    <Text style={[styles.categoryBadgeText, { color: paper.ink }]}>
-                      {catConfig.id}
+                  <View style={styles.eyebrowBadge}>
+                    <Text style={[styles.eyebrowText, { color: theme.ink }]}>
+                      {theme.label}
                     </Text>
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Ionicons name="pin" size={13} color={paper.ink} style={{ opacity: 0.65 }} />
+                  <View style={styles.arrowCircleBtn}>
+                    <Ionicons
+                      name="arrow-up"
+                      size={14}
+                      color={theme.ink}
+                      style={{ transform: [{ rotate: '45deg' }] }}
+                    />
                   </View>
                 </View>
 
-                {/* Title */}
-                <Text style={[styles.cardTitle, { color: paper.ink }]} numberOfLines={1}>
-                  {note.title}
-                </Text>
-
-                {/* Content Body Preview */}
-                <View style={styles.cardBody}>
-                  {isChecklist ? (
-                    <View style={styles.checklistPreview}>
-                      {(note.checklist || []).slice(0, 3).map((item) => (
-                        <View key={item.id} style={styles.checkItemRow}>
-                          <Ionicons
-                            name={item.done ? 'checkmark-circle' : 'ellipse-outline'}
-                            size={13}
-                            color={paper.ink}
-                            style={{ marginRight: 6, opacity: item.done ? 1 : 0.5 }}
-                          />
-                          <Text
-                            style={[
-                              styles.checkItemText,
-                              { color: paper.ink, opacity: item.done ? 0.5 : 0.9 },
-                              item.done && styles.checkItemTextDone,
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {isSensitive ? '****' : item.text}
-                          </Text>
-                        </View>
-                      ))}
-                      {totalItems > 3 && (
-                        <Text style={[styles.moreText, { color: paper.ink }]}>
-                          +{totalItems - 3} more items
-                        </Text>
-                      )}
-                      {totalItems === 0 && (
-                        <Text style={[styles.emptyItemsText, { color: paper.ink }]}>
-                          Empty checklist
-                        </Text>
-                      )}
-                    </View>
-                  ) : hasEntries ? (
-                    <View style={{ gap: 4 }}>
-                      {(note.entries || []).slice(0, 2).map((entry, idx) => (
-                        <View key={entry.id || idx} style={{ marginBottom: 2 }}>
-                          {Boolean(entry.title?.trim()) && (
-                            <Text style={{ fontSize: 11, fontWeight: '700', color: paper.ink, opacity: 0.85 }} numberOfLines={1}>
-                              {entry.title}:
-                            </Text>
-                          )}
-                          <Text style={[styles.descText, { color: paper.ink, opacity: 0.9 }]} numberOfLines={1}>
-                            {isSensitive ? '****' : (entry.content || 'No content')}
-                          </Text>
-                        </View>
-                      ))}
-                      {(note.entries?.length || 0) > 2 && (
-                        <Text style={[styles.moreText, { color: paper.ink }]}>
-                          +{(note.entries?.length || 0) - 2} more entries
-                        </Text>
-                      )}
-                    </View>
-                  ) : (
-                    <Text
-                      style={[styles.descText, { color: paper.ink, opacity: 0.9 }]}
-                      numberOfLines={3}
-                    >
-                      {isSensitive
-                        ? '****'
-                        : note.description?.trim()
-                        ? note.description
-                        : 'No description'}
-                    </Text>
-                  )}
+                {/* Foreground Title (clean & prominent in front) */}
+                <View style={styles.titleContainer}>
+                  <Text style={[styles.cardTitle, { color: theme.ink }]} numberOfLines={3}>
+                    {note.title}
+                  </Text>
                 </View>
 
-                {/* Footer */}
-                <View style={[styles.cardFooter, { borderTopColor: 'rgba(0, 0, 0, 0.14)' }]}>
-                  {isChecklist && totalItems > 0 ? (
-                    <View style={styles.checklistFooter}>
-                      <View style={[styles.progressTrack, { backgroundColor: 'rgba(0, 0, 0, 0.16)' }]}>
-                        <View
-                          style={[
-                            styles.progressFill,
-                            { width: `${pct}%`, backgroundColor: paper.deep },
-                          ]}
-                        />
-                      </View>
-                      <Text style={[styles.progressLabel, { color: paper.ink }]}>
-                        {completedItems} of {totalItems} completed
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={styles.tapToOpenRow}>
-                      <Text style={[styles.tapToOpenText, { color: paper.ink }]}>
-                        Tap to view
-                      </Text>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={12}
-                        color={paper.ink}
-                        style={{ opacity: 0.65 }}
-                      />
+                {/* Bottom Row: Metadata Pills */}
+                <View style={styles.bottomMetaRow}>
+                  <View style={[styles.metaPill, { backgroundColor: 'rgba(255, 255, 255, 0.45)' }]}>
+                    <Ionicons
+                      name={(isChecklist ? 'checkbox-outline' : hasEntries ? 'albums-outline' : 'document-text-outline') as any}
+                      size={11}
+                      color={theme.ink}
+                      style={{ opacity: 0.8 }}
+                    />
+                    <Text style={[styles.metaPillText, { color: theme.ink }]}>
+                      {isChecklist
+                        ? `${completedItems}/${totalItems} Done`
+                        : hasEntries
+                        ? `${note.entries?.length} Entries`
+                        : 'Note'}
+                    </Text>
+                  </View>
+                  {isSensitive && (
+                    <View style={[styles.metaPill, { backgroundColor: 'rgba(255, 255, 255, 0.45)' }]}>
+                      <Ionicons name="lock-closed" size={10} color={theme.ink} style={{ opacity: 0.8 }} />
+                      <Text style={[styles.metaPillText, { color: theme.ink }]}>Private</Text>
                     </View>
                   )}
                 </View>
@@ -385,109 +397,87 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   stickyCard: {
-    width: 206,
-    height: 220,
-    borderRadius: 20,
+    width: 215,
+    height: 195,
+    borderRadius: 24,
     padding: 16,
     justifyContent: 'space-between',
     overflow: 'hidden',
+    position: 'relative',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.32,
-    shadowRadius: 14,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  watermarkTile: {
+    position: 'absolute',
+    bottom: -6,
+    right: -6,
+    width: 90,
+    height: 90,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 0,
+  },
+  watermarkIcon: {
+    opacity: 0.85,
   },
   cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    zIndex: 1,
   },
-  categoryBadge: {
+  eyebrowBadge: {
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
+  },
+  eyebrowText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  arrowCircleBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  titleContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    zIndex: 1,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: -0.4,
+    lineHeight: 24,
+    maxWidth: '82%',
+  },
+  bottomMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    zIndex: 1,
+  },
+  metaPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: RADIUS.full,
   },
-  categoryBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-    marginBottom: 8,
-  },
-  cardBody: {
-    flex: 1,
-    justifyContent: 'flex-start',
-    marginBottom: 10,
-    overflow: 'hidden',
-  },
-  checklistPreview: {
-    gap: 6,
-  },
-  checkItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkItemText: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    flex: 1,
-  },
-  checkItemTextDone: {
-    textDecorationLine: 'line-through',
-  },
-  moreText: {
+  metaPillText: {
     fontSize: 11,
-    fontWeight: '800',
-    marginTop: 2,
-    opacity: 0.85,
-  },
-  emptyItemsText: {
-    fontSize: 11.5,
-    fontStyle: 'italic',
-    opacity: 0.65,
-  },
-  descText: {
-    fontSize: 12.5,
-    fontWeight: '500',
-    lineHeight: 18,
-  },
-  cardFooter: {
-    borderTopWidth: 1,
-    paddingTop: 10,
-  },
-  checklistFooter: {
-    gap: 6,
-  },
-  progressTrack: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  progressLabel: {
-    fontSize: 10.5,
     fontWeight: '700',
-    opacity: 0.75,
-  },
-  tapToOpenRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  tapToOpenText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    opacity: 0.7,
   },
 });

@@ -9,6 +9,7 @@ interface FormCategorySelectorProps {
   selectedCategory: string;
   onSelectCategory: (cat: string) => void;
   onOpenAddCategory: () => void;
+  onDeleteCategory?: (cat: string) => void;
   getCategoryTheme: (cat: string) => { icon: any; color: string; bg: string; border: string };
   type: 'expense' | 'income';
 }
@@ -18,6 +19,7 @@ export const FormCategorySelector = ({
   selectedCategory,
   onSelectCategory,
   onOpenAddCategory,
+  onDeleteCategory,
   getCategoryTheme,
   type,
 }: FormCategorySelectorProps) => {
@@ -51,6 +53,7 @@ export const FormCategorySelector = ({
                 },
               ]}
               onPress={() => onSelectCategory(cat)}
+              onLongPress={() => onDeleteCategory?.(cat)}
               activeOpacity={0.7}
             >
               <View

@@ -121,6 +121,13 @@ const optStr = (value: unknown): string | undefined => {
   return parsed.length > 0 ? parsed : undefined;
 };
 
+/** Optional finite number: undefined if empty/non-numeric. */
+const optNum = (value: unknown): number | undefined => {
+  if (value === undefined || value === null || value === '') return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+};
+
 const num = (value: unknown, fallback = 0): number => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   const parsed = Number(value);
@@ -228,6 +235,8 @@ const parseTransaction = (value: unknown): Transaction => {
     subAccountId: str(item.subAccountId),
     toAccountId: optStr(item.toAccountId),
     toSubAccountId: optStr(item.toSubAccountId),
+    toAmount: optNum(item.toAmount),
+    exchangeRate: optNum(item.exchangeRate),
   };
 };
 

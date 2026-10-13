@@ -70,11 +70,263 @@ const formatTxDate = (dateIso: string): string => {
     d.getMonth() === yesterday.getMonth() &&
     d.getFullYear() === yesterday.getFullYear();
 
-  if (isToday) return 'Today';
-  if (isYesterday) return 'Yesterday';
+  const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
-  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+  if (isToday) return `Today, ${timeStr}`;
+  if (isYesterday) return `Yesterday, ${timeStr}`;
+
+  if (d.getFullYear() === now.getFullYear()) {
+    return `${d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}, ${timeStr}`;
+  }
+
+  return `${d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}, ${timeStr}`;
 };
+
+interface CalmTxTheme {
+  accent: string;
+  cardBg: string;
+  borderColor: string;
+  pillBg: string;
+  pillBorder: string;
+}
+
+const CATEGORY_CALM_THEMES: Record<string, CalmTxTheme> = {
+  // Food & Beverages - Calm Warm Amber
+  'Food & Beverages': {
+    accent: '#FBBF24',
+    cardBg: '#141622',
+    borderColor: 'rgba(251, 191, 36, 0.20)',
+    pillBg: 'rgba(251, 191, 36, 0.12)',
+    pillBorder: 'rgba(251, 191, 36, 0.28)',
+  },
+  Snacks: {
+    accent: '#FB923C',
+    cardBg: '#141622',
+    borderColor: 'rgba(251, 146, 60, 0.20)',
+    pillBg: 'rgba(251, 146, 60, 0.12)',
+    pillBorder: 'rgba(251, 146, 60, 0.28)',
+  },
+  // Transportation - Calm Mustard Gold
+  Transportation: {
+    accent: '#FACC15',
+    cardBg: '#141622',
+    borderColor: 'rgba(250, 204, 21, 0.18)',
+    pillBg: 'rgba(250, 204, 21, 0.12)',
+    pillBorder: 'rgba(250, 204, 21, 0.25)',
+  },
+  Fuel: {
+    accent: '#FB923C',
+    cardBg: '#141622',
+    borderColor: 'rgba(251, 146, 60, 0.18)',
+    pillBg: 'rgba(251, 146, 60, 0.12)',
+    pillBorder: 'rgba(251, 146, 60, 0.25)',
+  },
+  'Vehicle Services': {
+    accent: '#F97316',
+    cardBg: '#141622',
+    borderColor: 'rgba(249, 115, 22, 0.18)',
+    pillBg: 'rgba(249, 115, 22, 0.12)',
+    pillBorder: 'rgba(249, 115, 22, 0.25)',
+  },
+  Parking: {
+    accent: '#94A3B8',
+    cardBg: '#13151F',
+    borderColor: 'rgba(148, 163, 184, 0.18)',
+    pillBg: 'rgba(148, 163, 184, 0.10)',
+    pillBorder: 'rgba(148, 163, 184, 0.22)',
+  },
+  // Shopping & Lifestyle - Calm Dusty Rose
+  Shopping: {
+    accent: '#FB7185',
+    cardBg: '#141522',
+    borderColor: 'rgba(251, 113, 133, 0.20)',
+    pillBg: 'rgba(251, 113, 133, 0.12)',
+    pillBorder: 'rgba(251, 113, 133, 0.28)',
+  },
+  Personal: {
+    accent: '#F472B6',
+    cardBg: '#141522',
+    borderColor: 'rgba(244, 114, 182, 0.20)',
+    pillBg: 'rgba(244, 114, 182, 0.12)',
+    pillBorder: 'rgba(244, 114, 182, 0.26)',
+  },
+  Social: {
+    accent: '#FDA4AF',
+    cardBg: '#141522',
+    borderColor: 'rgba(253, 164, 175, 0.18)',
+    pillBg: 'rgba(253, 164, 175, 0.12)',
+    pillBorder: 'rgba(253, 164, 175, 0.26)',
+  },
+  // Bills & Utilities - Soft Lavender
+  'Bills & Utilities': {
+    accent: '#A78BFA',
+    cardBg: '#141424',
+    borderColor: 'rgba(167, 139, 250, 0.20)',
+    pillBg: 'rgba(167, 139, 250, 0.12)',
+    pillBorder: 'rgba(167, 139, 250, 0.28)',
+  },
+  'Housing / Rent': {
+    accent: '#C084FC',
+    cardBg: '#141424',
+    borderColor: 'rgba(192, 132, 252, 0.20)',
+    pillBg: 'rgba(192, 132, 252, 0.12)',
+    pillBorder: 'rgba(192, 132, 252, 0.28)',
+  },
+  'Internet & Phone': {
+    accent: '#38BDF8',
+    cardBg: '#121624',
+    borderColor: 'rgba(56, 189, 248, 0.20)',
+    pillBg: 'rgba(56, 189, 248, 0.12)',
+    pillBorder: 'rgba(56, 189, 248, 0.28)',
+  },
+  'Cloud & Storage': {
+    accent: '#818CF8',
+    cardBg: '#131524',
+    borderColor: 'rgba(129, 140, 248, 0.20)',
+    pillBg: 'rgba(129, 140, 248, 0.12)',
+    pillBorder: 'rgba(129, 140, 248, 0.28)',
+  },
+  Subscriptions: {
+    accent: '#A855F7',
+    cardBg: '#141424',
+    borderColor: 'rgba(168, 85, 247, 0.20)',
+    pillBg: 'rgba(168, 85, 247, 0.12)',
+    pillBorder: 'rgba(168, 85, 247, 0.28)',
+  },
+  // Entertainment - Calm Cyan
+  Entertainment: {
+    accent: '#22D3EE',
+    cardBg: '#121623',
+    borderColor: 'rgba(34, 211, 238, 0.20)',
+    pillBg: 'rgba(34, 211, 238, 0.12)',
+    pillBorder: 'rgba(34, 211, 238, 0.28)',
+  },
+  // Health & Gym - Mint & Coral
+  'Fitness & Gym': {
+    accent: '#34D399',
+    cardBg: '#121720',
+    borderColor: 'rgba(52, 211, 153, 0.20)',
+    pillBg: 'rgba(52, 211, 153, 0.12)',
+    pillBorder: 'rgba(52, 211, 153, 0.28)',
+  },
+  'Health & Medical': {
+    accent: '#FB7185',
+    cardBg: '#141522',
+    borderColor: 'rgba(251, 113, 133, 0.20)',
+    pillBg: 'rgba(251, 113, 133, 0.12)',
+    pillBorder: 'rgba(251, 113, 133, 0.28)',
+  },
+  Insurance: {
+    accent: '#2DD4BF',
+    cardBg: '#121722',
+    borderColor: 'rgba(45, 212, 191, 0.20)',
+    pillBg: 'rgba(45, 212, 191, 0.12)',
+    pillBorder: 'rgba(45, 212, 191, 0.28)',
+  },
+  // Education & Travel - Blue & Cyan
+  Education: {
+    accent: '#60A5FA',
+    cardBg: '#121624',
+    borderColor: 'rgba(96, 165, 250, 0.20)',
+    pillBg: 'rgba(96, 165, 250, 0.12)',
+    pillBorder: 'rgba(96, 165, 250, 0.28)',
+  },
+  Travel: {
+    accent: '#38BDF8',
+    cardBg: '#121624',
+    borderColor: 'rgba(56, 189, 248, 0.20)',
+    pillBg: 'rgba(56, 189, 248, 0.12)',
+    pillBorder: 'rgba(56, 189, 248, 0.28)',
+  },
+  // Income categories - Soothing Sage Mint
+  Salary: {
+    accent: '#34D399',
+    cardBg: '#121720',
+    borderColor: 'rgba(52, 211, 153, 0.22)',
+    pillBg: 'rgba(52, 211, 153, 0.12)',
+    pillBorder: 'rgba(52, 211, 153, 0.28)',
+  },
+  Allowance: {
+    accent: '#10B981',
+    cardBg: '#121720',
+    borderColor: 'rgba(16, 185, 129, 0.22)',
+    pillBg: 'rgba(16, 185, 129, 0.12)',
+    pillBorder: 'rgba(16, 185, 129, 0.28)',
+  },
+  Bonus: {
+    accent: '#FACC15',
+    cardBg: '#141620',
+    borderColor: 'rgba(250, 204, 21, 0.22)',
+    pillBg: 'rgba(250, 204, 21, 0.12)',
+    pillBorder: 'rgba(250, 204, 21, 0.28)',
+  },
+  Investments: {
+    accent: '#34D399',
+    cardBg: '#121720',
+    borderColor: 'rgba(52, 211, 153, 0.22)',
+    pillBg: 'rgba(52, 211, 153, 0.12)',
+    pillBorder: 'rgba(52, 211, 153, 0.28)',
+  },
+  Investment: {
+    accent: '#34D399',
+    cardBg: '#121720',
+    borderColor: 'rgba(52, 211, 153, 0.22)',
+    pillBg: 'rgba(52, 211, 153, 0.12)',
+    pillBorder: 'rgba(52, 211, 153, 0.28)',
+  },
+  Gift: {
+    accent: '#F472B6',
+    cardBg: '#141522',
+    borderColor: 'rgba(244, 114, 182, 0.20)',
+    pillBg: 'rgba(244, 114, 182, 0.12)',
+    pillBorder: 'rgba(244, 114, 182, 0.28)',
+  },
+  Interest: {
+    accent: '#2DD4BF',
+    cardBg: '#121722',
+    borderColor: 'rgba(45, 212, 191, 0.20)',
+    pillBg: 'rgba(45, 212, 191, 0.12)',
+    pillBorder: 'rgba(45, 212, 191, 0.28)',
+  },
+  // Transfers - Calm Periwinkle
+  Transfer: {
+    accent: '#818CF8',
+    cardBg: '#131524',
+    borderColor: 'rgba(129, 140, 248, 0.22)',
+    pillBg: 'rgba(129, 140, 248, 0.12)',
+    pillBorder: 'rgba(129, 140, 248, 0.28)',
+  },
+};
+
+const DEFAULT_CALM_FALLBACKS: Record<'expense' | 'income' | 'transfer', CalmTxTheme> = {
+  expense: {
+    accent: '#FB7185',
+    cardBg: '#141522',
+    borderColor: 'rgba(251, 113, 133, 0.20)',
+    pillBg: 'rgba(251, 113, 133, 0.12)',
+    pillBorder: 'rgba(251, 113, 133, 0.28)',
+  },
+  income: {
+    accent: '#34D399',
+    cardBg: '#121720',
+    borderColor: 'rgba(52, 211, 153, 0.22)',
+    pillBg: 'rgba(52, 211, 153, 0.12)',
+    pillBorder: 'rgba(52, 211, 153, 0.28)',
+  },
+  transfer: {
+    accent: '#818CF8',
+    cardBg: '#131524',
+    borderColor: 'rgba(129, 140, 248, 0.22)',
+    pillBg: 'rgba(129, 140, 248, 0.12)',
+    pillBorder: 'rgba(129, 140, 248, 0.28)',
+  },
+};
+
+function getCalmTxTheme(category: string, type: 'income' | 'expense' | 'transfer'): CalmTxTheme {
+  if (type === 'transfer') return CATEGORY_CALM_THEMES.Transfer;
+  if (CATEGORY_CALM_THEMES[category]) return CATEGORY_CALM_THEMES[category];
+  return DEFAULT_CALM_FALLBACKS[type];
+}
 
 // TRANSACTION CARD
 interface TransactionCardProps {
@@ -96,9 +348,20 @@ export const TransactionCard = ({ item, accounts, onClone, onDelete, onEdit }: T
   const dateFormatted = formatTxDate(item.date);
   const iconInfo = getCategoryIconInfo(item.category, item.type);
   const isTransfer = item.type === 'transfer';
+  const theme = getCalmTxTheme(item.category, item.type);
 
   // Fallback title if description is empty or whitespace
   const displayTitle = (item.description || '').trim() || item.category || (isTransfer ? 'Transfer' : 'Transaction');
+
+  const isCrossCurrencyTransfer =
+    isTransfer &&
+    Boolean(
+      account &&
+      toAccount &&
+      accCurrency !== toAccount.currency &&
+      typeof item.toAmount === 'number' &&
+      item.toAmount > 0
+    );
 
   const accountPillText = isTransfer
     ? item.accountId === item.toAccountId
@@ -106,101 +369,139 @@ export const TransactionCard = ({ item, accounts, onClone, onDelete, onEdit }: T
       : `${accName}${subName ? ` • ${subName}` : ''} → ${toAccName}${toSubName ? ` • ${toSubName}` : ''}`
     : `${accName}${subName ? ` • ${subName}` : ''}`;
 
+  const amountColor =
+    item.type === 'income'
+      ? '#34D399'
+      : isTransfer
+      ? '#818CF8'
+      : '#FB7185';
+
   return (
     <TouchableOpacity
-      style={styles.txCard}
-      activeOpacity={0.75}
+      style={[styles.txCard, { backgroundColor: theme.cardBg, borderColor: theme.borderColor }]}
+      activeOpacity={0.85}
       onPress={() => onEdit?.(item)}
       disabled={!onEdit}
     >
-      {/* MAIN CONTENT BLOCK: ICON (LEFT) + BALANCED 2-ROW GRID (RIGHT) */}
-      <View style={styles.txMainBlock}>
-        <View style={[styles.iconContainer, { backgroundColor: iconInfo.bg, borderColor: iconInfo.border }]}>
-          <Ionicons name={iconInfo.name} size={18} color={iconInfo.color} />
+      {/* Background Signature Watermark Icon */}
+      <View style={styles.watermarkTile} pointerEvents="none">
+        <Ionicons
+          name={iconInfo.name}
+          size={56}
+          color={theme.accent}
+          style={styles.watermarkIcon}
+        />
+      </View>
+
+      {/* 1. TOP HEADER ROW: Category Eyebrow Badge & Date Badge */}
+      <View style={styles.txTopRow}>
+        <View style={[styles.txCategoryPill, { backgroundColor: theme.pillBg, borderColor: theme.pillBorder }]}>
+          <Ionicons name={iconInfo.name} size={12} color={theme.accent} />
+          <Text style={[styles.txCategoryPillText, { color: theme.accent }]}>
+            {item.category}
+          </Text>
         </View>
 
-        <View style={styles.txBody}>
-          {/* Title (Left) + Amount (Right) */}
-          <View style={styles.txMainRow}>
-            <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
-              {displayTitle}
-            </Text>
-            <Text
-              style={[
-                styles.txAmount,
-                item.type === 'income'
-                  ? styles.textIncome
-                  : isTransfer
-                  ? { color: '#818CF8' }
-                  : styles.textExpense,
-              ]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-              adjustsFontSizeToFit
-              minimumFontScale={0.65}
-            >
-              {item.type === 'income' ? '+' : isTransfer ? '' : '-'} {formatMoney(item.amount, accCurrency)}
-            </Text>
-          </View>
-
-          {/* Category Badge (Left) + Date (Right) */}
-          <View style={styles.txMetaRow}>
-            <View style={styles.txCategoryBadgeWrap}>
-              <View
-                style={[
-                  styles.txCategoryBadge,
-                  { backgroundColor: iconInfo.bg, borderColor: iconInfo.border },
-                ]}
-              >
-                <Text
-                  style={[styles.txCategoryBadgeText, { color: iconInfo.color }]}
-                  numberOfLines={1}
-                >
-                  {item.category}
-                </Text>
-              </View>
-            </View>
-
-            <Text style={styles.txDateText} numberOfLines={1}>
-              {dateFormatted}
-            </Text>
-          </View>
+        <View style={styles.txDateBadge}>
+          <Text style={styles.txDateText}>
+            {dateFormatted}
+          </Text>
         </View>
       </View>
 
-      {/* ACCOUNT SOURCE PILL + ACTION BUTTONS */}
-      <View style={styles.txBottomRow}>
-        <View style={styles.txAccountPill}>
-          <Ionicons
-            name={item.type === 'income' ? 'arrow-down-circle-outline' : isTransfer ? 'swap-horizontal' : 'wallet-outline'}
-            size={12}
-            color={isTransfer ? '#818CF8' : item.type === 'income' ? '#10B981' : COLORS.textSecondary}
-            style={{ flexShrink: 0 }}
-          />
-          <Text style={styles.txAccountPillText} numberOfLines={1} ellipsizeMode="tail">
-            {accountPillText}
+      {/* 2. MIDDLE BLOCK: Title & Amount */}
+      <View style={styles.txMiddleBlock}>
+        <View style={styles.txMainRow}>
+          <Text style={styles.txDesc} numberOfLines={2}>
+            {displayTitle}
           </Text>
+
+          <View style={styles.txAmountCol}>
+            {isCrossCurrencyTransfer && toAccount ? (
+              <View style={styles.txCrossAmountWrap}>
+                <Text style={[styles.txAmount, { color: '#FB7185' }]}>
+                  - {formatMoney(item.amount, accCurrency)}
+                </Text>
+                <View style={styles.txReceivedBadge}>
+                  <Ionicons name="arrow-down" size={10} color="#38BDF8" />
+                  <Text style={styles.txReceivedAmountText}>
+                    + {formatMoney(item.toAmount!, toAccount.currency)}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={[styles.txAmount, { color: amountColor }]}>
+                {item.type === 'income' ? '+' : isTransfer ? '' : '-'} {formatMoney(item.amount, accCurrency)}
+              </Text>
+            )}
+          </View>
         </View>
+
+        {/* Optional Kurs Banner (Cross-Currency Transfers) */}
+        {isCrossCurrencyTransfer && item.exchangeRate ? (
+          <View style={styles.txExchangeRateBanner}>
+            <Ionicons name="swap-horizontal" size={12} color="#38BDF8" />
+            <Text style={styles.txExchangeRateText}>
+              Kurs: 1 USD ≈ Rp {Math.round(item.exchangeRate).toLocaleString('id-ID')}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      {/* 3. BOTTOM ROW: ROUTE / ACCOUNT SOURCE & ACTIONS */}
+      <View style={styles.txBottomRow}>
+        {isTransfer ? (
+          <View style={styles.txRouteBox}>
+            <View style={styles.txRouteItem}>
+              <View style={[styles.txRouteIconWrap, { backgroundColor: 'rgba(251, 113, 133, 0.12)' }]}>
+                <Ionicons name="arrow-up" size={10} color="#FB7185" />
+              </View>
+              <Text style={styles.txRouteText}>
+                {accName}{subName ? ` (${subName})` : ''}
+              </Text>
+            </View>
+
+            <Ionicons name="arrow-forward" size={11} color={COLORS.textMuted} style={styles.txRouteArrow} />
+
+            <View style={styles.txRouteItem}>
+              <View style={[styles.txRouteIconWrap, { backgroundColor: 'rgba(52, 211, 153, 0.12)' }]}>
+                <Ionicons name="arrow-down" size={10} color="#34D399" />
+              </View>
+              <Text style={styles.txRouteText}>
+                {toAccName}{toSubName ? ` (${toSubName})` : ''}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.txAccountPill}>
+            <Ionicons
+              name={item.type === 'income' ? 'arrow-down-circle-outline' : 'wallet-outline'}
+              size={12}
+              color={theme.accent}
+            />
+            <Text style={styles.txAccountPillText} numberOfLines={1}>
+              {accountPillText}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.txActions}>
           <TouchableOpacity
             onPress={() => onClone(item)}
-            style={styles.txActionBtn}
+            style={styles.txActionIconBtn}
             activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
           >
-            <Ionicons name="copy-outline" size={12} color={COLORS.textMuted} />
-            <Text style={styles.txActionBtnText} numberOfLines={1}>Copy</Text>
+            <Ionicons name="copy-outline" size={14} color={COLORS.textMuted} />
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => onDelete(item.id)}
-            style={[styles.txActionBtn, styles.txActionBtnDelete]}
+            style={[styles.txActionIconBtn, styles.txActionIconBtnDelete]}
             activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
           >
-            <Ionicons name="trash-outline" size={12} color={COLORS.danger} />
-            <Text style={[styles.txActionBtnText, { color: COLORS.danger }]} numberOfLines={1}>Delete</Text>
+            <Ionicons name="trash-outline" size={14} color="#FB7185" />
           </TouchableOpacity>
         </View>
       </View>

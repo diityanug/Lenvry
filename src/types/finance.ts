@@ -23,6 +23,8 @@ export interface Transaction {
   subAccountId: string;
   toAccountId?: string;
   toSubAccountId?: string;
+  toAmount?: number;
+  exchangeRate?: number;
 }
 
 export interface CategoryBudget {

@@ -25,6 +25,9 @@ export function useFinanceData() {
   const customCategoryIcons = useFinanceStore((s) => s.customCategoryIcons);
   const setCustomCategoryIcons = useFinanceStore((s) => s.setCustomCategoryIcons);
 
+  const debts = useFinanceStore((s) => s.debts);
+  const setDebts = useFinanceStore((s) => s.setDebts);
+
   const loadData = useFinanceStore((s) => s.loadFinance);
 
   const [selectedMonthFilter, setSelectedMonthFilter] = useState(new Date());
@@ -192,6 +195,8 @@ export function useFinanceData() {
     setRecurringBills,
     customCategoryIcons,
     setCustomCategoryIcons,
+    debts,
+    setDebts,
     selectedMonthFilter,
     setSelectedMonthFilter,
     homeTxFilter,

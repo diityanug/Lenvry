@@ -6,6 +6,7 @@ import {
   CategoryBudget,
   CategoryCustomIcon,
   RecurringBill,
+  DebtItem,
   DEFAULT_EXPENSE_CATEGORIES,
   DEFAULT_INCOME_CATEGORIES,
 } from '../types/finance';
@@ -18,6 +19,7 @@ interface FinanceState {
   categoryBudgets: CategoryBudget[];
   recurringBills: RecurringBill[];
   customCategoryIcons: CategoryCustomIcon[];
+  debts: DebtItem[];
   isLoaded: boolean;
   loadFinance: () => Promise<void>;
   addTransaction: (tx: Transaction) => Promise<void>;
@@ -30,6 +32,7 @@ interface FinanceState {
   setExpenseCategories: (cats: string[]) => Promise<void>;
   setIncomeCategories: (cats: string[]) => Promise<void>;
   setCustomCategoryIcons: (icons: CategoryCustomIcon[]) => Promise<void>;
+  setDebts: (debts: DebtItem[]) => Promise<void>;
 }
 
 export const useFinanceStore = create<FinanceState>((set, get) => ({
@@ -40,6 +43,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   categoryBudgets: [],
   recurringBills: [],
   customCategoryIcons: [],
+  debts: [],
   isLoaded: false,
   loadFinance: async () => {
     try {
@@ -51,6 +55,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         categoryBudgets,
         recurringBills,
         customCategoryIcons,
+        debts,
       ] = await Promise.all([
         readStored('financeTransactions'),
         readStored('financeAccounts'),
@@ -59,6 +64,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         readStored('financeCategoryBudgets'),
         readStored('financeRecurringBills'),
         readStored('financeCustomCategoryIcons'),
+        readStored('financeDebts'),
       ]);
 
       let validAccounts = accounts ?? [];
@@ -83,6 +89,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         categoryBudgets: categoryBudgets ?? [],
         recurringBills: recurringBills ?? [],
         customCategoryIcons: customCategoryIcons ?? [],
+        debts: debts ?? [],
         isLoaded: true,
       });
     } catch (e) {
@@ -170,6 +177,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       await writeStored('financeCustomCategoryIcons', customCategoryIcons);
     } catch (e) {
       console.warn('Failed to persist custom category icons', e);
+    }
+  },
+  setDebts: async (debts: DebtItem[]) => {
+    set({ debts });
+    try {
+      await writeStored('financeDebts', debts);
+    } catch (e) {
+      console.warn('Failed to persist debts', e);
     }
   },
 }));

@@ -1,10 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { COLORS, RADIUS } from '../constants/theme';
 
-// Shared cash/expense accents (mirrors types/finance TX_TYPE_THEME)
-const INCOME = '#10B981';
-const EXPENSE = '#F43F5E';
-
 export const financeStyles = StyleSheet.create({
   // ------------------------------------------------------------------
   // Screen shell + header
@@ -539,125 +535,196 @@ export const financeStyles = StyleSheet.create({
   },
 
   // ------------------------------------------------------------------
-  // Transaction card
+  // Transaction card (Calm, Muted, Eye-Friendly Theme)
   // ------------------------------------------------------------------
   txCard: {
-    backgroundColor: COLORS.bgCard,
-    padding: 14,
-    borderRadius: RADIUS.xl,
+    backgroundColor: '#121520',
+    padding: 16,
+    borderRadius: 20,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 12,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  txMainBlock: {
+  watermarkTile: {
+    position: 'absolute',
+    bottom: -6,
+    right: -6,
+    width: 88,
+    height: 88,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  watermarkIcon: {
+    opacity: 0.08,
+  },
+  txTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
   },
-  iconContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    justifyContent: 'center',
+  txCategoryPill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
-    flexShrink: 0,
   },
-  txBody: {
-    flex: 1,
-    minWidth: 0,
-    justifyContent: 'center',
+  txCategoryPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: -0.1,
+  },
+  txDateBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  txDateText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  txMiddleBlock: {
     gap: 6,
   },
   txMainRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 12,
   },
   txDesc: {
     flex: 1,
-    minWidth: 0,
-    fontSize: 14,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
+    fontSize: 15,
+    fontWeight: '700',
     letterSpacing: -0.2,
+    lineHeight: 21,
+    color: '#F8FAFC',
+  },
+  txAmountCol: {
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
+    flexShrink: 0,
+    paddingTop: 1,
+  },
+  txCrossAmountWrap: {
+    alignItems: 'flex-end',
+    gap: 3,
   },
   txAmount: {
-    fontSize: 14.5,
+    fontSize: 16,
     fontWeight: '900',
     fontVariant: ['tabular-nums'],
     letterSpacing: -0.4,
     textAlign: 'right',
-    flexShrink: 0,
-    maxWidth: '48%',
   },
-  textIncome: {
-    color: INCOME,
+  txReceivedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.28)',
   },
-  textExpense: {
-    color: EXPENSE,
+  txReceivedAmountText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#38BDF8',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -0.2,
   },
-  txMetaRow: {
+  txExchangeRateBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.22)',
+    alignSelf: 'flex-start',
+  },
+  txExchangeRateText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#38BDF8',
+    letterSpacing: -0.1,
+  },
+  txBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 10,
   },
-  txCategoryBadgeWrap: {
+  txRouteBox: {
     flex: 1,
     minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
   },
-  txCategoryBadge: {
-    backgroundColor: COLORS.bgCardSub,
+  txRouteItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: RADIUS.full,
+    paddingVertical: 4.5,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  txCategoryBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
+  txRouteIconWrap: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  txRouteText: {
+    fontSize: 11,
+    fontWeight: '600',
     color: COLORS.textSecondary,
   },
-  txDateText: {
-    fontSize: 10.5,
-    color: COLORS.textMuted,
-    fontWeight: '600',
-    flexShrink: 0,
-  },
-  txBottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    gap: 8,
+  txRouteArrow: {
+    opacity: 0.5,
   },
   txAccountPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: COLORS.bgCardSub,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     paddingHorizontal: 9,
     paddingVertical: 5,
-    borderRadius: RADIUS.full,
+    borderRadius: RADIUS.sm,
     flex: 1,
     minWidth: 0,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   txAccountPillText: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '600',
     color: COLORS.textSecondary,
     flexShrink: 1,
-    minWidth: 0,
   },
   txActions: {
     flexDirection: 'row',
@@ -665,25 +732,19 @@ export const financeStyles = StyleSheet.create({
     gap: 6,
     flexShrink: 0,
   },
-  txActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.bgCardSub,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: RADIUS.full,
+  txActionIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  txActionBtnDelete: {
-    borderColor: 'rgba(244, 63, 94, 0.32)',
-    backgroundColor: 'rgba(244, 63, 94, 0.1)',
-  },
-  txActionBtnText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: COLORS.textMuted,
+  txActionIconBtnDelete: {
+    backgroundColor: 'rgba(244, 63, 94, 0.08)',
+    borderColor: 'rgba(244, 63, 94, 0.25)',
   },
 
   // ------------------------------------------------------------------

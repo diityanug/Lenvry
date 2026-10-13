@@ -25,6 +25,7 @@ export function useHomeDashboard() {
   const toggleHabitForDate = useHabitsStore((s) => s.toggleHabitForDate);
 
   const transactions = useFinanceStore((s) => s.transactions);
+  const accounts = useFinanceStore((s) => s.accounts);
   const workouts = useFitnessStore((s) => s.workouts);
 
   const nutritionLogs = useNutritionStore((s) => s.logs);
@@ -47,15 +48,18 @@ export function useHomeDashboard() {
     return transactions
       .filter((t) => {
         const d = new Date(t.date);
-        return (
+        const isToday =
           d.getFullYear() === todayDateObj.getFullYear() &&
           d.getMonth() === todayDateObj.getMonth() &&
-          d.getDate() === todayDateObj.getDate() &&
-          t.type === 'expense'
-        );
+          d.getDate() === todayDateObj.getDate();
+        if (!isToday || t.type !== 'expense') return false;
+
+        // Isolate IDR transactions so USD accounts ($ amounts) aren't mixed with Rupiah
+        const acc = accounts.find((a) => a.id === t.accountId);
+        return acc ? acc.currency !== 'USD' : true;
       })
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-  }, [transactions, todayDateObj]);
+  }, [transactions, accounts, todayDateObj]);
 
   const todayHabits = useMemo(() => {
     return habits.filter((h) => isHabitActiveForDate(h, todayDateObj));

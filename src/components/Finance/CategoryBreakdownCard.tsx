@@ -17,6 +17,7 @@ interface CategoryBreakdownCardProps {
   currency: 'IDR' | 'USD';
   customCategoryIcons?: CategoryCustomIcon[];
   onOpenSetBudget: () => void;
+  onOpenManageCategories?: () => void;
 }
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -90,6 +91,7 @@ export const CategoryBreakdownCard = ({
   currency,
   customCategoryIcons,
   onOpenSetBudget,
+  onOpenManageCategories,
 }: CategoryBreakdownCardProps) => {
   const expenseTx = transactions.filter((t) => t.type === 'expense');
   const totalExpense = expenseTx.reduce((sum, t) => sum + t.amount, 0);
@@ -144,6 +146,17 @@ export const CategoryBreakdownCard = ({
         </View>
 
         <View style={cardStyles.headerActions}>
+          {onOpenManageCategories && (
+            <TouchableOpacity
+              style={cardStyles.headerActionBtn}
+              onPress={onOpenManageCategories}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="grid-outline" size={17} color={COLORS.finance} />
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={cardStyles.headerActionBtn}
             onPress={onOpenSetBudget}

@@ -20,11 +20,13 @@ const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 function formatExpensesShort(amount: number) {
-  if (amount === 0) return 'Rp 0';
-  if (amount >= 1_000_000_000) return `Rp ${(amount / 1_000_000_000).toFixed(1)}B`;
-  if (amount >= 1_000_000) return `Rp ${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 100_000) return `Rp ${Math.round(amount / 1_000)}k`;
-  return `Rp ${amount.toLocaleString('id-ID')}`;
+  const rounded = Math.round(amount);
+  if (rounded === 0) return 'Rp 0';
+  if (rounded >= 1_000_000_000) return `Rp ${(rounded / 1_000_000_000).toFixed(1)}B`;
+  if (rounded >= 1_000_000) return `Rp ${(rounded / 1_000_000).toFixed(1)}M`;
+  if (rounded >= 100_000) return `Rp ${Math.round(rounded / 1_000)}k`;
+  if (rounded >= 10_000 && rounded % 1_000 === 0) return `Rp ${rounded / 1_000}k`;
+  return `Rp ${rounded.toLocaleString('id-ID')}`;
 }
 
 export default function DailyOverviewCard({

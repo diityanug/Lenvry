@@ -129,3 +129,64 @@ export async function clearAllAppData(
     return { success: false, message: 'Failed to reset application data.' };
   }
 }
+
+/**
+ * Export finance transactions as a standard CSV spreadsheet file.
+ */
+export async function exportTransactionsCsv(): Promise<{ success: boolean; message?: string; count?: number }> {
+  try {
+    const data = await exportStoredData();
+    const transactions = Array.isArray(data.financeTransactions) ? (data.financeTransactions as any[]) : [];
+
+    if (transactions.length === 0) {
+      return { success: false, message: 'No transactions found to export.' };
+    }
+
+    // CSV Headers
+    const headers = ['ID', 'Date', 'Type', 'Category', 'Amount', 'Description', 'Account ID'];
+    const escapeCsv = (str: unknown) => {
+      const val = String(str ?? '');
+      if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+        return `"${val.replace(/"/g, '""')}"`;
+      }
+      return val;
+    };
+
+    const rows = transactions.map((t) => [
+      escapeCsv(t.id),
+      escapeCsv(t.date),
+      escapeCsv(t.type),
+      escapeCsv(t.category),
+      escapeCsv(t.amount),
+      escapeCsv(t.description),
+      escapeCsv(t.accountId),
+    ].join(','));
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const fileName = `lenvry_transactions_${new Date().toISOString().slice(0, 10)}.csv`;
+
+    const baseDir = FileSystem.documentDirectory || FileSystem.cacheDirectory;
+    if (!baseDir) {
+      return { success: false, message: 'Storage directory is unavailable.' };
+    }
+
+    const fileUri = `${baseDir}${fileName}`;
+    await FileSystem.writeAsStringAsync(fileUri, csvContent, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'text/csv',
+        dialogTitle: 'Export Transactions (CSV)',
+        UTI: 'public.comma-separated-values-text',
+      });
+      return { success: true, count: transactions.length };
+    }
+    return { success: false, message: 'Sharing feature is not supported on this device.' };
+  } catch (e) {
+    console.error('CSV Export error:', e);
+    return { success: false, message: 'Failed to export transactions to CSV.' };
+  }
+}
+
