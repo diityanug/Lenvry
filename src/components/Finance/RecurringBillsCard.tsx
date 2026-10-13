@@ -26,18 +26,22 @@ interface RecurringBillsCardProps {
   monthlyTransactions?: Transaction[];
   currency: 'IDR' | 'USD';
   categories?: string[];
+  selectedMonth?: Date;
   onAddBill: (bill: Omit<RecurringBill, 'id'>) => void;
   onDeleteBill: (id: string) => void;
-  onQuickLogBill: (bill: RecurringBill) => void;
+  onQuickLogBill: (bill: RecurringBill, targetMonth?: Date) => void;
+  onUndoBillPayment?: (txId: string) => void;
 }
 
 export const RecurringBillsCard = ({
   bills,
   monthlyTransactions = [],
   currency,
+  selectedMonth,
   onAddBill,
   onDeleteBill,
   onQuickLogBill,
+  onUndoBillPayment,
 }: RecurringBillsCardProps) => {
   const [filterTab, setFilterTab] = useState<'all' | 'unpaid' | 'paid'>('all');
   const [modalVisible, setModalVisible] = useState(false);
@@ -45,9 +49,21 @@ export const RecurringBillsCard = ({
   const filteredBills = bills.filter((b) => b.currency === currency);
   const totalBillsAmount = filteredBills.reduce((sum, b) => sum + b.amount, 0);
 
+  const viewingDate = selectedMonth || new Date();
+  const viewingYear = viewingDate.getFullYear();
+  const viewingMonth = viewingDate.getMonth();
+  const monthName = viewingDate.toLocaleDateString('en-US', { month: 'short' });
+  const fullMonthYear = viewingDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
   const today = new Date();
+  const isCurrentMonth =
+    viewingYear === today.getFullYear() && viewingMonth === today.getMonth();
+  const isPastMonth =
+    viewingYear < today.getFullYear() ||
+    (viewingYear === today.getFullYear() && viewingMonth < today.getMonth());
+
   const currentDay = today.getDate();
-  const daysInCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const daysInViewingMonth = new Date(viewingYear, viewingMonth + 1, 0).getDate();
 
   const processedBills = filteredBills.map((bill) => {
     const matchingTx = monthlyTransactions.find((t) => {
@@ -72,31 +88,43 @@ export const RecurringBillsCard = ({
       statusType = 'paid';
       statusText = `Paid (${paidDateStr})`;
       daysUntil = 999;
-    } else if (bill.dueDateDay === currentDay) {
-      statusType = 'today';
-      statusText = 'Due Today!';
-      daysUntil = 0;
-    } else if (bill.dueDateDay > currentDay) {
-      daysUntil = bill.dueDateDay - currentDay;
-      if (daysUntil === 1) {
-        statusType = 'soon';
-        statusText = 'Due tomorrow';
-      } else if (daysUntil <= 5) {
-        statusType = 'soon';
-        statusText = `In ${daysUntil} days`;
+    } else if (isCurrentMonth) {
+      if (bill.dueDateDay === currentDay) {
+        statusType = 'today';
+        statusText = 'Due Today!';
+        daysUntil = 0;
+      } else if (bill.dueDateDay > currentDay) {
+        daysUntil = bill.dueDateDay - currentDay;
+        if (daysUntil === 1) {
+          statusType = 'soon';
+          statusText = 'Due tomorrow';
+        } else if (daysUntil <= 5) {
+          statusType = 'soon';
+          statusText = `In ${daysUntil} days`;
+        } else {
+          statusType = 'normal';
+          statusText = `In ${daysUntil} days`;
+        }
       } else {
-        statusType = 'normal';
-        statusText = `In ${daysUntil} days`;
+        daysUntil = daysInViewingMonth - currentDay + bill.dueDateDay;
+        statusType = 'overdue';
+        statusText = 'Overdue';
       }
-    } else {
-      daysUntil = daysInCurrentMonth - currentDay + bill.dueDateDay;
+    } else if (isPastMonth) {
       statusType = 'overdue';
-      statusText = 'Unpaid this month';
+      statusText = `Unpaid in ${monthName}`;
+      daysUntil = 100 + bill.dueDateDay;
+    } else {
+      // Future month
+      statusType = 'normal';
+      statusText = `Due on ${getOrdinal(bill.dueDateDay)}`;
+      daysUntil = bill.dueDateDay;
     }
 
     return {
       ...bill,
       isPaid,
+      matchingTx,
       daysUntil,
       statusText,
       statusType,
@@ -144,6 +172,18 @@ export const RecurringBillsCard = ({
     });
   };
 
+  const confirmUndoPayment = (bill: RecurringBill, txId: string) => {
+    setAlertConfig({
+      visible: true,
+      type: 'danger',
+      title: 'Undo Bill Payment?',
+      message: `Remove the recorded payment transaction for "${bill.name}" in ${monthName}?`,
+      confirmText: 'UNDO PAYMENT',
+      cancelText: 'CANCEL',
+      onConfirm: () => onUndoBillPayment?.(txId),
+    });
+  };
+
   return (
     <View style={cardStyles.containerCard}>
       {/* Header with Title & Add Action */}
@@ -180,7 +220,7 @@ export const RecurringBillsCard = ({
           <View style={cardStyles.summaryTopRow}>
             <View style={cardStyles.summaryLeftCol}>
               <Text style={cardStyles.summaryLabel} numberOfLines={1}>
-                {"THIS MONTH'S BILL STATUS"}
+                {`BILL STATUS • ${fullMonthYear.toUpperCase()}`}
               </Text>
               <Text style={cardStyles.summaryValues} numberOfLines={1}>
                 {paidBills.length} of {filteredBills.length} Bills Paid
@@ -310,9 +350,9 @@ export const RecurringBillsCard = ({
           </Text>
           <Text style={cardStyles.emptySubText}>
             {filterTab === 'paid'
-              ? 'Tap "Pay This Bill" on any item to record paid bills.'
+              ? `Tap "Pay for ${monthName}" on any item to record paid bills.`
               : filterTab === 'unpaid'
-              ? 'All recurring bills for this month have been marked as paid.'
+              ? `All recurring bills for ${fullMonthYear} have been marked as paid.`
               : 'Add recurring expenses, never miss a due date.'}
           </Text>
         </View>
@@ -408,30 +448,33 @@ export const RecurringBillsCard = ({
                     <View style={cardStyles.paidCheckGroup}>
                       <Ionicons name="checkmark-circle" size={18} color={INCOME} />
                       <Text style={cardStyles.paidLabelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-                        Paid for this month
+                        Paid for {monthName}
                       </Text>
                     </View>
 
-                    <TouchableOpacity
-                      style={cardStyles.relogActionBtn}
-                      onPress={() => onQuickLogBill(bill)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={cardStyles.relogActionText} numberOfLines={1}>
-                        Pay Again
-                      </Text>
-                    </TouchableOpacity>
+                    {onUndoBillPayment && bill.matchingTx && (
+                      <TouchableOpacity
+                        style={cardStyles.undoActionBtn}
+                        onPress={() => confirmUndoPayment(bill, bill.matchingTx!.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="arrow-undo-outline" size={14} color="#FB7185" />
+                        <Text style={cardStyles.undoActionText} numberOfLines={1}>
+                          Undo
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 ) : (
                   <TouchableOpacity
                     style={[cardStyles.payCtaButton, { backgroundColor: theme.color }]}
-                    onPress={() => onQuickLogBill(bill)}
+                    onPress={() => onQuickLogBill(bill, viewingDate)}
                     activeOpacity={0.85}
                   >
                     <View style={cardStyles.payCtaLeft}>
                       <Ionicons name="wallet-outline" size={17} color={INK} style={{ marginRight: 8 }} />
                       <Text style={cardStyles.payCtaText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
-                        Pay This Bill
+                        Pay for {monthName}
                       </Text>
                     </View>
                     <View style={cardStyles.payCtaBadge}>

@@ -13,6 +13,7 @@ import { HistoryModal } from '../components/Finance/HistoryModal';
 import { AddAccountModal } from '../components/Finance/AddAccountModal';
 import { SharedCalendarModal } from '../components/Shared/CalendarModal';
 import { EditBalanceModal, RenameModal, AddCategoryModal } from '../components/Finance/DialogModals';
+import { CashflowTrendCard } from '../components/Finance/CashflowTrendCard';
 import { CategoryBreakdownCard } from '../components/Finance/CategoryBreakdownCard';
 import { CategoryBreakdownModal } from '../components/Finance/CategoryBreakdownModal';
 import { CategoryBudgetModal } from '../components/Finance/CategoryBudgetModal';
@@ -233,6 +234,14 @@ export default function FinanceTracker() {
     });
   }, [filteredMonthlyTransactions, accounts, activeCurrency]);
 
+  const allTransactionsForActiveCurrency = useMemo(() => {
+    return transactions.filter((t) => {
+      const acc = accounts.find((a) => a.id === t.accountId);
+      const accCurrency = acc?.currency || 'IDR';
+      return accCurrency === activeCurrency;
+    });
+  }, [transactions, accounts, activeCurrency]);
+
   const activeCategoryBudgets = useMemo(() => {
     return categoryBudgets.filter((b) => (b.currency || 'IDR') === activeCurrency);
   }, [categoryBudgets, activeCurrency]);
@@ -429,7 +438,7 @@ export default function FinanceTracker() {
   };
 
 
-  const handleQuickLogBill = (bill: RecurringBill) => {
+  const handleQuickLogBill = (bill: RecurringBill, targetMonth?: Date) => {
     setEditingTxId(null);
     setIsPayingBill(true);
     setType('expense');
@@ -442,7 +451,16 @@ export default function FinanceTracker() {
       ? bill.category
       : expenseCategories[0] || 'Bills & Utilities';
     setSelectedCategory(defaultCat);
-    setTxDate(new Date());
+
+    // Anchor payment date to targetMonth's due date
+    const baseMonth = targetMonth || selectedMonthFilter || new Date();
+    const targetYear = baseMonth.getFullYear();
+    const targetMonthIdx = baseMonth.getMonth();
+    const daysInTargetMonth = new Date(targetYear, targetMonthIdx + 1, 0).getDate();
+    const clampedDay = Math.min(Math.max(1, bill.dueDateDay), daysInTargetMonth);
+    const computedDate = new Date(targetYear, targetMonthIdx, clampedDay, 12, 0, 0);
+    setTxDate(computedDate);
+
     if (accounts.length > 0) {
       const matchedAcc = accounts.find((a) => a.currency === bill.currency) || accounts[0];
       setSelectedAccId(matchedAcc.id);
@@ -451,6 +469,12 @@ export default function FinanceTracker() {
       }
     }
     setTxModalVisible(true);
+  };
+
+  const handleUndoBillPayment = async (txId: string) => {
+    setTransactions(
+      await updateStored('financeTransactions', (current) => current.filter((t) => t.id !== txId))
+    );
   };
 
   const saveDebts = async (newDebts: DebtItem[]) => {
@@ -878,7 +902,7 @@ export default function FinanceTracker() {
             activeOpacity={0.8}
           >
             <Ionicons
-              name="pie-chart-outline"
+              name="analytics-outline"
               size={18}
               color={financeViewMode === 'insights' ? '#06131F' : COLORS.textMuted}
             />
@@ -889,7 +913,7 @@ export default function FinanceTracker() {
               ]}
               numberOfLines={1}
             >
-              Budgets &amp; Bills
+              Insights &amp; Bills
             </Text>
           </TouchableOpacity>
         </View>
@@ -1071,6 +1095,25 @@ export default function FinanceTracker() {
             exiting={FadeOut.duration(180)}
             layout={LinearTransition.springify().damping(22).stiffness(180)}
           >
+            {/* CASHFLOW & EXPENSE TREND CHART */}
+            <CashflowTrendCard
+              allTransactions={allTransactionsForActiveCurrency}
+              monthlyTransactions={monthlyTransactionsForActiveCurrency}
+              currency={activeCurrency}
+              selectedMonth={selectedMonthFilter}
+              onSelectMonth={setSelectedMonthFilter}
+              onPrevMonth={() =>
+                setSelectedMonthFilter(
+                  new Date(selectedMonthFilter.getFullYear(), selectedMonthFilter.getMonth() - 1, 1)
+                )
+              }
+              onNextMonth={() =>
+                setSelectedMonthFilter(
+                  new Date(selectedMonthFilter.getFullYear(), selectedMonthFilter.getMonth() + 1, 1)
+                )
+              }
+            />
+
             {/* CATEGORY EXPENSE BREAKDOWN & BUDGETS */}
             <CategoryBreakdownCard
               transactions={monthlyTransactionsForActiveCurrency}
@@ -1087,6 +1130,7 @@ export default function FinanceTracker() {
               monthlyTransactions={monthlyTransactionsForActiveCurrency}
               categories={expenseCategories}
               currency={activeCurrency}
+              selectedMonth={selectedMonthFilter}
               onAddBill={(bill) => {
                 const newBill = { ...bill, id: Date.now().toString() };
                 saveRecurringBills([...recurringBills, newBill]);
@@ -1095,6 +1139,7 @@ export default function FinanceTracker() {
                 saveRecurringBills(recurringBills.filter((b) => b.id !== id));
               }}
               onQuickLogBill={handleQuickLogBill}
+              onUndoBillPayment={handleUndoBillPayment}
             />
 
             {/* RECEIVABLES & DEBTS CARD */}

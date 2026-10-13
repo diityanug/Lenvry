@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle } from 'react-native-svg';
 import {
   CategoryBudget,
   Transaction,
@@ -85,6 +86,52 @@ export const getCategoryTheme = (
   };
 };
 
+// Donut geometry constants
+const DONUT_SIZE = 192;
+const DONUT_STROKE = 18;
+const DONUT_RADIUS = (DONUT_SIZE - DONUT_STROKE) / 2; // 87
+const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS; // ~546.637
+
+interface DonutSliceItem {
+  category: string;
+  amount: number;
+  count: number;
+  share: number;
+  percent: number;
+  theme: CategoryVisual;
+  strokeLength: number;
+  strokeOffset: number;
+}
+
+const computeDonutSlices = (
+  sortedCats: [string, { amount: number; count: number }][],
+  totalExpense: number,
+  customIcons?: CategoryCustomIcon[]
+): DonutSliceItem[] => {
+  let accumulatedOffset = 0;
+  return sortedCats.map(([category, data]) => {
+    const share = totalExpense > 0 ? data.amount / totalExpense : 0;
+    const rawStrokeLength = share * DONUT_CIRCUMFERENCE;
+    const currentOffset = accumulatedOffset;
+    accumulatedOffset += rawStrokeLength;
+
+    const theme = getCategoryTheme(category, 'expense', customIcons);
+    const gap = sortedCats.length > 1 ? 2.5 : 0;
+    const strokeLength = Math.max(1, rawStrokeLength - gap);
+
+    return {
+      category,
+      amount: data.amount,
+      count: data.count,
+      share,
+      percent: totalExpense > 0 ? Math.round(share * 100) : 0,
+      theme,
+      strokeLength,
+      strokeOffset: -currentOffset,
+    };
+  });
+};
+
 export const CategoryBreakdownCard = ({
   transactions,
   budgets,
@@ -93,22 +140,33 @@ export const CategoryBreakdownCard = ({
   onOpenSetBudget,
   onOpenManageCategories,
 }: CategoryBreakdownCardProps) => {
-  const expenseTx = transactions.filter((t) => t.type === 'expense');
-  const totalExpense = expenseTx.reduce((sum, t) => sum + t.amount, 0);
-  const expenseCatTotals: Record<string, { amount: number; count: number }> = {};
-  expenseTx.forEach((t) => {
-    if (!expenseCatTotals[t.category]) {
-      expenseCatTotals[t.category] = { amount: 0, count: 0 };
-    }
-    expenseCatTotals[t.category].amount += t.amount;
-    expenseCatTotals[t.category].count += 1;
-  });
-  const sortedExpenseCats = Object.entries(expenseCatTotals).sort((a, b) => b[1].amount - a[1].amount);
-  const topExpenseCats = sortedExpenseCats.slice(0, 3);
-  const topShare = topExpenseCats.reduce(
-    (sum, [, data]) => sum + (totalExpense > 0 ? (data.amount / totalExpense) * 100 : 0),
-    0
-  );
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  const { expenseCatTotals, totalExpense, sortedExpenseCats } = useMemo(() => {
+    const expenseTx = transactions.filter((t) => t.type === 'expense');
+    const total = expenseTx.reduce((sum, t) => sum + t.amount, 0);
+
+    const totals: Record<string, { amount: number; count: number }> = {};
+    expenseTx.forEach((t) => {
+      if (!totals[t.category]) {
+        totals[t.category] = { amount: 0, count: 0 };
+      }
+      totals[t.category].amount += t.amount;
+      totals[t.category].count += 1;
+    });
+
+    const sorted = Object.entries(totals).sort((a, b) => b[1].amount - a[1].amount);
+    return { expenseCatTotals: totals, totalExpense: total, sortedExpenseCats: sorted };
+  }, [transactions]);
+
+  // Compute Donut SVG slices for ALL recorded categories
+  const donutSlices = useMemo(() => {
+    return computeDonutSlices(sortedExpenseCats, totalExpense, customCategoryIcons);
+  }, [sortedExpenseCats, totalExpense, customCategoryIcons]);
+
+  const activeSlice = selectedCategory
+    ? donutSlices.find((s) => s.category === selectedCategory) || null
+    : null;
 
   // Budgets Calculations (Filtered by active currency)
   const currentCurrencyBudgets = budgets.filter((b) => (b.currency || 'IDR') === currency);
@@ -127,20 +185,20 @@ export const CategoryBreakdownCard = ({
 
   return (
     <View style={cardStyles.card}>
-      {/* Header with title and action button */}
+      {/* 1. Header with Title & Action Buttons */}
       <View style={cardStyles.headerRow}>
         <View style={cardStyles.titleGroup}>
           <View style={cardStyles.iconWrap}>
-            <Ionicons name="pie-chart-outline" size={19} color={COLORS.finance} />
+            <Ionicons name="pie-chart-outline" size={20} color={COLORS.finance} />
           </View>
           <View style={cardStyles.titleTextCol}>
             <Text style={cardStyles.title} numberOfLines={1}>
-              Spending &amp; Budget
+              Spending Breakdown
             </Text>
             <Text style={cardStyles.subtitle} numberOfLines={1}>
-              {budgetedCategories.length > 0
-                ? `${overallBudgetPercent}% of budget used`
-                : `${sortedExpenseCats.length} active categories`}
+              {sortedExpenseCats.length > 0
+                ? `${sortedExpenseCats.length} categories • ${currency}`
+                : `No expenses • ${currency}`}
             </Text>
           </View>
         </View>
@@ -168,31 +226,97 @@ export const CategoryBreakdownCard = ({
         </View>
       </View>
 
-      {/* Spending split bar */}
-      {topExpenseCats.length > 0 && (
-        <View style={cardStyles.splitBarRow}>
-          {topExpenseCats.map(([category, data]) => {
-            const share = totalExpense > 0 ? (data.amount / totalExpense) * 100 : 0;
-            const theme = getCategoryTheme(category, 'expense', customCategoryIcons);
-            return (
-              <View
-                key={category}
-                style={[cardStyles.splitSeg, { flex: Math.max(share, 3), backgroundColor: theme.color }]}
+      {/* 2. Donut Chart Section */}
+      {sortedExpenseCats.length === 0 ? (
+        <View style={cardStyles.emptyBox}>
+          <View style={cardStyles.emptyIconWrap}>
+            <Ionicons name="receipt-outline" size={24} color={COLORS.textMuted} />
+          </View>
+          <Text style={cardStyles.emptyTitle}>No expense transactions this month</Text>
+          <Text style={cardStyles.emptySub}>Add an expense to view your category breakdown</Text>
+        </View>
+      ) : (
+        <View style={cardStyles.donutSection}>
+          <View style={cardStyles.donutWrapper}>
+            <Svg width={DONUT_SIZE} height={DONUT_SIZE}>
+              {/* Background circular track */}
+              <Circle
+                cx={DONUT_SIZE / 2}
+                cy={DONUT_SIZE / 2}
+                r={DONUT_RADIUS}
+                stroke="rgba(255, 255, 255, 0.08)"
+                strokeWidth={DONUT_STROKE}
+                fill="none"
               />
-            );
-          })}
-          {topShare < 99.5 && (
-            <View style={[cardStyles.splitSeg, cardStyles.splitSegRest, { flex: Math.max(100 - topShare, 3) }]} />
-          )}
+
+              {/* Slices for all categories */}
+              {donutSlices.map((slice) => {
+                const isSelected = selectedCategory === slice.category;
+                const isDimmed = selectedCategory !== null && !isSelected;
+                return (
+                  <Circle
+                    key={slice.category}
+                    cx={DONUT_SIZE / 2}
+                    cy={DONUT_SIZE / 2}
+                    r={DONUT_RADIUS}
+                    stroke={slice.theme.color}
+                    strokeWidth={isSelected ? DONUT_STROKE + 4 : DONUT_STROKE}
+                    strokeDasharray={`${slice.strokeLength} ${DONUT_CIRCUMFERENCE}`}
+                    strokeDashoffset={slice.strokeOffset}
+                    fill="none"
+                    rotation={-90}
+                    originX={DONUT_SIZE / 2}
+                    originY={DONUT_SIZE / 2}
+                    opacity={isDimmed ? 0.28 : 1}
+                  />
+                );
+              })}
+            </Svg>
+
+            {/* Donut Center Display */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setSelectedCategory(null)}
+              style={cardStyles.donutCenter}
+            >
+              <Text style={cardStyles.donutCenterLabel} numberOfLines={1}>
+                {activeSlice ? activeSlice.category : 'TOTAL EXPENSE'}
+              </Text>
+              <Text
+                style={cardStyles.donutCenterAmount}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
+                {formatMoney(activeSlice ? activeSlice.amount : totalExpense, currency)}
+              </Text>
+              <Text
+                style={[
+                  cardStyles.donutCenterMeta,
+                  activeSlice ? { color: activeSlice.theme.color } : null,
+                ]}
+                numberOfLines={1}
+              >
+                {activeSlice
+                  ? `${activeSlice.percent}% (${activeSlice.count} txns)`
+                  : `${sortedExpenseCats.length} Categories`}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Interactive hint */}
+          <Text style={cardStyles.donutHint}>
+            {selectedCategory ? 'Tap center to view all categories' : 'Tap any category below to highlight'}
+          </Text>
         </View>
       )}
 
-      {/* Budget Health Mini Progress (if budgets are configured) */}
+      {/* 3. Budget Health Mini Progress (if budgets are configured) */}
       {budgetedCategories.length > 0 && (
-        <View style={[cardStyles.budgetHealthMiniBox, { borderColor: hexToRgba(budgetStatusColor, 0.28) }]}>
+        <View style={[cardStyles.budgetHealthBox, { borderColor: hexToRgba(budgetStatusColor, 0.28) }]}>
           <View style={cardStyles.budgetHealthRow}>
             <Text style={cardStyles.budgetHealthLabel} numberOfLines={1}>
-              BUDGET LIMIT
+              MONTHLY BUDGET HEALTH
             </Text>
             <Text style={cardStyles.budgetHealthValues} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
               <Text style={{ color: isOverallOver ? COLORS.danger : COLORS.textPrimary, fontWeight: '800' }}>
@@ -221,8 +345,8 @@ export const CategoryBreakdownCard = ({
               numberOfLines={1}
             >
               {remainingBudget >= 0
-                ? `${formatMoney(remainingBudget, currency)} left`
-                : `Over by ${formatMoney(Math.abs(remainingBudget), currency)}`}
+                ? `${formatMoney(remainingBudget, currency)} available`
+                : `Exceeded by ${formatMoney(Math.abs(remainingBudget), currency)}`}
             </Text>
             <View style={[cardStyles.budgetHealthPercentBadge, { backgroundColor: hexToRgba(budgetStatusColor, 0.16) }]}>
               <Text style={[cardStyles.budgetHealthPercentText, { color: budgetStatusColor }]} numberOfLines={1}>
@@ -233,73 +357,96 @@ export const CategoryBreakdownCard = ({
         </View>
       )}
 
-      {/* Top 3 Categories Mini Breakdown */}
-      {topExpenseCats.length === 0 ? (
-        <View style={cardStyles.emptyMiniBox}>
-          <View style={cardStyles.emptyMiniIconWrap}>
-            <Ionicons name="receipt-outline" size={20} color={COLORS.textMuted} />
-          </View>
-          <Text style={cardStyles.emptyMiniText} numberOfLines={1}>
-            No expense transactions this month
-          </Text>
-        </View>
-      ) : (
-        <View>
+      {/* 4. Complete Category Breakdown List (ALL recorded categories) */}
+      {sortedExpenseCats.length > 0 && (
+        <View style={cardStyles.listSection}>
           <View style={cardStyles.listHeaderRow}>
             <Text style={cardStyles.listHeaderText} numberOfLines={1}>
-              TOP CATEGORIES
+              ALL RECORDED CATEGORIES
             </Text>
             <Text style={cardStyles.listHeaderMeta} numberOfLines={1}>
               {sortedExpenseCats.length} total
             </Text>
           </View>
 
-          <View style={cardStyles.miniList}>
-            {topExpenseCats.map(([category, data]) => {
+          <View style={cardStyles.categoryList}>
+            {sortedExpenseCats.map(([category, data]) => {
               const percent = totalExpense > 0 ? Math.round((data.amount / totalExpense) * 100) : 0;
               const theme = getCategoryTheme(category, 'expense', customCategoryIcons);
+              const isSelected = selectedCategory === category;
+
+              // Check if a specific budget limit is set for this category
+              const catBudget = currentCurrencyBudgets.find(
+                (b) => b.category.toLowerCase() === category.toLowerCase() && b.limit > 0
+              );
+              const isOverCatBudget = catBudget && data.amount > catBudget.limit;
 
               return (
-                <View key={category} style={[cardStyles.miniItem, { borderLeftColor: theme.color }]}>
-                  <View style={cardStyles.miniItemTop}>
-                    <View style={cardStyles.miniItemLeft}>
+                <TouchableOpacity
+                  key={category}
+                  activeOpacity={0.7}
+                  onPress={() => setSelectedCategory(isSelected ? null : category)}
+                  style={[
+                    cardStyles.categoryCard,
+                    { borderLeftColor: theme.color },
+                    isSelected && {
+                      borderColor: theme.color,
+                      backgroundColor: hexToRgba(theme.color, 0.08),
+                    },
+                  ]}
+                >
+                  <View style={cardStyles.categoryCardTop}>
+                    {/* Left: Category Icon & Info */}
+                    <View style={cardStyles.categoryCardLeft}>
                       <View
-                        style={[cardStyles.miniIconBox, { backgroundColor: theme.bg, borderColor: theme.border }]}
+                        style={[
+                          cardStyles.categoryIconBox,
+                          { backgroundColor: theme.bg, borderColor: theme.border },
+                        ]}
                       >
-                        <Ionicons name={theme.icon} size={16} color={theme.color} />
+                        <Ionicons name={theme.icon} size={18} color={theme.color} />
                       </View>
-                      <Text style={cardStyles.miniCategoryName} numberOfLines={1}>
-                        {category}
-                      </Text>
+                      <View style={cardStyles.categoryInfoCol}>
+                        <Text style={cardStyles.categoryName} numberOfLines={1}>
+                          {category}
+                        </Text>
+                        <Text style={cardStyles.categoryTxCount} numberOfLines={1}>
+                          {data.count} {data.count === 1 ? 'transaction' : 'transactions'}
+                        </Text>
+                      </View>
                     </View>
 
-                    <View style={cardStyles.miniItemRight}>
+                    {/* Right: Amount & Share % Badge */}
+                    <View style={cardStyles.categoryCardRight}>
                       <Text
-                        style={cardStyles.miniAmountText}
+                        style={cardStyles.categoryAmountText}
                         numberOfLines={1}
                         adjustsFontSizeToFit
-                        minimumFontScale={0.7}
+                        minimumFontScale={0.75}
                       >
                         -{formatMoney(data.amount, currency)}
                       </Text>
                       <View
                         style={[
-                          cardStyles.miniPercentBadge,
-                          { backgroundColor: hexToRgba(theme.color, 0.16), borderColor: theme.border },
+                          cardStyles.categoryPercentBadge,
+                          {
+                            backgroundColor: hexToRgba(theme.color, 0.16),
+                            borderColor: theme.border,
+                          },
                         ]}
                       >
-                        <Text style={[cardStyles.miniPercentText, { color: theme.color }]} numberOfLines={1}>
+                        <Text style={[cardStyles.categoryPercentText, { color: theme.color }]} numberOfLines={1}>
                           {percent}%
                         </Text>
                       </View>
                     </View>
                   </View>
 
-                  {/* Progress bar */}
-                  <View style={cardStyles.miniItemBarTrack}>
+                  {/* Share Progress Bar */}
+                  <View style={cardStyles.categoryBarTrack}>
                     <View
                       style={[
-                        cardStyles.miniItemBarFill,
+                        cardStyles.categoryBarFill,
                         {
                           width: `${Math.max(3, Math.min(100, percent))}%`,
                           backgroundColor: theme.color,
@@ -307,7 +454,28 @@ export const CategoryBreakdownCard = ({
                       ]}
                     />
                   </View>
-                </View>
+
+                  {/* Category-specific budget note (if configured) */}
+                  {catBudget && (
+                    <View style={cardStyles.catBudgetRow}>
+                      <Ionicons
+                        name={isOverCatBudget ? 'alert-circle-outline' : 'shield-checkmark-outline'}
+                        size={13}
+                        color={isOverCatBudget ? COLORS.danger : COLORS.finance}
+                      />
+                      <Text
+                        style={[
+                          cardStyles.catBudgetText,
+                          isOverCatBudget && { color: COLORS.danger },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        Budget: {formatMoney(catBudget.limit, currency)} (
+                        {Math.round((data.amount / catBudget.limit) * 100)}% used)
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -331,7 +499,7 @@ const cardStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 20,
     gap: 12,
   },
   titleGroup: {
@@ -357,7 +525,7 @@ const cardStyles = StyleSheet.create({
     minWidth: 0,
   },
   title: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
     color: COLORS.textPrimary,
     letterSpacing: -0.2,
@@ -375,8 +543,8 @@ const cardStyles = StyleSheet.create({
     flexShrink: 0,
   },
   headerActionBtn: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.bgCardSub,
@@ -385,31 +553,65 @@ const cardStyles = StyleSheet.create({
     borderColor: COLORS.border,
   },
 
-  // Spending split bar
-  splitBarRow: {
-    flexDirection: 'row',
-    height: 10,
-    borderRadius: RADIUS.full,
-    overflow: 'hidden',
-    gap: 3,
-    marginBottom: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  // Donut Section
+  donutSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    marginBottom: 16,
   },
-  splitSeg: {
-    height: '100%',
-    borderRadius: RADIUS.full,
-    minWidth: 6,
+  donutWrapper: {
+    width: DONUT_SIZE,
+    height: DONUT_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
-  splitSegRest: {
-    backgroundColor: 'rgba(148, 163, 184, 0.35)',
+  donutCenter: {
+    position: 'absolute',
+    width: DONUT_SIZE - DONUT_STROKE * 2 - 16,
+    height: DONUT_SIZE - DONUT_STROKE * 2 - 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  donutCenterLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.textMuted,
+    letterSpacing: 0.8,
+    textAlign: 'center',
+    marginBottom: 3,
+  },
+  donutCenterAmount: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+    maxWidth: '100%',
+  },
+  donutCenterMeta: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.finance,
+    textAlign: 'center',
+    marginTop: 3,
+  },
+  donutHint: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontWeight: '600',
+    marginTop: 14,
+    textAlign: 'center',
   },
 
   // Budget Health Mini Box
-  budgetHealthMiniBox: {
+  budgetHealthBox: {
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
     padding: 16,
-    marginBottom: 18,
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -469,16 +671,19 @@ const cardStyles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
 
-  // Mini List
+  // Category List Section
+  listSection: {
+    marginTop: 4,
+  },
   listHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   listHeaderText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     color: COLORS.textMuted,
     letterSpacing: 0.8,
@@ -490,10 +695,10 @@ const cardStyles = StyleSheet.create({
     color: COLORS.textMuted,
     flexShrink: 0,
   },
-  miniList: {
+  categoryList: {
     gap: 12,
   },
-  miniItem: {
+  categoryCard: {
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.md,
     padding: 14,
@@ -502,93 +707,120 @@ const cardStyles = StyleSheet.create({
     borderLeftWidth: 3,
     overflow: 'hidden',
   },
-  miniItemTop: {
+  categoryCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 10,
   },
-  miniItemLeft: {
+  categoryCardLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     flex: 1,
     minWidth: 0,
   },
-  miniIconBox: {
-    width: 32,
-    height: 32,
+  categoryIconBox: {
+    width: 36,
+    height: 36,
     borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     flexShrink: 0,
   },
-  miniCategoryName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    flexShrink: 1,
+  categoryInfoCol: {
+    flex: 1,
     minWidth: 0,
   },
-  miniItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  categoryName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  categoryTxCount: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  categoryCardRight: {
+    alignItems: 'flex-end',
+    gap: 5,
     flexShrink: 0,
   },
-  miniAmountText: {
-    fontSize: 13,
+  categoryAmountText: {
+    fontSize: 14,
     fontWeight: '800',
     color: COLORS.danger,
     fontVariant: ['tabular-nums'],
     maxWidth: 130,
   },
-  miniPercentBadge: {
+  categoryPercentBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 2,
     borderRadius: RADIUS.full,
     borderWidth: 1,
   },
-  miniPercentText: {
+  categoryPercentText: {
     fontSize: 11,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
-  miniItemBarTrack: {
+  categoryBarTrack: {
     height: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: RADIUS.full,
     overflow: 'hidden',
   },
-  miniItemBarFill: {
+  categoryBarFill: {
     height: '100%',
     borderRadius: RADIUS.full,
   },
+  catBudgetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  catBudgetText: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
 
-  emptyMiniBox: {
-    paddingVertical: 20,
+  // Empty state
+  emptyBox: {
+    paddingVertical: 28,
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  emptyMiniIconWrap: {
-    width: 40,
-    height: 40,
+  emptyIconWrap: {
+    width: 48,
+    height: 48,
     borderRadius: RADIUS.full,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginBottom: 4,
   },
-  emptyMiniText: {
-    fontSize: 12,
+  emptyTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  emptySub: {
+    fontSize: 11,
     color: COLORS.textMuted,
-    fontWeight: '600',
+    textAlign: 'center',
   },
 });
