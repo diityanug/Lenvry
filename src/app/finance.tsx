@@ -254,20 +254,30 @@ export default function FinanceTracker() {
 
   const displayedHomeTransactions = useMemo(() => {
     return sortedTransactions.filter((t) => {
+      const acc = accounts.find((a) => a.id === t.accountId);
+      if (acc?.type === 'Investment') return false;
+      const toAcc = t.toAccountId ? accounts.find((a) => a.id === t.toAccountId) : undefined;
+      if (toAcc?.type === 'Investment') return false;
+
       if (homeTxFilter === 'all') return true;
       return t.type === homeTxFilter;
     });
-  }, [sortedTransactions, homeTxFilter]);
+  }, [sortedTransactions, homeTxFilter, accounts]);
 
   const historyTransactions = useMemo(() => {
     return transactions
       .filter((t) => {
+        const acc = accounts.find((a) => a.id === t.accountId);
+        if (acc?.type === 'Investment') return false;
+        const toAcc = t.toAccountId ? accounts.find((a) => a.id === t.toAccountId) : undefined;
+        if (toAcc?.type === 'Investment') return false;
+
         if (historyTypeFilter !== 'all' && t.type !== historyTypeFilter) return false;
         if (historyCatFilter !== 'all' && t.category !== historyCatFilter) return false;
         return true;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, historyTypeFilter, historyCatFilter]);
+  }, [transactions, historyTypeFilter, historyCatFilter, accounts]);
 
   const historyAvailableCategories = useMemo(() => {
     if (historyTypeFilter === 'expense') return expenseCategories;
@@ -333,8 +343,8 @@ export default function FinanceTracker() {
     setSelectedSubAccId(tx.subAccountId);
     setSelectedToAccId(tx.toAccountId || '');
     setSelectedToSubAccId(tx.toSubAccountId || '');
-    const dateObj = new Date(tx.date);
-    setTxDate(dateObj);
+    // When cloning, record with current date and time
+    setTxDate(new Date());
     setTxModalVisible(true);
     setHistoryModalVisible(false);
   };
@@ -1117,11 +1127,13 @@ export default function FinanceTracker() {
             {/* CATEGORY EXPENSE BREAKDOWN & BUDGETS */}
             <CategoryBreakdownCard
               transactions={monthlyTransactionsForActiveCurrency}
+              accounts={accounts}
               budgets={activeCategoryBudgets}
               currency={activeCurrency}
               customCategoryIcons={customCategoryIcons}
               onOpenSetBudget={() => setBudgetModalVisible(true)}
               onOpenManageCategories={() => setManageCatModalVisible(true)}
+              onEditTransaction={editTransaction}
             />
 
             {/* RECURRING BILLS CARD */}
@@ -1216,7 +1228,19 @@ export default function FinanceTracker() {
         title="Select Transaction Date"
         onClose={() => setDatePickerVisible(false)}
         onSelectDate={(d) => {
-          setTxDate(d);
+          const now = new Date();
+          const targetHours = txDate ? txDate.getHours() : now.getHours();
+          const targetMinutes = txDate ? txDate.getMinutes() : now.getMinutes();
+          const targetSeconds = txDate ? txDate.getSeconds() : now.getSeconds();
+          const withTime = new Date(
+            d.getFullYear(),
+            d.getMonth(),
+            d.getDate(),
+            targetHours === 0 && targetMinutes === 0 ? now.getHours() : targetHours,
+            targetHours === 0 && targetMinutes === 0 ? now.getMinutes() : targetMinutes,
+            targetSeconds === 0 ? now.getSeconds() : targetSeconds
+          );
+          setTxDate(withTime);
           setDatePickerVisible(false);
         }}
       />

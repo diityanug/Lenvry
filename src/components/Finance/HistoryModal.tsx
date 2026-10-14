@@ -95,7 +95,13 @@ export const HistoryModal = ({
   };
 
   const filteredList = useMemo(() => {
-    let result = historyTransactions;
+    let result = historyTransactions.filter((tx) => {
+      const acc = accounts.find((a) => a.id === tx.accountId);
+      if (acc?.type === 'Investment') return false;
+      const toAcc = tx.toAccountId ? accounts.find((a) => a.id === tx.toAccountId) : undefined;
+      if (toAcc?.type === 'Investment') return false;
+      return true;
+    });
 
     if (searchQuery.trim()) {
       const tokens = searchQuery.toLowerCase().trim().split(/\s+/);

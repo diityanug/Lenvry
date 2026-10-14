@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import {
+  Account,
   CategoryBudget,
   Transaction,
   CategoryCustomIcon,
@@ -14,11 +15,13 @@ import { COLORS, RADIUS } from '../../constants/theme';
 
 interface CategoryBreakdownCardProps {
   transactions: Transaction[];
+  accounts?: Account[];
   budgets: CategoryBudget[];
   currency: 'IDR' | 'USD';
   customCategoryIcons?: CategoryCustomIcon[];
   onOpenSetBudget: () => void;
   onOpenManageCategories?: () => void;
+  onEditTransaction?: (tx: Transaction) => void;
 }
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -134,20 +137,29 @@ const computeDonutSlices = (
 
 export const CategoryBreakdownCard = ({
   transactions,
+  accounts,
   budgets,
   currency,
   customCategoryIcons,
   onOpenSetBudget,
   onOpenManageCategories,
+  onEditTransaction,
 }: CategoryBreakdownCardProps) => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const { expenseCatTotals, totalExpense, sortedExpenseCats } = useMemo(() => {
-    const expenseTx = transactions.filter((t) => t.type === 'expense');
-    const total = expenseTx.reduce((sum, t) => sum + t.amount, 0);
+  const { expenseCatTotals, totalExpense, sortedExpenseCats, expenseTx } = useMemo(() => {
+    const expenses = transactions.filter((t) => {
+      if (t.type !== 'expense') return false;
+      if (accounts) {
+        const acc = accounts.find((a) => a.id === t.accountId);
+        if (acc?.type === 'Investment') return false;
+      }
+      return true;
+    });
+    const total = expenses.reduce((sum, t) => sum + t.amount, 0);
 
     const totals: Record<string, { amount: number; count: number }> = {};
-    expenseTx.forEach((t) => {
+    expenses.forEach((t) => {
       if (!totals[t.category]) {
         totals[t.category] = { amount: 0, count: 0 };
       }
@@ -156,8 +168,8 @@ export const CategoryBreakdownCard = ({
     });
 
     const sorted = Object.entries(totals).sort((a, b) => b[1].amount - a[1].amount);
-    return { expenseCatTotals: totals, totalExpense: total, sortedExpenseCats: sorted };
-  }, [transactions]);
+    return { expenseCatTotals: totals, totalExpense: total, sortedExpenseCats: sorted, expenseTx: expenses };
+  }, [transactions, accounts]);
 
   // Compute Donut SVG slices for ALL recorded categories
   const donutSlices = useMemo(() => {
@@ -185,8 +197,8 @@ export const CategoryBreakdownCard = ({
 
   return (
     <View style={cardStyles.card}>
-      {/* 1. Header with Title & Action Buttons */}
-      <View style={cardStyles.headerRow}>
+      {/* 1. Header with Title */}
+      <View style={cardStyles.headerTop}>
         <View style={cardStyles.titleGroup}>
           <View style={cardStyles.iconWrap}>
             <Ionicons name="pie-chart-outline" size={20} color={COLORS.finance} />
@@ -202,28 +214,29 @@ export const CategoryBreakdownCard = ({
             </Text>
           </View>
         </View>
+      </View>
 
-        <View style={cardStyles.headerActions}>
-          {onOpenManageCategories && (
-            <TouchableOpacity
-              style={cardStyles.headerActionBtn}
-              onPress={onOpenManageCategories}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="grid-outline" size={17} color={COLORS.finance} />
-            </TouchableOpacity>
-          )}
-
+      {/* Action Buttons Below Title */}
+      <View style={cardStyles.actionsRowBelow}>
+        {onOpenManageCategories && (
           <TouchableOpacity
-            style={cardStyles.headerActionBtn}
-            onPress={onOpenSetBudget}
+            style={cardStyles.actionPillBtn}
+            onPress={onOpenManageCategories}
             activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="options-outline" size={18} color={COLORS.finance} />
+            <Ionicons name="grid-outline" size={14} color={COLORS.finance} />
+            <Text style={cardStyles.actionPillBtnText}>Categories</Text>
           </TouchableOpacity>
-        </View>
+        )}
+
+        <TouchableOpacity
+          style={cardStyles.actionPillBtn}
+          onPress={onOpenSetBudget}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="options-outline" size={14} color={COLORS.finance} />
+          <Text style={cardStyles.actionPillBtnText}>Set Budget</Text>
+        </TouchableOpacity>
       </View>
 
       {/* 2. Donut Chart Section */}
@@ -298,7 +311,7 @@ export const CategoryBreakdownCard = ({
                 numberOfLines={1}
               >
                 {activeSlice
-                  ? `${activeSlice.percent}% (${activeSlice.count} txns)`
+                  ? `${activeSlice.percent}% (${activeSlice.count} transaction)`
                   : `${sortedExpenseCats.length} Categories`}
               </Text>
             </TouchableOpacity>
@@ -316,7 +329,7 @@ export const CategoryBreakdownCard = ({
         <View style={[cardStyles.budgetHealthBox, { borderColor: hexToRgba(budgetStatusColor, 0.28) }]}>
           <View style={cardStyles.budgetHealthRow}>
             <Text style={cardStyles.budgetHealthLabel} numberOfLines={1}>
-              MONTHLY BUDGET HEALTH
+              MONTHLY BUDGET
             </Text>
             <Text style={cardStyles.budgetHealthValues} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
               <Text style={{ color: isOverallOver ? COLORS.danger : COLORS.textPrimary, fontWeight: '800' }}>
@@ -365,7 +378,7 @@ export const CategoryBreakdownCard = ({
               ALL RECORDED CATEGORIES
             </Text>
             <Text style={cardStyles.listHeaderMeta} numberOfLines={1}>
-              {sortedExpenseCats.length} total
+              {sortedExpenseCats.length} Item
             </Text>
           </View>
 
@@ -380,6 +393,12 @@ export const CategoryBreakdownCard = ({
                 (b) => b.category.toLowerCase() === category.toLowerCase() && b.limit > 0
               );
               const isOverCatBudget = catBudget && data.amount > catBudget.limit;
+
+              const categoryTxItems: Transaction[] = isSelected
+                ? expenseTx
+                    .filter((t) => t.category.toLowerCase() === category.toLowerCase())
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                : [];
 
               return (
                 <TouchableOpacity
@@ -426,18 +445,25 @@ export const CategoryBreakdownCard = ({
                       >
                         -{formatMoney(data.amount, currency)}
                       </Text>
-                      <View
-                        style={[
-                          cardStyles.categoryPercentBadge,
-                          {
-                            backgroundColor: hexToRgba(theme.color, 0.16),
-                            borderColor: theme.border,
-                          },
-                        ]}
-                      >
-                        <Text style={[cardStyles.categoryPercentText, { color: theme.color }]} numberOfLines={1}>
-                          {percent}%
-                        </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <View
+                          style={[
+                            cardStyles.categoryPercentBadge,
+                            {
+                              backgroundColor: hexToRgba(theme.color, 0.16),
+                              borderColor: theme.border,
+                            },
+                          ]}
+                        >
+                          <Text style={[cardStyles.categoryPercentText, { color: theme.color }]} numberOfLines={1}>
+                            {percent}%
+                          </Text>
+                        </View>
+                        <Ionicons
+                          name={isSelected ? 'chevron-up' : 'chevron-down'}
+                          size={14}
+                          color={isSelected ? theme.color : COLORS.textMuted}
+                        />
                       </View>
                     </View>
                   </View>
@@ -475,6 +501,89 @@ export const CategoryBreakdownCard = ({
                       </Text>
                     </View>
                   )}
+
+                  {/* Expanded Transaction List */}
+                  {isSelected && (
+                    <View style={cardStyles.expandedTxSection}>
+                      <View style={cardStyles.expandedTxHeader}>
+                        <Text style={cardStyles.expandedTxHeaderTitle}>
+                          TRANSACTIONS IN {category.toUpperCase()} ({categoryTxItems.length})
+                        </Text>
+                        {onEditTransaction && (
+                          <Text style={cardStyles.expandedTxHeaderHint}>Tap to edit</Text>
+                        )}
+                      </View>
+
+                      {categoryTxItems.length === 0 ? (
+                        <Text style={cardStyles.expandedEmptyText}>No transactions recorded</Text>
+                      ) : (
+                        <View style={cardStyles.expandedTxList}>
+                          {categoryTxItems.map((tx) => {
+                            const d = new Date(tx.date);
+                            const now = new Date();
+                            const isToday =
+                              d.getDate() === now.getDate() &&
+                              d.getMonth() === now.getMonth() &&
+                              d.getFullYear() === now.getFullYear();
+                            const dateStr = isToday
+                              ? 'Today'
+                              : d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+                            const timeStr = d.toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false,
+                            });
+                            const acc = accounts?.find((a) => a.id === tx.accountId);
+                            const sub = acc?.subAccounts?.find((s) => s.id === tx.subAccountId);
+                            const accLabel = acc ? (sub ? `${acc.name} (${sub.name})` : acc.name) : '';
+
+                            return (
+                              <TouchableOpacity
+                                key={tx.id}
+                                style={cardStyles.expandedTxItem}
+                                activeOpacity={onEditTransaction ? 0.7 : 1}
+                                onPress={() => onEditTransaction && onEditTransaction(tx)}
+                              >
+                                <View style={cardStyles.expandedTxItemLeft}>
+                                  <Text style={cardStyles.expandedTxDesc} numberOfLines={1}>
+                                    {tx.description || 'No description'}
+                                  </Text>
+                                  <View style={cardStyles.expandedTxMetaRow}>
+                                    <Ionicons name="time-outline" size={11} color={COLORS.textMuted} />
+                                    <Text style={cardStyles.expandedTxMetaText}>
+                                      {dateStr}, {timeStr}
+                                    </Text>
+                                    {accLabel ? (
+                                      <>
+                                        <Text style={cardStyles.expandedTxBullet}>•</Text>
+                                        <Ionicons name="wallet-outline" size={11} color={COLORS.textMuted} />
+                                        <Text style={cardStyles.expandedTxMetaText} numberOfLines={1}>
+                                          {accLabel}
+                                        </Text>
+                                      </>
+                                    ) : null}
+                                  </View>
+                                </View>
+                                <View style={cardStyles.expandedTxItemRight}>
+                                  <Text style={cardStyles.expandedTxAmount}>
+                                    -{formatMoney(tx.amount, currency)}
+                                  </Text>
+                                  {onEditTransaction && (
+                                    <Ionicons
+                                      name="chevron-forward"
+                                      size={12}
+                                      color={COLORS.textMuted}
+                                      style={{ marginLeft: 3 }}
+                                    />
+                                  )}
+                                </View>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      )}
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -495,19 +604,13 @@ const cardStyles = StyleSheet.create({
     borderColor: COLORS.border,
     overflow: 'hidden',
   },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    gap: 12,
+  headerTop: {
+    marginBottom: 12,
   },
   titleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    flex: 1,
-    minWidth: 0,
   },
   iconWrap: {
     width: 44,
@@ -536,21 +639,27 @@ const cardStyles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '600',
   },
-  headerActions: {
+  actionsRowBelow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flexShrink: 0,
+    marginBottom: 16,
   },
-  headerActionBtn: {
-    width: 42,
-    height: 42,
+  actionPillBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
     backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  actionPillBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.finance,
   },
 
   // Donut Section
@@ -789,6 +898,85 @@ const cardStyles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontWeight: '600',
     flexShrink: 1,
+  },
+
+  // Expanded Transactions in Category Card
+  expandedTxSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  expandedTxHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  expandedTxHeaderTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.textMuted,
+    letterSpacing: 0.8,
+  },
+  expandedTxHeaderHint: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  expandedEmptyText: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    fontStyle: 'italic',
+    paddingVertical: 4,
+  },
+  expandedTxList: {
+    gap: 6,
+  },
+  expandedTxItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  expandedTxItemLeft: {
+    flex: 1,
+    marginRight: 10,
+  },
+  expandedTxDesc: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  expandedTxMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 3,
+  },
+  expandedTxMetaText: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    fontWeight: '500',
+  },
+  expandedTxBullet: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    marginHorizontal: 1,
+  },
+  expandedTxItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  expandedTxAmount: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FB7185',
   },
 
   // Empty state

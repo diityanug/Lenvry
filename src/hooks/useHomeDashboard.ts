@@ -1,4 +1,5 @@
-import { useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import {
   formatDateKey,
   isHabitActiveForDate,
@@ -40,7 +41,48 @@ export function useHomeDashboard() {
   const deleteCourse = useLearningStore((s) => s.deleteCourse);
   const updateCourseStatus = useLearningStore((s) => s.updateCourseStatus);
 
-  const todayDateObj = useMemo(() => new Date(), []);
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        const now = new Date();
+        setCurrentDate((prev) => {
+          if (
+            prev.getDate() !== now.getDate() ||
+            prev.getMonth() !== now.getMonth() ||
+            prev.getFullYear() !== now.getFullYear()
+          ) {
+            return now;
+          }
+          return prev;
+        });
+      }
+    };
+
+    const sub = AppState.addEventListener('change', handleAppStateChange);
+
+    const intervalId = setInterval(() => {
+      const now = new Date();
+      setCurrentDate((prev) => {
+        if (
+          prev.getDate() !== now.getDate() ||
+          prev.getMonth() !== now.getMonth() ||
+          prev.getFullYear() !== now.getFullYear()
+        ) {
+          return now;
+        }
+        return prev;
+      });
+    }, 30000);
+
+    return () => {
+      sub.remove();
+      clearInterval(intervalId);
+    };
+  }, []);
+
+  const todayDateObj = currentDate;
   const habitKey = useMemo(() => formatDateKey(todayDateObj), [todayDateObj]);
   const dateIsoKey = useMemo(() => todayDateObj.toISOString().split('T')[0], [todayDateObj]);
 
@@ -138,6 +180,8 @@ export function useHomeDashboard() {
     calorieTarget,
     notes,
     courses,
+    todayDateObj,
+    habitKey,
     fetchDashboardData,
     toggleHabitOnHome,
     handleSaveStickyNote,

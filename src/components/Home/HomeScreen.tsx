@@ -13,7 +13,6 @@ import { router, Href } from 'expo-router';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import {
-  formatDateKey,
   isHabitCompletedForDate,
   HABIT_DEFAULT_CATEGORY_CONFIG,
 } from '../../constants/habits';
@@ -64,14 +63,16 @@ export function HomeScreen() {
     handleSaveCourse,
     handleDeleteCourse,
     handleUpdateCourseStatus,
+    todayDateObj,
+    habitKey,
   } = useHomeDashboard();
 
-  const today = new Date().toLocaleDateString('en-US', {
+  const today = todayDateObj.toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
   });
-  const greeting = getGreeting();
+  const greeting = getGreeting(todayDateObj.getHours());
 
   const handleOpenCreateNote = () => {
     setSelectedNote(null);
@@ -92,9 +93,6 @@ export function HomeScreen() {
     setSelectedCourse(course);
     setIsCourseModalVisible(true);
   };
-
-  const todayDateObj = new Date();
-  const habitKey = formatDateKey(todayDateObj);
 
   return (
     <ErrorBoundary fallbackTitle="Beranda Mengalami Kendala">
@@ -272,7 +270,10 @@ export function HomeScreen() {
         visible={isStickyModalVisible}
         note={selectedNote}
         onClose={() => setIsStickyModalVisible(false)}
-        onSave={handleSaveStickyNote}
+        onSave={(updatedNote) => {
+          setSelectedNote(updatedNote);
+          handleSaveStickyNote(updatedNote);
+        }}
         onDelete={handleDeleteStickyNote}
       />
 

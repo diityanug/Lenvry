@@ -14,9 +14,9 @@ export default function ProgressCard({ completedCount, totalCount, progressPerce
 
   const getStatusText = () => {
     if (totalCount === 0) return 'No targets scheduled for this date.';
-    if (roundedPercent === 100) return 'All daily targets accomplished!';
-    if (roundedPercent >= 50) return `${completedCount} of ${totalCount} completed. Over halfway there!`;
-    if (completedCount > 0) return `${completedCount} of ${totalCount} completed. Keep going!`;
+    if (roundedPercent === 100) return 'All daily targets accomplished';
+    if (roundedPercent >= 50) return `${completedCount} of ${totalCount} completed. Over halfway there`;
+    if (completedCount > 0) return `${completedCount} of ${totalCount} completed. Keep going`;
     return 'Start your first habit today.';
   };
 

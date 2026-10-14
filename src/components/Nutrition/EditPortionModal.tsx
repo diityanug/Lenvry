@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NutritionLog } from '../../types/nutrition';
 import { COLORS, RADIUS } from '../../constants/theme';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 interface EditPortionModalProps {
   visible: boolean;
@@ -59,22 +60,7 @@ function EditPortionContent({
   const fPerGram = logItem.fat / baseGrams;
 
   const [portionText, setPortionText] = useState(logItem.portionGrams.toString());
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
+  const keyboardHeight = useKeyboardHeight();
 
   const currentGrams = Math.max(1, parseInt(portionText, 10) || 1);
   const liveCals = Math.round(currentGrams * calPerGram);

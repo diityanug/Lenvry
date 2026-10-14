@@ -335,7 +335,11 @@ function DayPickerContent({
                         ],
                     ]}
                     onPress={() => {
-                      onSelectDate(new Date(year, month, day));
+                      const now = new Date();
+                      const h = activeDate.getHours() === 0 && activeDate.getMinutes() === 0 ? now.getHours() : activeDate.getHours();
+                      const m = activeDate.getHours() === 0 && activeDate.getMinutes() === 0 ? now.getMinutes() : activeDate.getMinutes();
+                      const s = activeDate.getSeconds() === 0 ? now.getSeconds() : activeDate.getSeconds();
+                      onSelectDate(new Date(year, month, day, h, m, s));
                       onClose();
                     }}
                     activeOpacity={0.7}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -8,12 +8,12 @@ import {
   TouchableWithoutFeedback,
   ScrollView,
   Keyboard,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FoodCategory, FoodItem } from '../../types/nutrition';
 import { nutritionStyles as styles } from '../../styles/nutritionStyles';
 import { COLORS } from '../../constants/theme';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 interface CustomFoodModalProps {
   visible: boolean;
@@ -59,22 +59,7 @@ function CustomFoodContent({
   const [fat, setFat] = useState('');
   const [servingGrams, setServingGrams] = useState('100');
   const [servingText, setServingText] = useState('1 Serving');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
+  const keyboardHeight = useKeyboardHeight();
 
   const handleDismiss = () => {
     Keyboard.dismiss();

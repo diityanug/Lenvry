@@ -271,30 +271,67 @@ export const ChecklistItemSchema = z.object({
   done: safeBool(false),
 });
 
+export const NoteEntrySchema = z.object({
+  id: safeStr().transform((v) => v || genUid('entry')),
+  title: safeStr(''),
+  content: safeStr(''),
+});
+
 const NOTE_CATEGORY_KEYS = Object.keys(NOTE_CATEGORIES) as [string, ...string[]];
 
-export const StickyNoteSchema = z.object({
-  id: safeStr().transform((v) => v || genUid('note')),
-  title: safeStr('Note').transform((v) => v.trim() || 'Note'),
-  type: z.enum(['text', 'checklist']).catch('text'),
-  category: z.string().optional().refine(
-    (val) => val === undefined || (NOTE_CATEGORY_KEYS as string[]).includes(val),
-    { message: 'Invalid note category' }
-  ).catch(undefined),
-  description: safeStr(''),
-  checklist: z
-    .array(z.unknown())
-    .catch([])
-    .transform((arr) =>
-      arr.map((item) => {
-        const res = ChecklistItemSchema.safeParse(item);
-        return res.success ? res.data : { id: genUid('chk'), text: '', done: false };
+export const StickyNoteSchema = z
+  .object({
+    id: safeStr().transform((v) => v || genUid('note')),
+    title: safeStr('Note').transform((v) => v.trim() || 'Note'),
+    type: z.enum(['text', 'checklist']).catch('text'),
+    category: z
+      .string()
+      .optional()
+      .refine((val) => val === undefined || (NOTE_CATEGORY_KEYS as string[]).includes(val), {
+        message: 'Invalid note category',
       })
-    ),
-  color: z.enum(['amber', 'blue', 'emerald', 'rose', 'purple']).catch('amber'),
-  createdAt: safeStr().transform((v) => v || new Date().toISOString()),
-  updatedAt: safeStr().transform((v) => v || new Date().toISOString()),
-});
+      .catch(undefined),
+    description: safeStr(''),
+    content: safeStr('').optional(),
+    entries: z
+      .array(z.unknown())
+      .optional()
+      .transform((arr) => {
+        if (!Array.isArray(arr) || arr.length === 0) return undefined;
+        const parsed = arr.map((item) => {
+          const res = NoteEntrySchema.safeParse(item);
+          return res.success ? res.data : { id: genUid('entry'), title: '', content: '' };
+        });
+        return parsed.length > 0 ? parsed : undefined;
+      }),
+    checklist: z
+      .array(z.unknown())
+      .catch([])
+      .transform((arr) =>
+        arr.map((item) => {
+          const res = ChecklistItemSchema.safeParse(item);
+          return res.success ? res.data : { id: genUid('chk'), text: '', done: false };
+        })
+      ),
+    color: z.enum(['amber', 'blue', 'emerald', 'rose', 'purple']).catch('amber'),
+    createdAt: safeStr().transform((v) => v || new Date().toISOString()),
+    updatedAt: safeStr().transform((v) => v || new Date().toISOString()),
+  })
+  .transform((note) => {
+    const desc = note.description?.trim() ? note.description : (note.content || '');
+    return {
+      id: note.id,
+      title: note.title,
+      type: note.type,
+      category: note.category,
+      description: desc,
+      entries: note.entries,
+      checklist: note.checklist,
+      color: note.color,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+    };
+  });
 
 // ---------------------------------------------------------------------------
 // Settings Schemas

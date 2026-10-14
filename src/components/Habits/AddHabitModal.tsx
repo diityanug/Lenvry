@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Text,
   View,
@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { DAYS_OF_WEEK, formatDisplayDate } from '../../constants/habits';
 import { COLORS, RADIUS } from '../../constants/theme';
 import { FrequencyType, Habit, PriorityLevel, SubTask, TimeSlot } from '../../types/habits';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import TimePickerModal from './TimePickerModal';
 import NotificationSoundModal from './NotificationSoundModal';
 import {
@@ -154,22 +155,7 @@ function AddHabitContent({
   const [localSubtasks, setLocalSubtasks] = useState<SubTask[]>(initialHabit?.subtasks || []);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
+  const keyboardHeight = useKeyboardHeight();
 
   const handleSelectPreset = (preset: { title: string; category: string }) => {
     setLocalTitle(preset.title);

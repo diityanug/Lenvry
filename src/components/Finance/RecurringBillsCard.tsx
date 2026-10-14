@@ -240,7 +240,7 @@ export const RecurringBillsCard = ({
                 adjustsFontSizeToFit
                 minimumFontScale={0.7}
               >
-                {totalUnpaidAmount > 0 ? formatMoney(totalUnpaidAmount, currency) : 'All Paid!'}
+                {totalUnpaidAmount > 0 ? formatMoney(totalUnpaidAmount, currency) : 'All Paid'}
               </Text>
             </View>
           </View>

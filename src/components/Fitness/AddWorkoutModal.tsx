@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Text,
   View,
@@ -8,12 +8,12 @@ import {
   Keyboard,
   ScrollView,
   TouchableWithoutFeedback,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GYM_CATEGORIES, EXERCISE_SUGGESTIONS } from '../../constants/fitness';
 import { fitnessStyles as styles } from '../../styles/fitnessStyles';
 import { COLORS } from '../../constants/theme';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 interface AddWorkoutModalProps {
   visible: boolean;
@@ -94,22 +94,7 @@ function AddWorkoutContent({
   const [reps, setReps] = useState(initialData?.reps || '10');
   const [weight, setWeight] = useState(initialData?.weight || '20');
   const [errorMessage, setErrorMessage] = useState('');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
+  const keyboardHeight = useKeyboardHeight();
 
   const handleSelectCategory = (cat: string) => {
     setSelectedCategory(cat);

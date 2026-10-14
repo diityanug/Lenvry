@@ -8,7 +8,6 @@ import {
   TouchableWithoutFeedback,
   ScrollView,
   FlatList,
-  Platform,
   Keyboard,
   useWindowDimensions,
 } from 'react-native';
@@ -20,6 +19,7 @@ import {
 } from '../../services/nutritionDatabaseService';
 import { nutritionStyles as styles } from '../../styles/nutritionStyles';
 import { COLORS } from '../../constants/theme';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 interface FoodSearchModalProps {
   visible: boolean;
@@ -79,24 +79,9 @@ function FoodSearchContent({
   const [activeMeal, setActiveMeal] = useState<MealType>(defaultMealType);
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [portionGramsText, setPortionGramsText] = useState('100');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardHeight = useKeyboardHeight();
   const isKeyboardVisible = keyboardHeight > 0;
   const { height: windowHeight } = useWindowDimensions();
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
 
   // Async filter food items from SQLite database
   const [filteredFoods, setFilteredFoods] = useState<FoodItem[]>([]);

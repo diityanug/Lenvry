@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -8,12 +8,12 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   ScrollView,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NutritionTarget } from '../../types/nutrition';
 import { nutritionStyles as styles } from '../../styles/nutritionStyles';
 import { COLORS } from '../../constants/theme';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 interface TargetModalProps {
   visible: boolean;
@@ -48,22 +48,7 @@ function TargetModalContent({
   const [protein, setProtein] = useState(target.protein.toString());
   const [carbs, setCarbs] = useState(target.carbs.toString());
   const [fat, setFat] = useState(target.fat.toString());
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
+  const keyboardHeight = useKeyboardHeight();
 
   const handleDismiss = () => {
     Keyboard.dismiss();

@@ -201,9 +201,9 @@ function StickyNoteModalContent({
       .map((e) => ({ ...e, title: e.title.trim(), content: e.content.trim() }))
       .filter((e) => e.title || e.content);
 
-    // If multi-entry category has entries but no single description, join summary for backwards compatibility
+    // If multi-entry category has entries, always keep description synchronized
     let finalDescription = description.trim();
-    if (isMultiEntryCategory && validEntries.length > 0 && !finalDescription) {
+    if (isMultiEntryCategory && validEntries.length > 0) {
       finalDescription = validEntries
         .map((e) => (e.title ? `${e.title}: ${e.content}` : e.content))
         .join('\n\n');
@@ -236,6 +236,7 @@ function StickyNoteModalContent({
     };
 
     Keyboard.dismiss();
+    setDescription(finalDescription);
     onSave(noteToSave);
     if (isExisting) {
       setIsEditMode(false);

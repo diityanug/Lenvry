@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Modal,
   View,
@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { COLORS, RADIUS } from '../../constants/theme';
 import AppAlertModal, { AppAlertConfig } from '../Common/AppAlertModal';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import {
   LearningCourse,
   LearningStatus,
@@ -104,7 +105,7 @@ function LearningCourseModalContent({
   );
   const [error, setError] = useState('');
   const [toastMessage, setToastMessage] = useState('');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardHeight = useKeyboardHeight();
 
   const [alertConfig, setAlertConfig] = useState<AppAlertConfig>({
     visible: false,
@@ -113,21 +114,6 @@ function LearningCourseModalContent({
   });
 
   const scrollRef = useRef<ScrollView>(null);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
