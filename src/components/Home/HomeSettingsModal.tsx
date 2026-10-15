@@ -137,7 +137,7 @@ function HomeSettingsContent({
     showAlert(
       'danger',
       'Wipe All App Data?',
-      'This action permanently deletes all workouts, habits, nutrition logs, and financial records.',
+      'This action permanently deletes all records.',
       'WIPE DATA',
       'CANCEL',
       async () => {
@@ -177,7 +177,7 @@ function HomeSettingsContent({
               <View>
                 <Text style={styles.modalTitle}>Settings & Preferences</Text>
                 <Text style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 2 }}>
-                  Manage profile and offline data backup
+                  Manage profile and data backup
                 </Text>
               </View>
               <TouchableOpacity
@@ -224,7 +224,7 @@ function HomeSettingsContent({
 
               {/* Data Management Section */}
               <View style={styles.settingsGroup}>
-                <Text style={styles.inputGroupLabel}>Data Archive & Sync</Text>
+                <Text style={styles.inputGroupLabel}>Sync</Text>
 
                 <TouchableOpacity
                   style={styles.menuItem}
@@ -284,7 +284,7 @@ function HomeSettingsContent({
                   <Text style={styles.resetButtonText}>Clear All Data</Text>
                 </TouchableOpacity>
                 <Text style={styles.resetWarning}>
-                  Permanently deletes all fitness routines, nutrition logs, habits, and financial ledgers on this device.
+                  Permanently deletes all records on this device.
                 </Text>
               </View>
             </ScrollView>

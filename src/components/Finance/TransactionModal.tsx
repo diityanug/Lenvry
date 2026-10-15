@@ -345,8 +345,9 @@ export const TransactionModal = ({
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled={true}
             onScrollBeginDrag={() => {
-              Keyboard.dismiss();
-              setActiveKeypad(null);
+              if (activeKeypad !== null) {
+                setActiveKeypad(null);
+              }
             }}
             contentContainerStyle={[
               txStyles.scrollContent,

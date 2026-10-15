@@ -22,6 +22,7 @@ import {
   hasMathOperators,
 } from '../../utils/math';
 import { COLORS, RADIUS } from '../../constants/theme';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 const SKY = '#38BDF8';
 const VIOLET = '#818CF8';
@@ -153,6 +154,8 @@ export const RenameModal = ({
   onChangeValue,
   onChangeDescValue,
 }: RenameModalProps) => {
+  const keyboardHeight = useKeyboardHeight();
+
   const handleDismiss = () => {
     Keyboard.dismiss();
     onClose();
@@ -167,74 +170,82 @@ export const RenameModal = ({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
-        <TouchableWithoutFeedback onPress={handleDismiss}>
-          <View style={dialogStyles.overlayCenter}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={dialogStyles.cardSmall}>
-                <View
-                  style={[
-                    dialogStyles.typePill,
-                    {
-                      backgroundColor: hexToRgba(pillColor, 0.14),
-                      borderColor: hexToRgba(pillColor, 0.34),
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[dialogStyles.typePillText, { color: pillColor }]}
-                    numberOfLines={1}
-                  >
-                    {isMain ? 'MAIN ACCOUNT' : 'POCKET'}
-                  </Text>
-                </View>
+        <ScrollView
+          contentContainerStyle={[
+            dialogStyles.scrollOverlayCenter,
+            { paddingBottom: Math.max(20, keyboardHeight + 20) },
+          ]}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <TouchableWithoutFeedback onPress={handleDismiss}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
 
-                <Text style={dialogStyles.titleCenter} numberOfLines={1} ellipsizeMode="tail">
-                  Edit {isMain ? 'Account' : 'Pocket'}
+          <View style={dialogStyles.cardSmall}>
+            <View
+              style={[
+                dialogStyles.typePill,
+                {
+                  backgroundColor: hexToRgba(pillColor, 0.14),
+                  borderColor: hexToRgba(pillColor, 0.34),
+                },
+              ]}
+            >
+              <Text
+                style={[dialogStyles.typePillText, { color: pillColor }]}
+                numberOfLines={1}
+              >
+                {isMain ? 'MAIN ACCOUNT' : 'POCKET'}
+              </Text>
+            </View>
+
+            <Text style={dialogStyles.titleCenter} numberOfLines={1} ellipsizeMode="tail">
+              Edit {isMain ? 'Account' : 'Pocket'}
+            </Text>
+
+            <View style={dialogStyles.fieldBlock}>
+              <Text style={dialogStyles.fieldLabel} numberOfLines={1}>ACCOUNT NAME</Text>
+              <TextInput
+                style={dialogStyles.inputField}
+                placeholder={isMain ? 'Enter account title...' : 'Enter pocket title...'}
+                placeholderTextColor={COLORS.textMuted}
+                value={value}
+                onChangeText={onChangeValue}
+                autoFocus={true}
+              />
+            </View>
+
+            {isMain && onChangeDescValue && (
+              <View style={dialogStyles.fieldBlock}>
+                <Text style={dialogStyles.fieldLabel} numberOfLines={1} ellipsizeMode="tail">
+                  DESCRIPTION / NOTE
                 </Text>
-
-                <View style={dialogStyles.fieldBlock}>
-                  <Text style={dialogStyles.fieldLabel} numberOfLines={1}>ACCOUNT NAME</Text>
-                  <TextInput
-                    style={dialogStyles.inputField}
-                    placeholder={isMain ? 'Enter account title...' : 'Enter pocket title...'}
-                    placeholderTextColor={COLORS.textMuted}
-                    value={value}
-                    onChangeText={onChangeValue}
-                    autoFocus={true}
-                  />
-                </View>
-
-                {isMain && onChangeDescValue && (
-                  <View style={dialogStyles.fieldBlock}>
-                    <Text style={dialogStyles.fieldLabel} numberOfLines={1} ellipsizeMode="tail">
-                      DESCRIPTION / NOTE
-                    </Text>
-                    <TextInput
-                      style={dialogStyles.inputField}
-                      placeholder="e.g. No. Rek: 1234567890 a.n. John Doe"
-                      placeholderTextColor={COLORS.textMuted}
-                      value={descValue}
-                      onChangeText={onChangeDescValue}
-                    />
-                  </View>
-                )}
-
-                <View style={dialogStyles.actionRow}>
-                  <TouchableOpacity style={dialogStyles.btnCancel} onPress={onClose} activeOpacity={0.7}>
-                    <Text style={dialogStyles.btnCancelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-                      CANCEL
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={dialogStyles.btnConfirm} onPress={onSave} activeOpacity={0.8}>
-                    <Text style={dialogStyles.btnConfirmText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-                      SAVE
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                <TextInput
+                  style={dialogStyles.inputField}
+                  placeholder="e.g. No. Rek: 1234567890 a.n. John Doe"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={descValue}
+                  onChangeText={onChangeDescValue}
+                />
               </View>
-            </TouchableWithoutFeedback>
+            )}
+
+            <View style={dialogStyles.actionRow}>
+              <TouchableOpacity style={dialogStyles.btnCancel} onPress={onClose} activeOpacity={0.7}>
+                <Text style={dialogStyles.btnCancelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                  CANCEL
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={dialogStyles.btnConfirm} onPress={onSave} activeOpacity={0.8}>
+                <Text style={dialogStyles.btnConfirmText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                  SAVE
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </TouchableWithoutFeedback>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -288,6 +299,7 @@ export const AddCategoryModal = ({
   onChangeValue,
   onChangeIcon,
 }: AddCategoryModalProps) => {
+  const keyboardHeight = useKeyboardHeight();
   const [activeIconItem, setActiveIconItem] = useState(
     AVAILABLE_CATEGORY_ICONS.find((i) => i.icon === selectedIcon) || AVAILABLE_CATEGORY_ICONS[0]
   );
@@ -312,94 +324,102 @@ export const AddCategoryModal = ({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
-        <TouchableWithoutFeedback onPress={handleDismiss}>
-          <View style={dialogStyles.overlayCenter}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={dialogStyles.cardSmall}>
-                {/* Header Icon Preview */}
-                <View style={dialogStyles.previewBlock}>
-                  <View
-                    style={[
-                      dialogStyles.iconPreviewBox,
-                      {
-                        backgroundColor: activeIconItem.bg,
-                        borderColor: hexToRgba(activeIconItem.color, 0.45),
-                      },
-                    ]}
-                  >
-                    <Ionicons name={activeIconItem.icon as any} size={30} color={activeIconItem.color} />
-                  </View>
-                  <Text style={dialogStyles.titleCenter} numberOfLines={1}>New Category</Text>
-                </View>
+        <ScrollView
+          contentContainerStyle={[
+            dialogStyles.scrollOverlayCenter,
+            { paddingBottom: Math.max(20, keyboardHeight + 20) },
+          ]}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <TouchableWithoutFeedback onPress={handleDismiss}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
 
-                {/* Name Input */}
-                <View style={dialogStyles.fieldBlock}>
-                  <Text style={dialogStyles.fieldLabel} numberOfLines={1}>CATEGORY NAME</Text>
-                  <TextInput
-                    style={dialogStyles.inputField}
-                    placeholder="e.g. Subscriptions, etc..."
-                    placeholderTextColor={COLORS.textMuted}
-                    value={value}
-                    onChangeText={onChangeValue}
-                    autoFocus={true}
-                  />
-                </View>
-
-                {/* Icon Grid Picker */}
-                <View style={dialogStyles.fieldBlock}>
-                  <View style={dialogStyles.iconLabelRow}>
-                    <Text style={dialogStyles.fieldLabelInline} numberOfLines={1}>CHOOSE ICON</Text>
-                  </View>
-                  <ScrollView
-                    nestedScrollEnabled={true}
-                    style={dialogStyles.iconScrollArea}
-                    contentContainerStyle={dialogStyles.iconGrid}
-                    showsVerticalScrollIndicator={true}
-                    keyboardShouldPersistTaps="handled"
-                  >
-                    {AVAILABLE_CATEGORY_ICONS.map((item) => {
-                      const isSelected = activeIconItem.icon === item.icon;
-                      return (
-                        <TouchableOpacity
-                          key={item.icon}
-                          style={[
-                            dialogStyles.iconPickBtn,
-                            {
-                              backgroundColor: isSelected ? item.color : hexToRgba(item.color, 0.12),
-                              borderColor: isSelected ? item.color : hexToRgba(item.color, 0.34),
-                            },
-                          ]}
-                          onPress={() => handleSelectIcon(item)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons
-                            name={item.icon as any}
-                            size={22}
-                            color={isSelected ? '#08090C' : item.color}
-                          />
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
-
-                {/* Actions */}
-                <View style={[dialogStyles.actionRow, dialogStyles.actionRowSpaced]}>
-                  <TouchableOpacity style={dialogStyles.btnCancel} onPress={onClose} activeOpacity={0.7}>
-                    <Text style={dialogStyles.btnCancelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-                      CANCEL
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={dialogStyles.btnConfirm} onPress={handleConfirmSave} activeOpacity={0.8}>
-                    <Text style={dialogStyles.btnConfirmText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                      SAVE CATEGORY
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+          <View style={dialogStyles.cardSmall}>
+            {/* Header Icon Preview */}
+            <View style={dialogStyles.previewBlock}>
+              <View
+                style={[
+                  dialogStyles.iconPreviewBox,
+                  {
+                    backgroundColor: activeIconItem.bg,
+                    borderColor: hexToRgba(activeIconItem.color, 0.45),
+                  },
+                ]}
+              >
+                <Ionicons name={activeIconItem.icon as any} size={30} color={activeIconItem.color} />
               </View>
-            </TouchableWithoutFeedback>
+              <Text style={dialogStyles.titleCenter} numberOfLines={1}>New Category</Text>
+            </View>
+
+            {/* Name Input */}
+            <View style={dialogStyles.fieldBlock}>
+              <Text style={dialogStyles.fieldLabel} numberOfLines={1}>CATEGORY NAME</Text>
+              <TextInput
+                style={dialogStyles.inputField}
+                placeholder="e.g. Subscriptions, etc..."
+                placeholderTextColor={COLORS.textMuted}
+                value={value}
+                onChangeText={onChangeValue}
+                autoFocus={true}
+              />
+            </View>
+
+            {/* Icon Grid Picker */}
+            <View style={dialogStyles.fieldBlock}>
+              <View style={dialogStyles.iconLabelRow}>
+                <Text style={dialogStyles.fieldLabelInline} numberOfLines={1}>CHOOSE ICON</Text>
+              </View>
+              <ScrollView
+                nestedScrollEnabled={true}
+                style={dialogStyles.iconScrollArea}
+                contentContainerStyle={dialogStyles.iconGrid}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+              >
+                {AVAILABLE_CATEGORY_ICONS.map((item) => {
+                  const isSelected = activeIconItem.icon === item.icon;
+                  return (
+                    <TouchableOpacity
+                      key={item.icon}
+                      style={[
+                        dialogStyles.iconPickBtn,
+                        {
+                          backgroundColor: isSelected ? item.color : hexToRgba(item.color, 0.12),
+                          borderColor: isSelected ? item.color : hexToRgba(item.color, 0.34),
+                        },
+                      ]}
+                      onPress={() => handleSelectIcon(item)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={item.icon as any}
+                        size={22}
+                        color={isSelected ? '#08090C' : item.color}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Actions */}
+            <View style={[dialogStyles.actionRow, dialogStyles.actionRowSpaced]}>
+              <TouchableOpacity style={dialogStyles.btnCancel} onPress={onClose} activeOpacity={0.7}>
+                <Text style={dialogStyles.btnCancelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                  CANCEL
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={dialogStyles.btnConfirm} onPress={handleConfirmSave} activeOpacity={0.8}>
+                <Text style={dialogStyles.btnConfirmText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                  SAVE CATEGORY
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </TouchableWithoutFeedback>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -408,6 +428,13 @@ export const AddCategoryModal = ({
 const dialogStyles = StyleSheet.create({
   overlayCenter: {
     flex: 1,
+    backgroundColor: COLORS.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  scrollOverlayCenter: {
+    flexGrow: 1,
     backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
