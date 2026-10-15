@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { Account, Transaction, formatMoney, getAccountIcon, MONTHS, ACCOUNT_TYPE_THEME, TX_TYPE_THEME, getCategoryTheme } from '../../types/finance';
 import { financeStyles as styles } from '../../styles/financeStyles';
 import { COLORS } from '../../constants/theme';
+import { useUserStore } from '../../stores/useUserStore';
 
-const getCategoryIconInfo = (
+export const getCategoryIconInfo = (
   category: string,
   type: 'income' | 'expense' | 'transfer'
 ): { name: any; color: string; bg: string; border: string } => {
@@ -55,7 +56,7 @@ const getCategoryIconInfo = (
   return { name: iconMap[category] || 'pricetag-outline', ...getCategoryTheme(category) };
 };
 
-const formatTxDate = (dateIso: string): string => {
+export const formatTxDate = (dateIso: string): string => {
   const d = new Date(dateIso);
   const now = new Date();
   const isToday =
@@ -332,20 +333,23 @@ function getCalmTxTheme(category: string, type: 'income' | 'expense' | 'transfer
 interface TransactionCardProps {
   item: Transaction;
   accounts: Account[];
-  onClone: (tx: Transaction) => void;
-  onDelete: (id: string) => void;
+  onClone?: (tx: Transaction) => void;
+  onDelete?: (id: string) => void;
   onEdit?: (tx: Transaction) => void;
+  onPress?: (tx: Transaction) => void;
 }
 
-export const TransactionCard = ({ item, accounts, onClone, onDelete, onEdit }: TransactionCardProps) => {
+export const TransactionCard = ({
+  item,
+  accounts,
+  onClone,
+  onDelete,
+  onEdit,
+  onPress,
+}: TransactionCardProps) => {
   const account = accounts.find((a) => a.id === item.accountId);
   const toAccount = item.toAccountId ? accounts.find((a) => a.id === item.toAccountId) : null;
-  const accName = account?.name || 'Unknown';
-  const toAccName = toAccount?.name || 'Account';
   const accCurrency = account?.currency || 'IDR';
-  const subName = account?.subAccounts.find((s) => s.id === item.subAccountId)?.name || '';
-  const toSubName = toAccount?.subAccounts.find((s) => s.id === item.toSubAccountId)?.name || '';
-  const dateFormatted = formatTxDate(item.date);
   const iconInfo = getCategoryIconInfo(item.category, item.type);
   const isTransfer = item.type === 'transfer';
   const theme = getCalmTxTheme(item.category, item.type);
@@ -363,12 +367,6 @@ export const TransactionCard = ({ item, accounts, onClone, onDelete, onEdit }: T
       item.toAmount > 0
     );
 
-  const accountPillText = isTransfer
-    ? item.accountId === item.toAccountId
-      ? `${accName} (${subName || 'Main'} → ${toSubName || 'Main'})`
-      : `${accName}${subName ? ` • ${subName}` : ''} → ${toAccName}${toSubName ? ` • ${toSubName}` : ''}`
-    : `${accName}${subName ? ` • ${subName}` : ''}`;
-
   const amountColor =
     item.type === 'income'
       ? '#34D399'
@@ -376,134 +374,66 @@ export const TransactionCard = ({ item, accounts, onClone, onDelete, onEdit }: T
       ? '#818CF8'
       : '#FB7185';
 
+  const handleCardPress = () => {
+    if (onPress) {
+      onPress(item);
+    } else if (onEdit) {
+      onEdit(item);
+    }
+  };
+
   return (
     <TouchableOpacity
-      style={[styles.txCard, { backgroundColor: theme.cardBg, borderColor: theme.borderColor }]}
-      activeOpacity={0.85}
-      onPress={() => onEdit?.(item)}
-      disabled={!onEdit}
+      style={styles.txCard}
+      activeOpacity={0.75}
+      onPress={handleCardPress}
     >
-      {/* Background Signature Watermark Icon */}
-      <View style={styles.watermarkTile} pointerEvents="none">
+      {/* Left Type Color Strip */}
+      <View style={[styles.txTypeStrip, { backgroundColor: amountColor }]} />
+
+      {/* Large Signature Watermark Icon in Center Background */}
+      <View style={styles.txWatermarkCenter} pointerEvents="none">
         <Ionicons
           name={iconInfo.name}
-          size={56}
+          size={74}
           color={theme.accent}
-          style={styles.watermarkIcon}
+          style={styles.txWatermarkIcon}
         />
       </View>
 
-      {/* 1. TOP HEADER ROW: Category Eyebrow Badge & Date Badge */}
-      <View style={styles.txTopRow}>
-        <View style={[styles.txCategoryPill, { backgroundColor: theme.pillBg, borderColor: theme.pillBorder }]}>
-          <Ionicons name={iconInfo.name} size={12} color={theme.accent} />
-          <Text style={[styles.txCategoryPillText, { color: theme.accent }]}>
-            {item.category}
-          </Text>
-        </View>
+      <View style={styles.txCardContent}>
+        {/* Top Tier: Category Badge (Left) & Amount + Chevron (Right) */}
+        <View style={styles.txHeaderRow}>
+          <View style={[styles.txCategoryBadge, { backgroundColor: theme.pillBg, borderColor: theme.pillBorder }]}>
+            <Ionicons name={iconInfo.name} size={13} color={theme.accent} />
+            <Text style={[styles.txCategoryBadgeText, { color: theme.accent }]}>
+              {item.category}
+            </Text>
+          </View>
 
-        <View style={styles.txDateBadge}>
-          <Text style={styles.txDateText}>
-            {dateFormatted}
-          </Text>
-        </View>
-      </View>
-
-      {/* 2. MIDDLE BLOCK: Title & Amount */}
-      <View style={styles.txMiddleBlock}>
-        <View style={styles.txMainRow}>
-          <Text style={styles.txDesc} numberOfLines={2}>
-            {displayTitle}
-          </Text>
-
-          <View style={styles.txAmountCol}>
+          <View style={styles.txAmountWrap}>
             {isCrossCurrencyTransfer && toAccount ? (
-              <View style={styles.txCrossAmountWrap}>
-                <Text style={[styles.txAmount, { color: '#FB7185' }]}>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={[styles.txAmountText, { color: '#FB7185' }]}>
                   - {formatMoney(item.amount, accCurrency)}
                 </Text>
-                <View style={styles.txReceivedBadge}>
-                  <Ionicons name="arrow-down" size={10} color="#38BDF8" />
-                  <Text style={styles.txReceivedAmountText}>
-                    + {formatMoney(item.toAmount!, toAccount.currency)}
-                  </Text>
-                </View>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#38BDF8' }}>
+                  + {formatMoney(item.toAmount!, toAccount.currency)}
+                </Text>
               </View>
             ) : (
-              <Text style={[styles.txAmount, { color: amountColor }]}>
+              <Text style={[styles.txAmountText, { color: amountColor }]}>
                 {item.type === 'income' ? '+' : isTransfer ? '' : '-'} {formatMoney(item.amount, accCurrency)}
               </Text>
             )}
+            <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} style={{ marginLeft: 3 }} />
           </View>
         </View>
 
-        {/* Optional Kurs Banner (Cross-Currency Transfers) */}
-        {isCrossCurrencyTransfer && item.exchangeRate ? (
-          <View style={styles.txExchangeRateBanner}>
-            <Ionicons name="swap-horizontal" size={12} color="#38BDF8" />
-            <Text style={styles.txExchangeRateText}>
-              Kurs: 1 USD ≈ Rp {Math.round(item.exchangeRate).toLocaleString('id-ID')}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-
-      {/* 3. BOTTOM ROW: ROUTE / ACCOUNT SOURCE & ACTIONS */}
-      <View style={styles.txBottomRow}>
-        {isTransfer ? (
-          <View style={styles.txRouteBox}>
-            <View style={styles.txRouteItem}>
-              <View style={[styles.txRouteIconWrap, { backgroundColor: 'rgba(251, 113, 133, 0.12)' }]}>
-                <Ionicons name="arrow-up" size={10} color="#FB7185" />
-              </View>
-              <Text style={styles.txRouteText}>
-                {accName}{subName ? ` (${subName})` : ''}
-              </Text>
-            </View>
-
-            <Ionicons name="arrow-forward" size={11} color={COLORS.textMuted} style={styles.txRouteArrow} />
-
-            <View style={styles.txRouteItem}>
-              <View style={[styles.txRouteIconWrap, { backgroundColor: 'rgba(52, 211, 153, 0.12)' }]}>
-                <Ionicons name="arrow-down" size={10} color="#34D399" />
-              </View>
-              <Text style={styles.txRouteText}>
-                {toAccName}{toSubName ? ` (${toSubName})` : ''}
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.txAccountPill}>
-            <Ionicons
-              name={item.type === 'income' ? 'arrow-down-circle-outline' : 'wallet-outline'}
-              size={12}
-              color={theme.accent}
-            />
-            <Text style={styles.txAccountPillText} numberOfLines={1}>
-              {accountPillText}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.txActions}>
-          <TouchableOpacity
-            onPress={() => onClone(item)}
-            style={styles.txActionIconBtn}
-            activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-          >
-            <Ionicons name="copy-outline" size={14} color={COLORS.textMuted} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => onDelete(item.id)}
-            style={[styles.txActionIconBtn, styles.txActionIconBtnDelete]}
-            activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-          >
-            <Ionicons name="trash-outline" size={14} color="#FB7185" />
-          </TouchableOpacity>
-        </View>
+        {/* Bottom Tier: Full-Width Title (no cut-off words) */}
+        <Text style={styles.txTitleText}>
+          {displayTitle}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -517,98 +447,52 @@ interface AccountCardProps {
 }
 
 export const AccountCard = ({ item, balance, onPress }: AccountCardProps) => {
-  const isUSD = item.currency === 'USD';
   const typeIcon = getAccountIcon(item.type);
-  const pockets = item.subAccounts || [];
-  const pocketsCount = pockets.length;
-
   const theme = ACCOUNT_TYPE_THEME[item.type];
 
   return (
     <TouchableOpacity
-      style={[styles.accCard, { borderColor: theme.border }]}
-      activeOpacity={0.8}
+      style={[
+        styles.accCard,
+        {
+          borderColor: theme.border,
+        },
+      ]}
+      activeOpacity={0.75}
       onPress={() => onPress(item)}
     >
-      {/* Top Accent Strip */}
-      <View style={[styles.accTopBar, { backgroundColor: theme.color }]} />
-
       <View style={styles.accCardBody}>
-        <View style={styles.accHeaderRow}>
-          <View style={styles.accHeaderLeft}>
-            <View style={[styles.accIconBox, { backgroundColor: theme.bg, borderColor: theme.border }]}>
-              <FontAwesome5 name={typeIcon} size={15} color={theme.color} />
-            </View>
-            <View style={styles.accTitleGroup}>
-              <Text style={styles.accName} numberOfLines={1}>
-                {item.name}
-              </Text>
-              <View style={styles.accMetaRow}>
-                <View style={[styles.accTypeBadge, { backgroundColor: theme.bg }]}>
-                  <Text style={[styles.accTypeBadgeText, { color: theme.color }]}>
-                    {item.type}
-                  </Text>
-                </View>
-                {Boolean(item.description) && (
-                  <Text style={styles.accDescText} numberOfLines={1}>
-                    • {item.description}
-                  </Text>
-                )}
-              </View>
-            </View>
-          </View>
+        {/* Left: Account Icon in circular frosted box */}
+        <View style={[styles.accIconBox, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+          <FontAwesome5 name={typeIcon} size={15} color={theme.color} />
+        </View>
 
-          <View style={styles.accHeaderRight}>
-            <View style={[styles.accCurrencyPill, isUSD && styles.accCurrencyPillUSD]}>
-              <Text style={[styles.accCurrencyPillText, isUSD && { color: '#C084FC' }]}>
+        {/* Center: Account Name & Badge (Category / Type & Currency) */}
+        <View style={styles.accInfoCol}>
+          <Text style={styles.accNameLine} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <View style={styles.accMetaBadgeRow}>
+            <View style={[styles.accCategoryTag, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+              <Text style={[styles.accCategoryTagText, { color: theme.color }]}>
+                {item.type}
+              </Text>
+            </View>
+            <View style={styles.accCurrencyTag}>
+              <Text style={styles.accCurrencyTagText}>
                 {item.currency}
               </Text>
             </View>
-            <View style={styles.accChevronBox}>
-              <Ionicons name="chevron-forward" size={13} color={COLORS.textMuted} />
-            </View>
           </View>
         </View>
 
-        {/* Balance Block */}
-        <View style={styles.accBalanceRow}>
-          <Text style={styles.accBalanceLabel}>TOTAL BALANCE</Text>
-          <Text style={styles.accBalanceAmount} numberOfLines={1}>
+        {/* Right: Balance & Arrow */}
+        <View style={styles.accRightCol}>
+          <Text style={styles.accBalanceValue} numberOfLines={1}>
             {formatMoney(balance, item.currency)}
           </Text>
+          <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
         </View>
-
-        {/* Pockets Row */}
-        {pocketsCount > 0 ? (
-          <View style={styles.accBottomRow}>
-            <View style={styles.accPocketBadge}>
-              <Ionicons name="folder-outline" size={12} color={theme.color} />
-              <Text style={styles.accPocketBadgeText}>
-                {pocketsCount} {pocketsCount === 1 ? 'pocket' : 'pockets'}
-              </Text>
-            </View>
-
-            <ScrollView
-              horizontal
-              nestedScrollEnabled={true}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.accPocketsScroll}
-            >
-              {pockets.slice(0, 3).map((p) => (
-                <View key={p.id} style={styles.accPocketMiniTag}>
-                  <Text style={styles.accPocketMiniTagText} numberOfLines={1}>
-                    {p.name}
-                  </Text>
-                </View>
-              ))}
-              {pocketsCount > 3 && (
-                <View style={styles.accPocketMiniTagMore}>
-                  <Text style={styles.accPocketMiniTagMoreText}>+{pocketsCount - 3}</Text>
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        ) : null}
       </View>
     </TouchableOpacity>
   );
@@ -660,6 +544,7 @@ export const HeroSummaryCard = ({
   activeCurrency,
   onCurrencyChange,
 }: HeroSummaryProps) => {
+  const userName = useUserStore((s) => s.userName);
   const [internalCurrency, setInternalCurrency] = useState<'IDR' | 'USD'>('IDR');
   const [isNetWorthHidden, setIsNetWorthHidden] = useState<boolean>(false);
 
@@ -684,24 +569,15 @@ export const HeroSummaryCard = ({
 
   return (
     <View>
-      {/* Executive Total Net Worth Card */}
+      {/* blu-style Executive Total Net Worth Card */}
       <View style={[styles.heroCard, isIDR ? styles.heroCardIDR : styles.heroCardUSD]}>
+        {/* Decorative subtle background circle pattern */}
+        <View style={styles.cardCircleDeco} pointerEvents="none" />
+
+        {/* Top Header Row: Contactless icon & Currency Toggle */}
         <View style={styles.heroTopRow}>
-          <View style={styles.heroLabelGroup}>
-            <View style={[styles.heroIndicatorDot, { backgroundColor: isIDR ? COLORS.finance : COLORS.success }]} />
-            <Text style={styles.balanceLabel}>TOTAL NET WORTH</Text>
-            <TouchableOpacity
-              onPress={() => setIsNetWorthHidden((prev) => !prev)}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{ marginLeft: 6, padding: 2 }}
-            >
-              <Ionicons
-                name={isNetWorthHidden ? 'eye-off-outline' : 'eye-outline'}
-                size={16}
-                color={COLORS.textMuted}
-              />
-            </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="radio-outline" size={18} color="rgba(255, 255, 255, 0.9)" />
           </View>
 
           <View style={styles.currencyToggle}>
@@ -722,30 +598,54 @@ export const HeroSummaryCard = ({
           </View>
         </View>
 
-        <Text
-          style={[styles.balanceAmount, isIDR ? styles.balanceAmountIDR : styles.balanceAmountUSD]}
-          numberOfLines={1}
-          adjustsFontSizeToFit={true}
-          minimumFontScale={0.7}
-        >
-          {isNetWorthHidden
-            ? isIDR
-              ? 'Rp ••••••••'
-              : '$ ••••••••'
-            : formatMoney(currentTotal, selectedCurrency)}
-        </Text>
+        {/* Balance Section / Net Worth */}
+        <View style={styles.cardBalanceSection}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <Text style={styles.balanceLabel}>TOTAL NET WORTH</Text>
+            <TouchableOpacity
+              onPress={() => setIsNetWorthHidden((prev) => !prev)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ padding: 2 }}
+            >
+              <Ionicons
+                name={isNetWorthHidden ? 'eye-off-outline' : 'eye-outline'}
+                size={15}
+                color="rgba(255, 255, 255, 0.75)"
+              />
+            </TouchableOpacity>
+          </View>
 
-        {/* Bottom Stats Row */}
+          <Text
+            style={[styles.balanceAmount, isIDR ? styles.balanceAmountIDR : styles.balanceAmountUSD]}
+            numberOfLines={1}
+            adjustsFontSizeToFit={true}
+            minimumFontScale={0.7}
+          >
+            {isNetWorthHidden
+              ? isIDR
+                ? 'Rp ••••••••'
+                : '$ ••••••••'
+              : formatMoney(currentTotal, selectedCurrency)}
+          </Text>
+        </View>
+
+        {/* Bottom Row: Cardholder Name & Mastercard/Debit style logo */}
         <View style={styles.heroSubRow}>
-          <View style={[styles.heroSubBadge, { backgroundColor: isIDR ? 'rgba(56, 189, 248, 0.16)' : 'rgba(16, 185, 129, 0.16)', borderColor: isIDR ? 'rgba(56, 189, 248, 0.35)' : 'rgba(16, 185, 129, 0.35)' }]}>
-            <Ionicons
-              name="wallet"
-              size={13}
-              color={isIDR ? COLORS.finance : COLORS.success}
-            />
-            <Text style={[styles.heroSubBadgeText, { color: isIDR ? COLORS.finance : COLORS.success }]}>
-              {accountsCount} {accountsCount === 1 ? 'Account' : 'Accounts'} Active
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={styles.cardholderLabel}>CARDHOLDER</Text>
+            <Text
+              style={styles.cardholderName}
+              numberOfLines={1}
+            >
+              {userName || 'USER'}
             </Text>
+          </View>
+
+          {/* Dual overlapping circles logo (Debit style) */}
+          <View style={styles.dualCircleLogo}>
+            <View style={[styles.dualCircle, { backgroundColor: 'rgba(255, 255, 255, 0.75)' }]} />
+            <View style={[styles.dualCircle, { backgroundColor: 'rgba(255, 255, 255, 0.45)', marginLeft: -10 }]} />
           </View>
         </View>
       </View>

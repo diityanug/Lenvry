@@ -16,6 +16,7 @@ import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 let Notifications: any = null;
 if (!isAndroidExpoGo) {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     Notifications = require('expo-notifications');
   } catch (err) {
     console.warn('Failed to load expo-notifications in _layout:', err);
@@ -144,7 +145,7 @@ export default function AppLayout() {
   };
 
   return (
-    <ErrorBoundary fallbackTitle="Lenvry Mengalami Kendala">
+    <ErrorBoundary fallbackTitle="Lenvry Encountered an Issue">
       <View style={{ flex: 1, backgroundColor: COLORS.bgCanvas }}>
         <Tabs
           initialRouteName="index"

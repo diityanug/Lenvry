@@ -6,15 +6,15 @@ export type CourseColor = 'violet' | 'blue' | 'emerald' | 'amber' | 'rose' | 'cy
 
 export interface LearningCourse {
   id: string;
-  title: string;              // nama course
-  status: LearningStatus;     // status
-  link?: string;              // linknya (URL)
-  startDate: string;          // tanggal mulai
-  provider: string;           // provider (Udemy, Coursera, YouTube, etc.)
-  level: CourseLevel;         // level (Beginner, Intermediate, Advanced, All Levels)
-  hours: number;              // hours (durasi atau jam belajar)
-  notes?: string;             // notes
-  color?: CourseColor;        // warna tema kartu
+  title: string;              // Course title
+  status: LearningStatus;     // Current progress status
+  link?: string;              // External link (URL)
+  startDate: string;          // Start date ISO string
+  provider: string;           // Provider (Udemy, Coursera, YouTube, etc.)
+  level: CourseLevel;         // Difficulty level
+  hours: number;              // Total studied or course hours
+  notes?: string;             // Additional notes
+  color?: CourseColor;        // Card accent color theme
   createdAt: string;
   updatedAt: string;
 }

@@ -7,11 +7,25 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
+  Keyboard,
+  BackHandler,
+  PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { DebtItem } from '../../../types/finance';
 import { COLORS } from '../../../constants/theme';
 import { useKeyboardHeight } from '../../../hooks/useKeyboardHeight';
+import { CalculatorKeypad } from '../CalculatorKeypad';
+import {
+  evaluateArithmetic,
+  evaluateArithmeticStr,
+  formatCalculatedDisplay,
+  formatExpression,
+  hasMathOperators,
+  MAX_NOMINAL_VALUE,
+} from '../../../utils/math';
+import { hapticLight } from '../../../utils/haptics';
 import {
   debtsStyles as styles,
   ACCENT,
@@ -36,12 +50,20 @@ export const AddDebtModal = ({
   onSave,
   onShowAlert,
 }: AddDebtModalProps) => {
+  const requestCloseRef = React.useRef<() => void>(() => onClose());
+
   return (
     <Modal
       visible={visible}
       transparent={true}
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        if (requestCloseRef.current) {
+          requestCloseRef.current();
+        } else {
+          onClose();
+        }
+      }}
       statusBarTranslucent={true}
     >
       {visible ? (
@@ -52,6 +74,9 @@ export const AddDebtModal = ({
           onClose={onClose}
           onSave={onSave}
           onShowAlert={onShowAlert}
+          registerRequestClose={(fn) => {
+            requestCloseRef.current = fn;
+          }}
         />
       ) : null}
     </Modal>
@@ -64,6 +89,7 @@ interface AddDebtModalContentProps {
   onClose: () => void;
   onSave: (debt: Omit<DebtItem, 'id' | 'createdAt' | 'paidAmount' | 'remainingAmount' | 'status'>) => void;
   onShowAlert: (type: 'warning' | 'danger' | 'info' | 'success', title: string, message: string) => void;
+  registerRequestClose?: (fn: () => void) => void;
 }
 
 const AddDebtModalContent = ({
@@ -72,20 +98,87 @@ const AddDebtModalContent = ({
   onClose,
   onSave,
   onShowAlert,
+  registerRequestClose,
 }: AddDebtModalContentProps) => {
   const [newType, setNewType] = useState<'receivable' | 'debt'>(defaultType);
   const [newPersonName, setNewPersonName] = useState('');
   const [newTitle, setNewTitle] = useState('');
   const [newAmount, setNewAmount] = useState('');
+  const [isKeypadOpen, setIsKeypadOpen] = useState(false);
   const [newCurrency, setNewCurrency] = useState<'IDR' | 'USD'>(currency);
   const [newNotes, setNewNotes] = useState('');
 
   const keyboardHeight = useKeyboardHeight();
 
+  const evaluatedAmountStr = React.useMemo(() => evaluateArithmeticStr(newAmount, newCurrency), [newAmount, newCurrency]);
+  const isAmountMath = React.useMemo(() => hasMathOperators(newAmount), [newAmount]);
+  const formattedDisplayAmount = formatCalculatedDisplay(evaluatedAmountStr, newCurrency);
+
+  const openAmountKeypad = () => {
+    Keyboard.dismiss();
+    setIsKeypadOpen(true);
+  };
+
+  const handleDismiss = () => {
+    Keyboard.dismiss();
+    if (isKeypadOpen) {
+      setIsKeypadOpen(false);
+      return;
+    }
+    onClose();
+  };
+
+  const handleRequestClose = React.useCallback(() => {
+    Keyboard.dismiss();
+    if (isKeypadOpen) {
+      setIsKeypadOpen(false);
+      return;
+    }
+    onClose();
+  }, [isKeypadOpen, onClose]);
+
+  React.useEffect(() => {
+    registerRequestClose?.(handleRequestClose);
+  }, [handleRequestClose, registerRequestClose]);
+
+  // Intercept smartphone back button or edge back swipe gesture:
+  // Dismiss calculator keypad first before closing the modal
+  React.useEffect(() => {
+    const onBackPress = () => {
+      if (isKeypadOpen) {
+        setIsKeypadOpen(false);
+        return true; // Event consumed, prevents closing the modal
+      }
+      return false; // Allow standard modal close
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [isKeypadOpen]);
+
+  // Swipe-down gesture detector on keypad area to smoothly dismiss it
+  const keypadPanResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          return gestureState.dy > 15 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.5;
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dy > 30 || gestureState.vy > 0.4) {
+            setIsKeypadOpen(false);
+          }
+        },
+      }),
+    []
+  );
+
   const handleSave = () => {
+    setIsKeypadOpen(false);
     const person = newPersonName.trim();
     const title = newTitle.trim() || (newType === 'receivable' ? 'Loan / Receivable' : 'Debt / Borrowed');
-    const parsedAmount = parseFloat(newAmount.replace(/[^0-9.]/g, ''));
+    const evaluated = evaluateArithmetic(newAmount, newCurrency);
+    const parsedAmount = Math.min(MAX_NOMINAL_VALUE, Math.max(0, evaluated));
 
     if (!person) {
       onShowAlert('warning', 'Missing Name', 'Please provide the person or entity name.');
@@ -110,7 +203,7 @@ const AddDebtModalContent = ({
 
   return (
     <View style={styles.modalOverlay}>
-      <TouchableWithoutFeedback onPress={onClose}>
+      <TouchableWithoutFeedback onPress={handleDismiss}>
         <View style={styles.dismissArea} />
       </TouchableWithoutFeedback>
       <View style={styles.settleModalSheet}>
@@ -122,7 +215,7 @@ const AddDebtModalContent = ({
             <Text style={styles.modalSheetSubtitle}>Keep track of money lent or borrowed</Text>
           </View>
           <TouchableOpacity
-            onPress={onClose}
+            onPress={handleDismiss}
             style={styles.modalCloseBtn}
             activeOpacity={0.7}
           >
@@ -134,6 +227,7 @@ const AddDebtModalContent = ({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           automaticallyAdjustKeyboardInsets={true}
+          onScrollBeginDrag={() => setIsKeypadOpen(false)}
           contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
         >
           {/* TYPE SWITCHER: RECEIVABLE VS DEBT */}
@@ -144,7 +238,10 @@ const AddDebtModalContent = ({
                 styles.typeSwitchCard,
                 newType === 'receivable' && styles.typeSwitchCardActiveReceivable,
               ]}
-              onPress={() => setNewType('receivable')}
+              onPress={() => {
+                setIsKeypadOpen(false);
+                setNewType('receivable');
+              }}
               activeOpacity={0.7}
             >
               <View style={styles.typeSwitchHeader}>
@@ -172,7 +269,10 @@ const AddDebtModalContent = ({
                 styles.typeSwitchCard,
                 newType === 'debt' && styles.typeSwitchCardActiveDebt,
               ]}
-              onPress={() => setNewType('debt')}
+              onPress={() => {
+                setIsKeypadOpen(false);
+                setNewType('debt');
+              }}
               activeOpacity={0.7}
             >
               <View style={styles.typeSwitchHeader}>
@@ -202,6 +302,7 @@ const AddDebtModalContent = ({
             style={styles.textInput}
             value={newPersonName}
             onChangeText={setNewPersonName}
+            onFocus={() => setIsKeypadOpen(false)}
             placeholder="e.g. John Doe etc."
             placeholderTextColor={COLORS.textMuted}
           />
@@ -212,6 +313,7 @@ const AddDebtModalContent = ({
             style={styles.textInput}
             value={newTitle}
             onChangeText={setNewTitle}
+            onFocus={() => setIsKeypadOpen(false)}
             placeholder="e.g. Ticket etc."
             placeholderTextColor={COLORS.textMuted}
           />
@@ -219,15 +321,60 @@ const AddDebtModalContent = ({
           {/* AMOUNT & CURRENCY ROW */}
           <View style={styles.amountCurrencyRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.inputLabel}>TOTAL AMOUNT</Text>
-              <TextInput
-                style={styles.textInputInRow}
-                keyboardType="numeric"
-                value={newAmount}
-                onChangeText={setNewAmount}
-                placeholder="0"
-                placeholderTextColor={COLORS.textMuted}
-              />
+              <Text style={styles.inputLabel}>TOTAL AMOUNT ({newCurrency})</Text>
+              <TouchableOpacity
+                style={[
+                  styles.amountCard,
+                  isKeypadOpen && styles.amountCardActive,
+                ]}
+                onPress={openAmountKeypad}
+                activeOpacity={0.85}
+              >
+                <View style={styles.amountCardRow}>
+                  <Text style={styles.amountCardPrefix}>
+                    {newCurrency === 'USD' ? '$' : 'Rp'}
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.amountCardInput,
+                      { fontSize: newAmount.length > 20 ? 17 : newAmount.length > 14 ? 20 : 22 },
+                    ]}
+                    placeholder="0"
+                    placeholderTextColor={COLORS.textMuted}
+                    showSoftInputOnFocus={false}
+                    value={newAmount}
+                    onFocus={openAmountKeypad}
+                    onPressIn={openAmountKeypad}
+                    editable={true}
+                  />
+                  {newAmount !== '' && (
+                    <TouchableOpacity
+                      style={styles.clearInputBtn}
+                      onPress={() => {
+                        hapticLight();
+                        setNewAmount('');
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                    >
+                      <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Sub-amount / Math Calculation Line */}
+                <View style={styles.amountPreviewContainer}>
+                  {isAmountMath ? (
+                    <Text style={styles.amountPreviewText} numberOfLines={1}>
+                      = {newCurrency === 'USD' ? '$' : 'Rp'} {formattedDisplayAmount}
+                    </Text>
+                  ) : newAmount ? (
+                    <Text style={styles.amountPreviewTextMuted} numberOfLines={1}>
+                      {newCurrency === 'USD' ? '$' : 'Rp'} {formattedDisplayAmount}
+                    </Text>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
             </View>
 
             <View style={{ width: 110 }}>
@@ -235,7 +382,10 @@ const AddDebtModalContent = ({
               <View style={styles.currencyToggleRow}>
                 <TouchableOpacity
                   style={[styles.currencyBtn, newCurrency === 'IDR' && styles.currencyBtnActive]}
-                  onPress={() => setNewCurrency('IDR')}
+                  onPress={() => {
+                    setNewCurrency('IDR');
+                    if (newAmount) setNewAmount(formatExpression(newAmount, 'IDR'));
+                  }}
                 >
                   <Text style={[styles.currencyBtnText, newCurrency === 'IDR' && styles.currencyBtnTextActive]}>
                     IDR
@@ -243,7 +393,10 @@ const AddDebtModalContent = ({
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.currencyBtn, newCurrency === 'USD' && styles.currencyBtnActive]}
-                  onPress={() => setNewCurrency('USD')}
+                  onPress={() => {
+                    setNewCurrency('USD');
+                    if (newAmount) setNewAmount(formatExpression(newAmount, 'USD'));
+                  }}
                 >
                   <Text style={[styles.currencyBtnText, newCurrency === 'USD' && styles.currencyBtnTextActive]}>
                     USD
@@ -259,6 +412,7 @@ const AddDebtModalContent = ({
             style={styles.textInput}
             value={newNotes}
             onChangeText={setNewNotes}
+            onFocus={() => setIsKeypadOpen(false)}
             placeholder="Extra details or agreement notes..."
             placeholderTextColor={COLORS.textMuted}
           />
@@ -273,6 +427,24 @@ const AddDebtModalContent = ({
             <Text style={styles.btnConfirmSettleText}>Save Record</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Custom In-App Calculator Keypad (Docked at Bottom) */}
+        {isKeypadOpen && (
+          <Animated.View
+            entering={SlideInDown.duration(220)}
+            exiting={SlideOutDown.duration(180)}
+            style={styles.keypadWrapper}
+            {...keypadPanResponder.panHandlers}
+          >
+            <CalculatorKeypad
+              value={newAmount}
+              onChangeValue={setNewAmount}
+              onDone={() => setIsKeypadOpen(false)}
+              accentColor={newType === 'receivable' ? RECEIVABLE_COLOR : DEBT_COLOR}
+              currency={newCurrency}
+            />
+          </Animated.View>
+        )}
       </View>
     </View>
   );

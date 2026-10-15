@@ -21,6 +21,7 @@ import {
   getCategoryTheme,
 } from '../../types/finance';
 import { TransactionCard } from './FinanceCards';
+import { TransactionDetailModal } from './TransactionDetailModal';
 import { COLORS, RADIUS } from '../../constants/theme';
 
 interface HistoryModalProps {
@@ -73,6 +74,7 @@ export const HistoryModal = ({
 }: HistoryModalProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [selectedTxForDetail, setSelectedTxForDetail] = useState<Transaction | null>(null);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -332,8 +334,30 @@ export const HistoryModal = ({
                 onClone={onClone}
                 onDelete={onDelete}
                 onEdit={onEdit}
+                onPress={(tx) => setSelectedTxForDetail(tx)}
               />
             )}
+          />
+
+          <TransactionDetailModal
+            visible={Boolean(selectedTxForDetail)}
+            transaction={selectedTxForDetail}
+            accounts={accounts}
+            onClose={() => setSelectedTxForDetail(null)}
+            onEdit={(tx) => {
+              setSelectedTxForDetail(null);
+              onClose();
+              onEdit?.(tx);
+            }}
+            onClone={(tx) => {
+              setSelectedTxForDetail(null);
+              onClose();
+              onClone(tx);
+            }}
+            onDelete={(id) => {
+              setSelectedTxForDetail(null);
+              onDelete(id);
+            }}
           />
         </View>
       </View>

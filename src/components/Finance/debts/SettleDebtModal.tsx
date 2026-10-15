@@ -7,11 +7,25 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
+  Keyboard,
+  BackHandler,
+  PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { Account, DebtItem, formatMoney } from '../../../types/finance';
 import { COLORS } from '../../../constants/theme';
 import { useKeyboardHeight } from '../../../hooks/useKeyboardHeight';
+import { CalculatorKeypad } from '../CalculatorKeypad';
+import {
+  evaluateArithmetic,
+  evaluateArithmeticStr,
+  formatCalculatedDisplay,
+  formatExpression,
+  hasMathOperators,
+  MAX_NOMINAL_VALUE,
+} from '../../../utils/math';
+import { hapticLight } from '../../../utils/haptics';
 import {
   debtsStyles as styles,
   RECEIVABLE_COLOR,
@@ -39,12 +53,20 @@ export const SettleDebtModal = ({
   onConfirm,
   onShowAlert,
 }: SettleDebtModalProps) => {
+  const requestCloseRef = React.useRef<() => void>(() => onClose());
+
   return (
     <Modal
       visible={Boolean(debt)}
       transparent={true}
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        if (requestCloseRef.current) {
+          requestCloseRef.current();
+        } else {
+          onClose();
+        }
+      }}
       statusBarTranslucent={true}
     >
       {debt ? (
@@ -55,6 +77,9 @@ export const SettleDebtModal = ({
           onClose={onClose}
           onConfirm={onConfirm}
           onShowAlert={onShowAlert}
+          registerRequestClose={(fn) => {
+            requestCloseRef.current = fn;
+          }}
         />
       ) : null}
     </Modal>
@@ -73,6 +98,7 @@ interface SettleDebtModalContentProps {
     notes?: string;
   }) => void;
   onShowAlert: (type: 'warning' | 'danger' | 'info' | 'success', title: string, message: string) => void;
+  registerRequestClose?: (fn: () => void) => void;
 }
 
 const SettleDebtModalContent = ({
@@ -81,27 +107,99 @@ const SettleDebtModalContent = ({
   onClose,
   onConfirm,
   onShowAlert,
+  registerRequestClose,
 }: SettleDebtModalContentProps) => {
   const availableAccounts = accounts.filter((a) => a.currency === debt.currency);
   const primaryAcc = availableAccounts.length > 0 ? availableAccounts[0] : accounts[0];
 
-  const [settleAmount, setSettleAmount] = useState(debt.remainingAmount.toString());
+  const [settleAmount, setSettleAmount] = useState(() =>
+    formatExpression(debt.remainingAmount.toString(), debt.currency)
+  );
+  const [isKeypadOpen, setIsKeypadOpen] = useState(false);
   const [settleAccId, setSettleAccId] = useState(primaryAcc ? primaryAcc.id : '');
   const [settleSubAccId, setSettleSubAccId] = useState(primaryAcc?.subAccounts[0]?.id || '');
   const [settleNotes, setSettleNotes] = useState('');
 
   const keyboardHeight = useKeyboardHeight();
 
-  const livePaymentValue = parseFloat(settleAmount.replace(/[^0-9.]/g, '')) || 0;
+  const evaluatedAmountStr = React.useMemo(
+    () => evaluateArithmeticStr(settleAmount, debt.currency),
+    [settleAmount, debt.currency]
+  );
+  const isAmountMath = React.useMemo(() => hasMathOperators(settleAmount), [settleAmount]);
+  const formattedDisplayAmount = formatCalculatedDisplay(evaluatedAmountStr, debt.currency);
+
+  const livePaymentValue = evaluateArithmetic(settleAmount, debt.currency);
   const liveRemainingAfter = Math.max(0, debt.remainingAmount - livePaymentValue);
 
+  const openAmountKeypad = () => {
+    Keyboard.dismiss();
+    setIsKeypadOpen(true);
+  };
+
+  const handleDismiss = () => {
+    Keyboard.dismiss();
+    if (isKeypadOpen) {
+      setIsKeypadOpen(false);
+      return;
+    }
+    onClose();
+  };
+
+  const handleRequestClose = React.useCallback(() => {
+    Keyboard.dismiss();
+    if (isKeypadOpen) {
+      setIsKeypadOpen(false);
+      return;
+    }
+    onClose();
+  }, [isKeypadOpen, onClose]);
+
+  React.useEffect(() => {
+    registerRequestClose?.(handleRequestClose);
+  }, [handleRequestClose, registerRequestClose]);
+
+  // Intercept smartphone back button or edge back swipe gesture:
+  // Dismiss calculator keypad first before closing the modal
+  React.useEffect(() => {
+    const onBackPress = () => {
+      if (isKeypadOpen) {
+        setIsKeypadOpen(false);
+        return true; // Event consumed, prevents closing the modal
+      }
+      return false; // Allow standard modal close
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [isKeypadOpen]);
+
+  // Swipe-down gesture detector on keypad area to smoothly dismiss it
+  const keypadPanResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          return gestureState.dy > 15 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.5;
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dy > 30 || gestureState.vy > 0.4) {
+            setIsKeypadOpen(false);
+          }
+        },
+      }),
+    []
+  );
+
   const handleConfirm = () => {
+    setIsKeypadOpen(false);
     if (!settleAccId) {
       onShowAlert('warning', 'Account Required', 'Please select which account this transaction goes to.');
       return;
     }
 
-    const parsedPayAmount = parseFloat(settleAmount.replace(/[^0-9.]/g, ''));
+    const evaluated = evaluateArithmetic(settleAmount, debt.currency);
+    const parsedPayAmount = Math.min(MAX_NOMINAL_VALUE, Math.max(0, evaluated));
     if (!parsedPayAmount || parsedPayAmount <= 0) {
       onShowAlert('warning', 'Invalid Amount', 'Please enter a valid payment amount.');
       return;
@@ -127,7 +225,7 @@ const SettleDebtModalContent = ({
 
   return (
     <View style={styles.modalOverlay}>
-      <TouchableWithoutFeedback onPress={onClose}>
+      <TouchableWithoutFeedback onPress={handleDismiss}>
         <View style={styles.dismissArea} />
       </TouchableWithoutFeedback>
       <View style={styles.settleModalSheet}>
@@ -143,7 +241,7 @@ const SettleDebtModalContent = ({
             </Text>
           </View>
           <TouchableOpacity
-            onPress={onClose}
+            onPress={handleDismiss}
             style={styles.modalCloseBtn}
             activeOpacity={0.7}
           >
@@ -155,6 +253,7 @@ const SettleDebtModalContent = ({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           automaticallyAdjustKeyboardInsets={true}
+          onScrollBeginDrag={() => setIsKeypadOpen(false)}
           contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
         >
           {/* CURRENT BALANCE BANNER */}
@@ -193,6 +292,7 @@ const SettleDebtModalContent = ({
                   key={acc.id}
                   style={[styles.accPill, isSelected && styles.accPillSelected]}
                   onPress={() => {
+                    setIsKeypadOpen(false);
                     setSettleAccId(acc.id);
                     setSettleSubAccId(acc.subAccounts[0]?.id || '');
                   }}
@@ -211,13 +311,13 @@ const SettleDebtModalContent = ({
             })}
           </ScrollView>
 
-          {/* Sub-account picker if available */}
+          {/* Pocket picker if available */}
           {(() => {
             const currentAcc = accounts.find((a) => a.id === settleAccId);
             if (currentAcc && currentAcc.subAccounts.length > 1) {
               return (
                 <View style={{ marginBottom: 16 }}>
-                  <Text style={styles.inputSubLabel}>Pocket / Sub-Account</Text>
+                  <Text style={styles.inputSubLabel}>Pocket</Text>
                   <View style={styles.subAccWrap}>
                     {currentAcc.subAccounts.map((sub) => {
                       const isSubSelected = sub.id === settleSubAccId;
@@ -251,24 +351,72 @@ const SettleDebtModalContent = ({
           {/* 2. PAYMENT AMOUNT INPUT */}
           <View style={styles.amountInputHeaderRow}>
             <Text style={styles.inputLabelNoMargin}>
-              {debt.type === 'receivable' ? 'AMOUNT RECEIVED' : 'AMOUNT TO PAY'}
+              {debt.type === 'receivable' ? 'AMOUNT RECEIVED' : 'AMOUNT TO PAY'} ({debt.currency})
             </Text>
             <TouchableOpacity
-              onPress={() => setSettleAmount(debt.remainingAmount.toString())}
+              onPress={() => {
+                setSettleAmount(formatExpression(debt.remainingAmount.toString(), debt.currency));
+              }}
               style={styles.btnPayFull}
+              activeOpacity={0.7}
             >
               <Text style={styles.btnPayFullText}>Full Amount</Text>
             </TouchableOpacity>
           </View>
 
-          <TextInput
-            style={styles.textInput}
-            keyboardType="numeric"
-            value={settleAmount}
-            onChangeText={setSettleAmount}
-            placeholder="0"
-            placeholderTextColor={COLORS.textMuted}
-          />
+          <TouchableOpacity
+            style={[
+              styles.amountCard,
+              isKeypadOpen && styles.amountCardActive,
+            ]}
+            onPress={openAmountKeypad}
+            activeOpacity={0.85}
+          >
+            <View style={styles.amountCardRow}>
+              <Text style={styles.amountCardPrefix}>
+                {debt.currency === 'USD' ? '$' : 'Rp'}
+              </Text>
+              <TextInput
+                style={[
+                  styles.amountCardInput,
+                  { fontSize: settleAmount.length > 20 ? 17 : settleAmount.length > 14 ? 20 : 22 },
+                ]}
+                placeholder="0"
+                placeholderTextColor={COLORS.textMuted}
+                showSoftInputOnFocus={false}
+                value={settleAmount}
+                onFocus={openAmountKeypad}
+                onPressIn={openAmountKeypad}
+                editable={true}
+              />
+              {settleAmount !== '' && (
+                <TouchableOpacity
+                  style={styles.clearInputBtn}
+                  onPress={() => {
+                    hapticLight();
+                    setSettleAmount('');
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Sub-amount / Math Calculation Line */}
+            <View style={styles.amountPreviewContainer}>
+              {isAmountMath ? (
+                <Text style={styles.amountPreviewText} numberOfLines={1}>
+                  = {debt.currency === 'USD' ? '$' : 'Rp'} {formattedDisplayAmount}
+                </Text>
+              ) : settleAmount ? (
+                <Text style={styles.amountPreviewTextMuted} numberOfLines={1}>
+                  {debt.currency === 'USD' ? '$' : 'Rp'} {formattedDisplayAmount}
+                </Text>
+              ) : null}
+            </View>
+          </TouchableOpacity>
 
           {/* 3. REAL-TIME REMAINING CALCULATION */}
           <View style={styles.calcBox}>
@@ -302,6 +450,7 @@ const SettleDebtModalContent = ({
             style={styles.textInput}
             value={settleNotes}
             onChangeText={setSettleNotes}
+            onFocus={() => setIsKeypadOpen(false)}
             placeholder="e.g. Bank transfer, installment #1"
             placeholderTextColor={COLORS.textMuted}
           />
@@ -325,6 +474,24 @@ const SettleDebtModalContent = ({
             </Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Custom In-App Calculator Keypad (Docked at Bottom) */}
+        {isKeypadOpen && (
+          <Animated.View
+            entering={SlideInDown.duration(220)}
+            exiting={SlideOutDown.duration(180)}
+            style={styles.keypadWrapper}
+            {...keypadPanResponder.panHandlers}
+          >
+            <CalculatorKeypad
+              value={settleAmount}
+              onChangeValue={setSettleAmount}
+              onDone={() => setIsKeypadOpen(false)}
+              accentColor={debt.type === 'receivable' ? RECEIVABLE_COLOR : DEBT_COLOR}
+              currency={debt.currency}
+            />
+          </Animated.View>
+        )}
       </View>
     </View>
   );

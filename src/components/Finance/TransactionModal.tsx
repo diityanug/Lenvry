@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React from 'react';
 import {
+  BackHandler,
   Keyboard,
   Modal,
+  PanResponder,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,19 +13,27 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { COLORS, RADIUS } from '../../constants/theme';
 import {
   Account,
   CategoryCustomIcon,
   TX_TYPE_THEME,
   Transaction,
-  formatMoney,
 } from '../../types/finance';
-import { CalculatorModal } from './CalculatorModal';
+import {
+  evaluateArithmetic,
+  evaluateArithmeticStr,
+  formatCalculatedDisplay,
+  formatExpression,
+  hasMathOperators,
+} from '../../utils/math';
+import { hapticLight } from '../../utils/haptics';
 import { getCategoryTheme as getCategoryVisualTheme } from './CategoryBreakdownCard';
 import { FormAccountSelector } from './form/FormAccountSelector';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { FormCategorySelector } from './form/FormCategorySelector';
+import { CalculatorKeypad } from './CalculatorKeypad';
 
 interface TransactionModalProps {
   visible: boolean;
@@ -94,14 +104,67 @@ export const TransactionModal = ({
   toAmount = '',
   setToAmount,
 }: TransactionModalProps) => {
-  const [calcVisible, setCalcVisible] = useState(false);
-  const [toCalcVisible, setToCalcVisible] = useState(false);
+  const [activeKeypad, setActiveKeypad] = React.useState<'amount' | 'toAmount' | null>(null);
+  const [prevVisible, setPrevVisible] = React.useState(visible);
+  const scrollViewRef = React.useRef<ScrollView>(null);
   const keyboardHeight = useKeyboardHeight();
+
+  if (prevVisible !== visible) {
+    setPrevVisible(visible);
+    setActiveKeypad(null);
+  }
 
   const handleDismiss = () => {
     Keyboard.dismiss();
+    if (activeKeypad !== null) {
+      setActiveKeypad(null);
+      return;
+    }
     onClose();
   };
+
+  const handleRequestClose = () => {
+    Keyboard.dismiss();
+    if (activeKeypad !== null) {
+      setActiveKeypad(null);
+      return;
+    }
+    onClose();
+  };
+
+  // Intercept smartphone back button or edge back swipe gesture:
+  // Dismiss calculator keypad first before closing the modal
+  React.useEffect(() => {
+    if (!visible) return;
+
+    const onBackPress = () => {
+      if (activeKeypad !== null) {
+        setActiveKeypad(null);
+        return true; // Event consumed, prevents closing the modal
+      }
+      return false; // Allow standard modal close
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [visible, activeKeypad]);
+
+  // Swipe-down gesture detector on keypad area to smoothly dismiss it
+  const keypadPanResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          return gestureState.dy > 15 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.5;
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dy > 30 || gestureState.vy > 0.4) {
+            setActiveKeypad(null);
+          }
+        },
+      }),
+    []
+  );
 
   const selectedAccount = accounts.find((a) => a.id === selectedAccId);
   const selectedToAccount = type === 'transfer' ? accounts.find((a) => a.id === selectedToAccId) : undefined;
@@ -120,8 +183,8 @@ export const TransactionModal = ({
 
   const effectiveExchangeRate = React.useMemo(() => {
     if (!isCrossCurrency) return 0;
-    const sendVal = parseFloat(amount.replace(/[^0-9.]/g, '')) || 0;
-    const recvVal = parseFloat(toAmount.replace(/[^0-9.]/g, '')) || 0;
+    const sendVal = evaluateArithmetic(amount);
+    const recvVal = evaluateArithmetic(toAmount);
     if (sendVal <= 0 || recvVal <= 0) return 0;
     if (currency === 'IDR' && toCurrency === 'USD') {
       return sendVal / recvVal;
@@ -193,16 +256,60 @@ export const TransactionModal = ({
     }
   };
 
-  const formattedDisplayAmount = amount
-    ? formatMoney(parseFloat(amount) || 0, currency).replace(/[^0-9.,]/g, '').trim()
-    : '0';
+  React.useEffect(() => {
+    if (visible) {
+      if (amount && !hasMathOperators(amount)) {
+        const formatted = formatExpression(amount, currency);
+        if (formatted !== amount) setAmount(formatted);
+      }
+      if (toAmount && !hasMathOperators(toAmount) && setToAmount) {
+        const formattedTo = formatExpression(toAmount, toCurrency);
+        if (formattedTo !== toAmount) setToAmount(formattedTo);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, currency, toCurrency]);
 
-  const formattedDisplayToAmount = toAmount
-    ? formatMoney(parseFloat(toAmount) || 0, toCurrency).replace(/[^0-9.,]/g, '').trim()
-    : '0';
+  const evaluatedAmountStr = React.useMemo(() => evaluateArithmeticStr(amount, currency), [amount, currency]);
+  const isAmountMath = React.useMemo(() => hasMathOperators(amount), [amount]);
+  const formattedDisplayAmount = formatCalculatedDisplay(evaluatedAmountStr, currency);
+
+  const evaluatedToAmountStr = React.useMemo(() => evaluateArithmeticStr(toAmount, toCurrency), [toAmount, toCurrency]);
+  const isToAmountMath = React.useMemo(() => hasMathOperators(toAmount), [toAmount]);
+  const formattedDisplayToAmount = formatCalculatedDisplay(evaluatedToAmountStr, toCurrency);
+
+  const amountFontSize = amount.length > 24 ? 16 : amount.length > 16 ? 20 : 26;
+  const toAmountFontSize = toAmount.length > 24 ? 16 : toAmount.length > 16 ? 20 : 26;
+  const previewFontSize = formattedDisplayAmount.length > 30 ? 10 : 12;
+  const toPreviewFontSize = formattedDisplayToAmount.length > 30 ? 10 : 12;
+
+  const openAmountKeypad = () => {
+    Keyboard.dismiss();
+    setActiveKeypad('amount');
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
+  const openToAmountKeypad = () => {
+    Keyboard.dismiss();
+    setActiveKeypad('toAmount');
+    scrollViewRef.current?.scrollTo({ y: 70, animated: true });
+  };
+
+  const handleSave = () => {
+    setActiveKeypad(null);
+    if (isAmountMath) {
+      const res = evaluateArithmeticStr(amount, currency);
+      if (res && res !== '0') setAmount(formatCalculatedDisplay(res, currency));
+    }
+    if (isCrossCurrency && isToAmountMath && setToAmount) {
+      const resTo = evaluateArithmeticStr(toAmount, toCurrency);
+      if (resTo && resTo !== '0') setToAmount(formatCalculatedDisplay(resTo, toCurrency));
+    }
+    onSave();
+  };
 
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
+    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={handleRequestClose}>
       <View style={txStyles.overlay}>
         <TouchableWithoutFeedback onPress={handleDismiss}>
           <View style={txStyles.dismissArea} />
@@ -222,7 +329,7 @@ export const TransactionModal = ({
               </Text>
             </View>
             <TouchableOpacity
-              onPress={onClose}
+              onPress={handleDismiss}
               activeOpacity={0.7}
               style={txStyles.closeBtn}
               accessibilityRole="button"
@@ -232,10 +339,15 @@ export const TransactionModal = ({
           </View>
 
           <ScrollView
+            ref={scrollViewRef}
             keyboardShouldPersistTaps="handled"
             automaticallyAdjustKeyboardInsets={true}
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled={true}
+            onScrollBeginDrag={() => {
+              Keyboard.dismiss();
+              setActiveKeypad(null);
+            }}
             contentContainerStyle={[
               txStyles.scrollContent,
               { paddingBottom: Math.max(28, keyboardHeight + 28) },
@@ -315,93 +427,148 @@ export const TransactionModal = ({
               </View>
             )}
 
-            {/* Amount Input & Calculator */}
-            <View style={txStyles.amountCard}>
+            {/* Amount Input Area */}
+            <TouchableOpacity
+              style={[
+                txStyles.amountCard,
+                activeKeypad === 'amount' && {
+                  borderColor: typeTheme.color,
+                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                },
+              ]}
+              onPress={openAmountKeypad}
+              activeOpacity={0.9}
+            >
               <Text style={txStyles.amountLabel}>
-                {isCrossCurrency ? `NOMINAL DIKIRIM (${currency})` : 'AMOUNT'}
+                {isCrossCurrency ? `SENT AMOUNT (${currency})` : 'AMOUNT'}
               </Text>
+
               <View style={txStyles.amountInputRow}>
                 <Text style={[txStyles.currencyPrefix, { color: typeTheme.color }]}>
                   {currencySymbol}
                 </Text>
                 <TextInput
-                  style={[txStyles.amountInput, { color: typeTheme.color }]}
+                  style={[txStyles.amountInput, { color: typeTheme.color, fontSize: amountFontSize }]}
                   placeholder="0"
                   placeholderTextColor={COLORS.textMuted}
-                  keyboardType={currency === 'USD' ? 'decimal-pad' : 'numeric'}
+                  showSoftInputOnFocus={false}
                   value={amount}
-                  onChangeText={(val) => {
-                    const clean = currency === 'USD' ? val.replace(/[^0-9.]/g, '') : val.replace(/[^0-9]/g, '');
-                    setAmount(clean);
-                    if (isCrossCurrency && setToAmount && (!toAmount || toAmount === '0')) {
-                      const num = parseFloat(clean) || 0;
-                      if (currency === 'IDR' && toCurrency === 'USD' && num > 0) {
-                        setToAmount((num / 16000).toFixed(2));
-                      } else if (currency === 'USD' && toCurrency === 'IDR' && num > 0) {
-                        setToAmount(Math.round(num * 16000).toString());
-                      }
-                    }
-                  }}
-                  maxLength={15}
+                  onFocus={openAmountKeypad}
+                  onPressIn={openAmountKeypad}
+                  editable={true}
                 />
-                <TouchableOpacity
-                  style={txStyles.calcBtn}
-                  onPress={() => setCalcVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="calculator-outline" size={20} color={COLORS.textSecondary} />
-                </TouchableOpacity>
+                <View style={txStyles.clearInputPlaceholder}>
+                  {amount !== '' && (
+                    <TouchableOpacity
+                      style={txStyles.clearInputBtn}
+                      onPress={() => {
+                        hapticLight();
+                        setAmount('');
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Clear amount"
+                    >
+                      <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
-              {amount !== '' && (
-                <Text style={txStyles.formattedSubAmount}>
-                  {currencySymbol} {formattedDisplayAmount}
-                </Text>
-              )}
-            </View>
+
+              {/* Fixed-Height Calculation & Sub-Amount Line */}
+              <View style={txStyles.amountPreviewContainer}>
+                {isAmountMath ? (
+                  <Text
+                    style={[
+                      txStyles.formattedSubAmount,
+                      { color: typeTheme.color, fontWeight: '700', fontSize: previewFontSize },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    = {currencySymbol} {formattedDisplayAmount}
+                  </Text>
+                ) : (
+                  <Text style={[txStyles.formattedSubAmount, { fontSize: previewFontSize }]} numberOfLines={1}>
+                    {currencySymbol} {formattedDisplayAmount}
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
 
             {/* Received Amount Input for Cross-Currency Transfer */}
             {isCrossCurrency && (
-              <View style={[txStyles.amountCard, txStyles.receivedCard]}>
+              <TouchableOpacity
+                style={[
+                  txStyles.amountCard,
+                  txStyles.receivedCard,
+                  activeKeypad === 'toAmount' && {
+                    borderColor: COLORS.finance,
+                    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                  },
+                ]}
+                onPress={openToAmountKeypad}
+                activeOpacity={0.9}
+              >
                 <View style={txStyles.receivedLabelRow}>
                   <Text style={[txStyles.amountLabel, { color: COLORS.finance, marginBottom: 0 }]}>
-                    NOMINAL DITERIMA ({toCurrency})
+                    RECEIVED AMOUNT ({toCurrency})
                   </Text>
                   <View style={txStyles.receivedPill}>
                     <Text style={txStyles.receivedPillText}>{toCurrency}</Text>
                   </View>
                 </View>
+
                 <View style={txStyles.amountInputRow}>
                   <Text style={[txStyles.currencyPrefix, { color: COLORS.finance }]}>
                     {toCurrencySymbol}
                   </Text>
                   <TextInput
-                    style={[txStyles.amountInput, { color: COLORS.finance }]}
+                    style={[txStyles.amountInput, { color: COLORS.finance, fontSize: toAmountFontSize }]}
                     placeholder="0"
                     placeholderTextColor={COLORS.textMuted}
-                    keyboardType={toCurrency === 'USD' ? 'decimal-pad' : 'numeric'}
+                    showSoftInputOnFocus={false}
                     value={toAmount}
-                    onChangeText={(val) => {
-                      if (setToAmount) {
-                        const clean = toCurrency === 'USD' ? val.replace(/[^0-9.]/g, '') : val.replace(/[^0-9]/g, '');
-                        setToAmount(clean);
-                      }
-                    }}
-                    maxLength={15}
+                    onFocus={openToAmountKeypad}
+                    onPressIn={openToAmountKeypad}
+                    editable={true}
                   />
-                  <TouchableOpacity
-                    style={txStyles.calcBtn}
-                    onPress={() => setToCalcVisible(true)}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="calculator-outline" size={20} color={COLORS.textSecondary} />
-                  </TouchableOpacity>
+                  <View style={txStyles.clearInputPlaceholder}>
+                    {toAmount !== '' && (
+                      <TouchableOpacity
+                        style={txStyles.clearInputBtn}
+                        onPress={() => {
+                          hapticLight();
+                          if (setToAmount) setToAmount('');
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Clear received amount"
+                      >
+                        <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
-                {toAmount !== '' && (
-                  <Text style={txStyles.formattedSubAmount}>
-                    {toCurrencySymbol} {formattedDisplayToAmount}
-                  </Text>
-                )}
-              </View>
+
+                {/* Fixed-Height Calculation & Sub-Amount Line */}
+                <View style={txStyles.amountPreviewContainer}>
+                  {isToAmountMath ? (
+                    <Text
+                      style={[
+                        txStyles.formattedSubAmount,
+                        { color: COLORS.finance, fontWeight: '700', fontSize: toPreviewFontSize },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      = {toCurrencySymbol} {formattedDisplayToAmount}
+                    </Text>
+                  ) : (
+                    <Text style={[txStyles.formattedSubAmount, { fontSize: toPreviewFontSize }]} numberOfLines={1}>
+                      {toCurrencySymbol} {formattedDisplayToAmount}
+                    </Text>
+                  )}
+                </View>
+              </TouchableOpacity>
             )}
 
             {/* Live Exchange Rate Badge */}
@@ -411,14 +578,14 @@ export const TransactionModal = ({
                   <Ionicons name="swap-horizontal" size={14} color={COLORS.finance} />
                   <Text style={txStyles.rateBadgeTitle}>
                     {effectiveExchangeRate > 0
-                      ? `Kurs: 1 USD = Rp ${Math.round(effectiveExchangeRate).toLocaleString('id-ID')}`
-                      : 'Ketik nominal terima untuk hitung kurs'}
+                      ? `Rate: 1 USD ≈ Rp ${Math.round(effectiveExchangeRate).toLocaleString('id-ID')}`
+                      : 'Enter received amount to calculate rate'}
                   </Text>
                 </View>
                 <Text style={txStyles.rateBadgeSub}>
                   {effectiveExchangeRate > 0
-                    ? `Kirim ${currencySymbol} ${formattedDisplayAmount} ➔ Terima ${toCurrencySymbol} ${formattedDisplayToAmount}`
-                    : 'Nilai tukar akan dihitung otomatis secara realtime'}
+                    ? `Send ${currencySymbol} ${formattedDisplayAmount} ➔ Receive ${toCurrencySymbol} ${formattedDisplayToAmount}`
+                    : 'Exchange rate calculated automatically in real time'}
                 </Text>
               </View>
             )}
@@ -466,6 +633,7 @@ export const TransactionModal = ({
                 placeholderTextColor={COLORS.textMuted}
                 value={description}
                 onChangeText={setDescription}
+                onFocus={() => setActiveKeypad(null)}
                 maxLength={100}
               />
               {descriptionSuggestions.length > 0 && (
@@ -489,7 +657,10 @@ export const TransactionModal = ({
               <Text style={txStyles.sectionTitle}>DATE</Text>
               <TouchableOpacity
                 style={txStyles.datePickerTrigger}
-                onPress={onOpenDatePicker}
+                onPress={() => {
+                  setActiveKeypad(null);
+                  onOpenDatePicker();
+                }}
                 activeOpacity={0.7}
               >
                 <View style={txStyles.datePickerLeft}>
@@ -510,7 +681,7 @@ export const TransactionModal = ({
             {/* Save Button */}
             <TouchableOpacity
               style={[txStyles.saveBtn, { backgroundColor: typeTheme.color }]}
-              onPress={onSave}
+              onPress={handleSave}
               activeOpacity={0.85}
             >
               <Ionicons name={typeIcon as any} size={16} color="#08090C" />
@@ -519,42 +690,40 @@ export const TransactionModal = ({
               </Text>
             </TouchableOpacity>
           </ScrollView>
+
+          {/* Custom In-App Calculator Keypad (Docked at Bottom) */}
+          {activeKeypad && (
+            <Animated.View
+              entering={SlideInDown.duration(220)}
+              exiting={SlideOutDown.duration(180)}
+              style={txStyles.keypadWrapper}
+              {...keypadPanResponder.panHandlers}
+            >
+              <CalculatorKeypad
+                value={activeKeypad === 'amount' ? amount : toAmount}
+                onChangeValue={(val) => {
+                  if (activeKeypad === 'amount') {
+                    setAmount(val);
+                    if (isCrossCurrency && setToAmount && (!toAmount || toAmount === '0')) {
+                      const num = evaluateArithmetic(val);
+                      if (currency === 'IDR' && toCurrency === 'USD' && num > 0) {
+                        setToAmount((num / 16000).toFixed(2));
+                      } else if (currency === 'USD' && toCurrency === 'IDR' && num > 0) {
+                        setToAmount(Math.round(num * 16000).toString());
+                      }
+                    }
+                  } else if (setToAmount) {
+                    setToAmount(val);
+                  }
+                }}
+                onDone={() => setActiveKeypad(null)}
+                accentColor={activeKeypad === 'amount' ? typeTheme.color : COLORS.finance}
+                currency={activeKeypad === 'amount' ? currency : toCurrency}
+              />
+            </Animated.View>
+          )}
         </View>
       </View>
-
-      <CalculatorModal
-        visible={calcVisible}
-        initialValue={amount}
-        currency={currency}
-        title={isCrossCurrency ? `Nominal Kirim (${currency})` : 'Enter Amount'}
-        onClose={() => setCalcVisible(false)}
-        onConfirm={(val) => {
-          setAmount(val);
-          setCalcVisible(false);
-          if (isCrossCurrency && setToAmount && (!toAmount || toAmount === '0')) {
-            const num = parseFloat(val) || 0;
-            if (currency === 'IDR' && toCurrency === 'USD' && num > 0) {
-              setToAmount((num / 16000).toFixed(2));
-            } else if (currency === 'USD' && toCurrency === 'IDR' && num > 0) {
-              setToAmount(Math.round(num * 16000).toString());
-            }
-          }
-        }}
-      />
-
-      {isCrossCurrency && (
-        <CalculatorModal
-          visible={toCalcVisible}
-          initialValue={toAmount}
-          currency={toCurrency}
-          title={`Nominal Terima (${toCurrency})`}
-          onClose={() => setToCalcVisible(false)}
-          onConfirm={(val) => {
-            if (setToAmount) setToAmount(val);
-            setToCalcVisible(false);
-          }}
-        />
-      )}
     </Modal>
   );
 };
@@ -575,6 +744,7 @@ const txStyles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: COLORS.border,
     maxHeight: '90%',
+    overflow: 'hidden',
   },
   handle: {
     width: 36,
@@ -647,19 +817,22 @@ const txStyles = StyleSheet.create({
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
     padding: 14,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: COLORS.borderSubtle,
+    minHeight: 112,
+    justifyContent: 'space-between',
   },
   amountLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: COLORS.textMuted,
     letterSpacing: 0.8,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   amountInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: 38,
   },
   currencyPrefix: {
     fontSize: 24,
@@ -671,25 +844,37 @@ const txStyles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '800',
     padding: 0,
+    height: 38,
   },
-  calcBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.bgCardHover,
+  clearInputPlaceholder: {
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  clearInputBtn: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  amountPreviewContainer: {
+    height: 20,
+    justifyContent: 'center',
+    marginTop: 4,
   },
   formattedSubAmount: {
     fontSize: 12,
     color: COLORS.textMuted,
-    marginTop: 4,
+    fontWeight: '500',
   },
   receivedCard: {
     marginTop: 12,
     borderWidth: 1.5,
     borderColor: 'rgba(56, 189, 248, 0.4)',
     backgroundColor: 'rgba(56, 189, 248, 0.05)',
+    minHeight: 112,
+    justifyContent: 'space-between',
   },
   receivedLabelRow: {
     flexDirection: 'row',
@@ -806,5 +991,15 @@ const txStyles = StyleSheet.create({
     fontWeight: '800',
     color: '#08090C',
     letterSpacing: 0.5,
+  },
+  keypadWrapper: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderSubtle,
+    backgroundColor: COLORS.bgCardSub,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });

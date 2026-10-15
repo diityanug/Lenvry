@@ -10,8 +10,11 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
   StyleSheet,
+  BackHandler,
+  PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import {
   CategoryBudget,
   CategoryCustomIcon,
@@ -22,6 +25,16 @@ import {
 import { COLORS, RADIUS } from '../../constants/theme';
 import { getCategoryIcon } from './CategoryBreakdownCard';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { CalculatorKeypad } from './CalculatorKeypad';
+import {
+  evaluateArithmetic,
+  evaluateArithmeticStr,
+  formatCalculatedDisplay,
+  formatExpression,
+  hasMathOperators,
+  MAX_NOMINAL_VALUE,
+} from '../../utils/math';
+import { hapticLight } from '../../utils/haptics';
 
 interface CategoryBudgetModalProps {
   visible: boolean;
@@ -48,10 +61,11 @@ export const CategoryBudgetModal = ({
 }: CategoryBudgetModalProps) => {
   const keyboardHeight = useKeyboardHeight();
   const [selectedCat, setSelectedCat] = useState(categories[0] || 'Food & Beverages');
+  const [isKeypadOpen, setIsKeypadOpen] = useState(false);
   const currentCurrencyBudgets = budgets.filter((b) => (b.currency || 'IDR') === currency);
   const [limitText, setLimitText] = useState(() => {
     const existing = currentCurrencyBudgets.find((b) => b.category === (categories[0] || 'Food & Beverages'));
-    return existing && existing.limit > 0 ? existing.limit.toString() : '';
+    return existing && existing.limit > 0 ? formatExpression(existing.limit.toString(), currency) : '';
   });
 
   const [prevVisible, setPrevVisible] = useState(visible);
@@ -64,23 +78,33 @@ export const CategoryBudgetModal = ({
     setPrevCurrency(currency);
     if (visible) {
       const existing = currentCurrencyBudgets.find((b) => b.category === selectedCat);
-      setLimitText(existing && existing.limit > 0 ? existing.limit.toString() : '');
+      setLimitText(existing && existing.limit > 0 ? formatExpression(existing.limit.toString(), currency) : '');
+      setIsKeypadOpen(false);
     }
   }
-
 
   const currentBudget = currentCurrencyBudgets.find((b) => b.category === selectedCat);
   const theme = getCategoryTheme(selectedCat, customCategoryIcons);
   const selectedIcon = getCategoryIcon(selectedCat, 'expense', customCategoryIcons);
 
+  const evaluatedValStr = React.useMemo(() => evaluateArithmeticStr(limitText, currency), [limitText, currency]);
+  const isMath = React.useMemo(() => hasMathOperators(limitText), [limitText]);
+  const formattedVal = formatCalculatedDisplay(evaluatedValStr, currency);
+  const currencySymbol = currency === 'USD' ? '$' : 'Rp';
+
+  const openKeypad = () => {
+    Keyboard.dismiss();
+    setIsKeypadOpen(true);
+  };
+
   const handleSelectCategory = (cat: string) => {
     setSelectedCat(cat);
     const existing = currentCurrencyBudgets.find((b) => b.category === cat);
-    setLimitText(existing && existing.limit > 0 ? existing.limit.toString() : '');
+    setLimitText(existing && existing.limit > 0 ? formatExpression(existing.limit.toString(), currency) : '');
   };
 
   const handleQuickPreset = (amount: number) => {
-    setLimitText(amount.toString());
+    setLimitText(formatExpression(amount.toString(), currency));
   };
 
   const handleClearBudget = () => {
@@ -89,21 +113,70 @@ export const CategoryBudgetModal = ({
   };
 
   const handleSave = () => {
-    const val = parseFloat(limitText.replace(/[^0-9.]/g, '')) || 0;
-    onSaveBudget(selectedCat, val);
+    setIsKeypadOpen(false);
+    const evaluated = evaluateArithmetic(limitText, currency);
+    const clamped = Math.min(MAX_NOMINAL_VALUE, Math.max(0, evaluated));
+    onSaveBudget(selectedCat, clamped);
     Keyboard.dismiss();
     onClose();
   };
 
   const handleDismiss = () => {
     Keyboard.dismiss();
+    if (isKeypadOpen) {
+      setIsKeypadOpen(false);
+      return;
+    }
     onClose();
   };
+
+  const handleRequestClose = () => {
+    Keyboard.dismiss();
+    if (isKeypadOpen) {
+      setIsKeypadOpen(false);
+      return;
+    }
+    onClose();
+  };
+
+  // Intercept smartphone back button or edge back swipe gesture:
+  // Dismiss calculator keypad first before closing the modal
+  React.useEffect(() => {
+    if (!visible) return;
+
+    const onBackPress = () => {
+      if (isKeypadOpen) {
+        setIsKeypadOpen(false);
+        return true; // Event consumed, prevents closing the modal
+      }
+      return false; // Allow standard modal close
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [visible, isKeypadOpen]);
+
+  // Swipe-down gesture detector on keypad area to smoothly dismiss it
+  const keypadPanResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          return gestureState.dy > 15 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.5;
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dy > 30 || gestureState.vy > 0.4) {
+            setIsKeypadOpen(false);
+          }
+        },
+      }),
+    []
+  );
 
   const presets = currency === 'USD' ? [100, 250, 500, 1000] : [500000, 1000000, 2000000, 5000000];
 
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
+    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={handleRequestClose}>
       <View style={styles.overlay}>
         <TouchableWithoutFeedback onPress={handleDismiss}>
           <View style={styles.dismissArea} />
@@ -130,7 +203,7 @@ export const CategoryBudgetModal = ({
 
             <TouchableOpacity
               style={styles.closeBtn}
-              onPress={onClose}
+              onPress={handleDismiss}
               activeOpacity={0.7}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
@@ -225,19 +298,60 @@ export const CategoryBudgetModal = ({
                 )}
               </View>
 
-              <View style={[styles.inputContainer, { borderColor: hexToRgba(theme.color, 0.35) }]}>
-                <Text style={[styles.currencyPrefix, { color: theme.color }]}>
-                  {currency === 'USD' ? '$' : 'Rp'}
-                </Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="0"
-                  placeholderTextColor={COLORS.textMuted}
-                  keyboardType="numeric"
-                  value={limitText}
-                  onChangeText={setLimitText}
-                />
-              </View>
+              <TouchableOpacity
+                style={[
+                  styles.inputContainer,
+                  { borderColor: hexToRgba(theme.color, 0.35) },
+                  isKeypadOpen && { borderColor: theme.color, backgroundColor: hexToRgba(theme.color, 0.08) },
+                ]}
+                onPress={openKeypad}
+                activeOpacity={0.85}
+              >
+                <View style={styles.inputInnerRow}>
+                  <Text style={[styles.currencyPrefix, { color: theme.color }]}>
+                    {currencySymbol}
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      { fontSize: limitText.length > 20 ? 17 : limitText.length > 14 ? 20 : 24 },
+                    ]}
+                    placeholder="0"
+                    placeholderTextColor={COLORS.textMuted}
+                    showSoftInputOnFocus={false}
+                    value={limitText}
+                    onFocus={openKeypad}
+                    onPressIn={openKeypad}
+                    editable={true}
+                  />
+                  {limitText !== '' && (
+                    <TouchableOpacity
+                      style={styles.clearInputBtn}
+                      onPress={() => {
+                        hapticLight();
+                        setLimitText('');
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                    >
+                      <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Sub-amount / Math Calculation Line */}
+                <View style={styles.amountPreviewContainer}>
+                  {isMath ? (
+                    <Text style={[styles.amountPreviewText, { color: theme.color }]} numberOfLines={1}>
+                      = {currencySymbol} {formattedVal}
+                    </Text>
+                  ) : limitText ? (
+                    <Text style={styles.amountPreviewTextMuted} numberOfLines={1}>
+                      {currencySymbol} {formattedVal}
+                    </Text>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
 
               {/* Quick Presets */}
               <View style={styles.presetsRow}>
@@ -291,6 +405,24 @@ export const CategoryBudgetModal = ({
               </Text>
             </TouchableOpacity>
           </ScrollView>
+
+          {/* Custom In-App Calculator Keypad (Docked at Bottom) */}
+          {isKeypadOpen && (
+            <Animated.View
+              entering={SlideInDown.duration(220)}
+              exiting={SlideOutDown.duration(180)}
+              style={styles.keypadWrapper}
+              {...keypadPanResponder.panHandlers}
+            >
+              <CalculatorKeypad
+                value={limitText}
+                onChangeValue={setLimitText}
+                onDone={() => setIsKeypadOpen(false)}
+                accentColor={theme.color}
+                currency={currency}
+              />
+            </Animated.View>
+          )}
         </View>
       </View>
     </Modal>
@@ -450,18 +582,22 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
     paddingHorizontal: 16,
+    paddingVertical: 12,
     marginBottom: 16,
-    minHeight: 60,
+    minHeight: 74,
+    justifyContent: 'center',
+  },
+  inputInnerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   currencyPrefix: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
     marginRight: 10,
     flexShrink: 0,
@@ -470,10 +606,32 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     color: COLORS.textPrimary,
-    fontSize: 20,
-    fontWeight: '800',
-    paddingVertical: 12,
+    fontSize: 22,
+    fontWeight: '900',
+    paddingVertical: 4,
     fontVariant: ['tabular-nums'],
+    letterSpacing: -0.3,
+  },
+  clearInputBtn: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 6,
+  },
+  amountPreviewContainer: {
+    minHeight: 18,
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  amountPreviewText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  amountPreviewTextMuted: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    fontWeight: '500',
   },
   presetsRow: {
     flexDirection: 'row',
@@ -525,5 +683,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 0.4,
+  },
+  keypadWrapper: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderSubtle,
+    backgroundColor: COLORS.bgCardSub,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   RecurringBill,
@@ -8,6 +8,7 @@ import {
   getCategoryTheme,
   hexToRgba,
 } from '../../types/finance';
+import { SHORT_MONTHS } from '../../constants/date';
 import { COLORS } from '../../constants/theme';
 import AppAlertModal, { AppAlertConfig } from '../Common/AppAlertModal';
 import { AddRecurringBillModal } from './recurring/AddRecurringBillModal';
@@ -21,6 +22,32 @@ import {
   STATUS_THEME,
 } from '../../styles/recurringBillsStyles';
 
+export const isBillActiveInMonth = (
+  bill: RecurringBill,
+  targetYear: number,
+  targetMonth: number
+): boolean => {
+  // If startYear or startMonth not defined, treat as active across all months
+  if (bill.startYear === undefined || bill.startMonth === undefined) {
+    return true;
+  }
+  const startIdx = bill.startYear * 12 + bill.startMonth;
+  const targetIdx = targetYear * 12 + targetMonth;
+
+  if (targetIdx < startIdx) {
+    return false;
+  }
+
+  if (bill.durationMonths && bill.durationMonths > 0) {
+    const endIdx = startIdx + bill.durationMonths - 1;
+    if (targetIdx > endIdx) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 interface RecurringBillsCardProps {
   bills: RecurringBill[];
   monthlyTransactions?: Transaction[];
@@ -29,6 +56,7 @@ interface RecurringBillsCardProps {
   selectedMonth?: Date;
   onAddBill: (bill: Omit<RecurringBill, 'id'>) => void;
   onDeleteBill: (id: string) => void;
+  onUpdateBill?: (bill: RecurringBill) => void;
   onQuickLogBill: (bill: RecurringBill, targetMonth?: Date) => void;
   onUndoBillPayment?: (txId: string) => void;
 }
@@ -40,20 +68,27 @@ export const RecurringBillsCard = ({
   selectedMonth,
   onAddBill,
   onDeleteBill,
+  onUpdateBill,
   onQuickLogBill,
   onUndoBillPayment,
 }: RecurringBillsCardProps) => {
   const [filterTab, setFilterTab] = useState<'all' | 'unpaid' | 'paid'>('all');
   const [modalVisible, setModalVisible] = useState(false);
-
-  const filteredBills = bills.filter((b) => b.currency === currency);
-  const totalBillsAmount = filteredBills.reduce((sum, b) => sum + b.amount, 0);
+  const [deleteChoiceModal, setDeleteChoiceModal] = useState<{
+    visible: boolean;
+    bill: RecurringBill | null;
+  }>({ visible: false, bill: null });
 
   const viewingDate = selectedMonth || new Date();
   const viewingYear = viewingDate.getFullYear();
   const viewingMonth = viewingDate.getMonth();
   const monthName = viewingDate.toLocaleDateString('en-US', { month: 'short' });
   const fullMonthYear = viewingDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+  const filteredBills = bills.filter(
+    (b) => b.currency === currency && isBillActiveInMonth(b, viewingYear, viewingMonth)
+  );
+  const totalBillsAmount = filteredBills.reduce((sum, b) => sum + b.amount, 0);
 
   const today = new Date();
   const isCurrentMonth =
@@ -121,6 +156,10 @@ export const RecurringBillsCard = ({
       daysUntil = bill.dueDateDay;
     }
 
+    const startIdx = (bill.startYear ?? viewingYear) * 12 + (bill.startMonth ?? viewingMonth);
+    const viewingIdx = viewingYear * 12 + viewingMonth;
+    const currentMonthNumber = Math.max(1, viewingIdx - startIdx + 1);
+
     return {
       ...bill,
       isPaid,
@@ -130,6 +169,7 @@ export const RecurringBillsCard = ({
       statusType,
       paidDateStr,
       dueOrdinal: getOrdinal(bill.dueDateDay),
+      currentMonthNumber,
     };
   });
 
@@ -161,15 +201,26 @@ export const RecurringBillsCard = ({
   });
 
   const confirmDeleteBill = (bill: RecurringBill) => {
-    setAlertConfig({
-      visible: true,
-      type: 'danger',
-      title: 'Delete Recurring Bill?',
-      message: `Are you sure you want to remove "${bill.name}" from your recurring bills list?`,
-      confirmText: 'DELETE',
-      cancelText: 'CANCEL',
-      onConfirm: () => onDeleteBill(bill.id),
-    });
+    const startIdx = (bill.startYear ?? viewingYear) * 12 + (bill.startMonth ?? viewingMonth);
+    const viewingIdx = viewingYear * 12 + viewingMonth;
+
+    if (viewingIdx > startIdx && onUpdateBill) {
+      // Subscription was active in previous months - allow safe ending without wiping past history
+      setDeleteChoiceModal({
+        visible: true,
+        bill,
+      });
+    } else {
+      setAlertConfig({
+        visible: true,
+        type: 'danger',
+        title: 'Delete Recurring Bill?',
+        message: `Are you sure you want to remove "${bill.name}" from your recurring bills list?`,
+        confirmText: 'DELETE',
+        cancelText: 'CANCEL',
+        onConfirm: () => onDeleteBill(bill.id),
+      });
+    }
   };
 
   const confirmUndoPayment = (bill: RecurringBill, txId: string) => {
@@ -261,13 +312,13 @@ export const RecurringBillsCard = ({
           <View style={cardStyles.summaryLegendRow}>
             <View style={cardStyles.summaryLegendItem}>
               <View style={[cardStyles.summaryDot, { backgroundColor: INCOME }]} />
-              <Text style={cardStyles.summaryLegendText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+              <Text style={cardStyles.summaryLegendText}>
                 Paid {formatMoney(totalPaidAmount, currency)}
               </Text>
             </View>
             <View style={cardStyles.summaryLegendItem}>
               <View style={[cardStyles.summaryDot, { backgroundColor: '#F59E0B' }]} />
-              <Text style={cardStyles.summaryLegendText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+              <Text style={cardStyles.summaryLegendText}>
                 Unpaid {formatMoney(totalUnpaidAmount, currency)}
               </Text>
             </View>
@@ -378,120 +429,25 @@ export const RecurringBillsCard = ({
                 {/* Category accent rail */}
                 <View style={[cardStyles.billAccentRail, { backgroundColor: theme.color }]} />
 
-                {/* Brand Icon + Title & Category + Trash Button */}
+                {/* Layer 1: Brand Icon + Title & Schedule */}
                 <View style={cardStyles.billTopRow}>
-                  {/* Visual Brand Icon */}
                   <View style={[cardStyles.brandIconBox, { backgroundColor: theme.bg, borderColor: hexToRgba(theme.color, 0.34) }]}>
-                    <Ionicons name={theme.icon} size={20} color={theme.color} />
+                    <Ionicons name={theme.icon} size={22} color={theme.color} />
                   </View>
 
-                  {/* Title & Metadata */}
                   <View style={cardStyles.billInfoCol}>
-                    <Text style={cardStyles.billName} numberOfLines={1}>
+                    <Text style={cardStyles.billName}>
                       {bill.name}
                     </Text>
-                    <Text style={cardStyles.billScheduleText} numberOfLines={1}>
-                      Due every {bill.dueOrdinal} • {bill.category}
-                    </Text>
-                  </View>
-
-                  {/* Delete Button */}
-                  <TouchableOpacity
-                    style={cardStyles.trashBtn}
-                    onPress={() => confirmDeleteBill(bill)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="trash-outline" size={16} color={COLORS.textMuted} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Amount + Status Badge */}
-                <View style={cardStyles.billMiddleRow}>
-                  <View style={cardStyles.billAmountCol}>
-                    <Text style={cardStyles.billAmountLabel} numberOfLines={1}>
-                      BILL AMOUNT
-                    </Text>
-                    <Text
-                      style={cardStyles.billAmountText}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.7}
-                    >
-                      {formatMoney(bill.amount, bill.currency)}
-                    </Text>
-                  </View>
-
-                  <View
-                    style={[
-                      cardStyles.statusBadge,
-                      { backgroundColor: statusTheme.bg, borderColor: statusTheme.border },
-                    ]}
-                  >
-                    <View style={[cardStyles.statusDot, { backgroundColor: statusTheme.color }]} />
-                    <Text
-                      style={[cardStyles.statusBadgeText, { color: statusTheme.color }]}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.75}
-                    >
-                      {bill.statusText}
+                    <Text style={cardStyles.billScheduleText}>
+                      Due every {bill.dueOrdinal} of the month
                     </Text>
                   </View>
                 </View>
 
-                {/* Bottom Action Section */}
-                <View style={cardStyles.billActionDivider} />
-
-                {isPaid ? (
-                  <View style={cardStyles.paidStateRow}>
-                    <View style={cardStyles.paidCheckGroup}>
-                      <Ionicons name="checkmark-circle" size={18} color={INCOME} />
-                      <Text style={cardStyles.paidLabelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-                        Paid for {monthName}
-                      </Text>
-                    </View>
-
-                    {onUndoBillPayment && bill.matchingTx && (
-                      <TouchableOpacity
-                        style={cardStyles.undoActionBtn}
-                        onPress={() => confirmUndoPayment(bill, bill.matchingTx!.id)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="arrow-undo-outline" size={14} color="#FB7185" />
-                        <Text style={cardStyles.undoActionText} numberOfLines={1}>
-                          Undo
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={[cardStyles.payCtaButton, { backgroundColor: theme.color }]}
-                    onPress={() => onQuickLogBill(bill, viewingDate)}
-                    activeOpacity={0.85}
-                  >
-                    <View style={cardStyles.payCtaLeft}>
-                      <Ionicons name="wallet-outline" size={17} color={INK} style={{ marginRight: 8 }} />
-                      <Text style={cardStyles.payCtaText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
-                        Pay for {monthName}
-                      </Text>
-                    </View>
-                    <View style={cardStyles.payCtaBadge}>
-                      <Text
-                        style={cardStyles.payCtaBadgeText}
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                        minimumFontScale={0.7}
-                      >
-                        {formatMoney(bill.amount, bill.currency)}
-                      </Text>
-                      <Ionicons name="chevron-forward" size={14} color={INK} style={{ marginLeft: 4 }} />
-                    </View>
-                  </TouchableOpacity>
-                )}
-
-                <View style={cardStyles.billFooterRow}>
+                {/* Layer 2: Metadata Chips (Category, Duration/Term, Status) */}
+                <View style={cardStyles.billChipsRow}>
+                  {/* Category Chip */}
                   <View
                     style={[
                       cardStyles.billCategoryChip,
@@ -499,13 +455,112 @@ export const RecurringBillsCard = ({
                     ]}
                   >
                     <View style={[cardStyles.statusDot, { backgroundColor: categoryTheme.color }]} />
-                    <Text
-                      style={[cardStyles.billCategoryChipText, { color: categoryTheme.color }]}
-                      numberOfLines={1}
-                    >
+                    <Text style={[cardStyles.billCategoryChipText, { color: categoryTheme.color }]}>
                       {bill.category}
                     </Text>
                   </View>
+
+                  {/* Duration Chip */}
+                  {bill.durationMonths ? (
+                    <View style={cardStyles.durationChip}>
+                      <Ionicons name="time-outline" size={12} color={ACCENT} style={{ marginRight: 4 }} />
+                      <Text style={cardStyles.durationChipText}>
+                        Month {bill.currentMonthNumber} of {bill.durationMonths}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={cardStyles.durationChipOngoing}>
+                      <Ionicons name="infinite-outline" size={12} color={COLORS.textMuted} style={{ marginRight: 4 }} />
+                      <Text style={cardStyles.durationChipOngoingText}>
+                        Ongoing
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Status Badge */}
+                  <View
+                    style={[
+                      cardStyles.statusBadge,
+                      { backgroundColor: statusTheme.bg, borderColor: statusTheme.border },
+                    ]}
+                  >
+                    <View style={[cardStyles.statusDot, { backgroundColor: statusTheme.color }]} />
+                    <Text style={[cardStyles.statusBadgeText, { color: statusTheme.color }]}>
+                      {bill.statusText}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Layer 3: Bill Amount Box */}
+                <View style={cardStyles.billAmountBox}>
+                  <View style={cardStyles.billAmountHeader}>
+                    <Text style={cardStyles.billAmountLabel}>BILL AMOUNT</Text>
+                    <Text style={cardStyles.billCurrencyTag}>{bill.currency}</Text>
+                  </View>
+                  <Text
+                    style={cardStyles.billAmountText}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
+                    {formatMoney(bill.amount, bill.currency)}
+                  </Text>
+                </View>
+
+                {/* Layer 4: Primary Action */}
+                {isPaid ? (
+                  <View style={cardStyles.paidStateBox}>
+                    <View style={cardStyles.paidCheckGroup}>
+                      <Ionicons name="checkmark-circle" size={20} color={INCOME} />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={cardStyles.paidLabelText}>Paid for {monthName}</Text>
+                        <Text style={cardStyles.paidSubDateText}>Recorded on {bill.paidDateStr}</Text>
+                      </View>
+                    </View>
+
+                    <View style={cardStyles.paidActionsGroup}>
+                      {onUndoBillPayment && bill.matchingTx && (
+                        <TouchableOpacity
+                          style={cardStyles.undoActionBtn}
+                          onPress={() => confirmUndoPayment(bill, bill.matchingTx!.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="arrow-undo-outline" size={14} color="#FB7185" />
+                          <Text style={cardStyles.undoActionText}>Undo</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={[cardStyles.payCtaButton, { backgroundColor: theme.color }]}
+                    onPress={() => onQuickLogBill(bill, viewingDate)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="wallet-outline" size={18} color={INK} style={{ marginRight: 6 }} />
+                    <Text style={cardStyles.payCtaText}>
+                      Pay for {monthName}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={INK} style={{ marginLeft: 2 }} />
+                  </TouchableOpacity>
+                )}
+
+                {/* Layer 5: Card Footer / Secondary Actions */}
+                <View style={cardStyles.billFooterActionsRow}>
+                  <Text style={cardStyles.billFooterNote} numberOfLines={1}>
+                    {bill.durationMonths
+                      ? `${Math.max(0, bill.durationMonths - bill.currentMonthNumber)} payment(s) remaining`
+                      : 'Renews automatically monthly'}
+                  </Text>
+                  <TouchableOpacity
+                    style={cardStyles.deleteBillBtn}
+                    onPress={() => confirmDeleteBill(bill)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="trash-outline" size={14} color={COLORS.textMuted} />
+                    <Text style={cardStyles.deleteBillBtnText}>Delete</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             );
@@ -514,12 +569,109 @@ export const RecurringBillsCard = ({
       )}
 
       {/* Add Recurring Bill Modal */}
-      <AddRecurringBillModal
-        visible={modalVisible}
-        currency={currency}
-        onClose={() => setModalVisible(false)}
-        onSave={onAddBill}
-      />
+      {modalVisible && (
+        <AddRecurringBillModal
+          visible={modalVisible}
+          currency={currency}
+          initialDate={viewingDate}
+          onClose={() => setModalVisible(false)}
+          onSave={onAddBill}
+        />
+      )}
+
+      {/* Delete / End Choice Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={Boolean(deleteChoiceModal.visible && deleteChoiceModal.bill)}
+        onRequestClose={() => setDeleteChoiceModal({ visible: false, bill: null })}
+      >
+        <TouchableWithoutFeedback onPress={() => setDeleteChoiceModal({ visible: false, bill: null })}>
+          <View style={cardStyles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={cardStyles.choiceModalCard}>
+                <View style={cardStyles.choiceModalIconWrap}>
+                  <Ionicons name="pause-circle-outline" size={28} color={ACCENT} />
+                </View>
+                <Text style={cardStyles.choiceModalTitle}>Stop Subscription?</Text>
+                <Text style={cardStyles.choiceModalSub}>
+                  {deleteChoiceModal.bill?.name} (Started in{' '}
+                  {SHORT_MONTHS[deleteChoiceModal.bill?.startMonth ?? viewingMonth]}{' '}
+                  {deleteChoiceModal.bill?.startYear ?? viewingYear})
+                </Text>
+                <Text style={cardStyles.choiceModalDesc}>
+                  Ending it preserves all past payment history up until last month. Deleting removes all records completely.
+                </Text>
+
+                {/* Option 1: End from this month */}
+                <TouchableOpacity
+                  style={cardStyles.choiceOptionEndBtn}
+                  onPress={() => {
+                    if (deleteChoiceModal.bill && onUpdateBill) {
+                      const startIdx =
+                        (deleteChoiceModal.bill.startYear ?? viewingYear) * 12 +
+                        (deleteChoiceModal.bill.startMonth ?? viewingMonth);
+                      const viewingIdx = viewingYear * 12 + viewingMonth;
+                      const pastMonthsCount = Math.max(1, viewingIdx - startIdx);
+                      onUpdateBill({
+                        ...deleteChoiceModal.bill,
+                        durationMonths: pastMonthsCount,
+                      });
+                    }
+                    setDeleteChoiceModal({ visible: false, bill: null });
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={cardStyles.choiceOptionIcon}>
+                    <Ionicons name="stop-circle" size={20} color={INK} />
+                  </View>
+                  <View style={cardStyles.choiceOptionTextWrap}>
+                    <Text style={cardStyles.choiceOptionTitleEnd}>
+                      End from {monthName} {viewingYear}
+                    </Text>
+                    <Text style={cardStyles.choiceOptionSubEnd}>
+                      Keeps past history. Will not appear from {monthName} onwards.
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Option 2: Delete from all months */}
+                <TouchableOpacity
+                  style={cardStyles.choiceOptionDeleteBtn}
+                  onPress={() => {
+                    if (deleteChoiceModal.bill) {
+                      onDeleteBill(deleteChoiceModal.bill.id);
+                    }
+                    setDeleteChoiceModal({ visible: false, bill: null });
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={cardStyles.choiceOptionIconDanger}>
+                    <Ionicons name="trash-outline" size={18} color="#FB7185" />
+                  </View>
+                  <View style={cardStyles.choiceOptionTextWrap}>
+                    <Text style={cardStyles.choiceOptionTitleDelete}>
+                      Delete from All Months
+                    </Text>
+                    <Text style={cardStyles.choiceOptionSubDelete}>
+                      Permanently wipes this subscription and all its records.
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Cancel */}
+                <TouchableOpacity
+                  style={cardStyles.choiceModalCancelBtn}
+                  onPress={() => setDeleteChoiceModal({ visible: false, bill: null })}
+                  activeOpacity={0.7}
+                >
+                  <Text style={cardStyles.choiceModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
 
       {/* Custom Alert Modal */}
       <AppAlertModal

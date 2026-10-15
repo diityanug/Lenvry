@@ -292,7 +292,7 @@ export default function NutritionScreen() {
   });
 
   return (
-    <ErrorBoundary fallbackTitle="Modul Meal Mengalami Kendala">
+    <ErrorBoundary fallbackTitle="Nutrition Encountered an Issue">
       <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
 

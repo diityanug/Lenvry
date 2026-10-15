@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS } from '../../constants/theme';
+import { hapticMedium, hapticSuccess, hapticWarning } from '../../utils/haptics';
 
 interface WaterTrackerCardProps {
   amountMl: number;
@@ -16,6 +17,19 @@ export const WaterTrackerCard = ({
   onAddWater,
   onResetWater,
 }: WaterTrackerCardProps) => {
+  const handleAdd = (added: number) => {
+    if (amountMl + added >= targetMl && amountMl < targetMl) {
+      hapticSuccess();
+    } else {
+      hapticMedium();
+    }
+    onAddWater(added);
+  };
+
+  const handleReset = () => {
+    hapticWarning();
+    onResetWater();
+  };
   const percent = Math.min(100, Math.round((amountMl / Math.max(1, targetMl)) * 100));
   const glasses = Math.round(amountMl / 250);
   const targetGlasses = Math.max(1, Math.round(targetMl / 250));
@@ -71,7 +85,7 @@ export const WaterTrackerCard = ({
 
         <TouchableOpacity
           style={waterStyles.resetIconBtn}
-          onPress={onResetWater}
+          onPress={handleReset}
           activeOpacity={0.65}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -101,7 +115,7 @@ export const WaterTrackerCard = ({
       <View style={waterStyles.actionsRow}>
         <TouchableOpacity
           style={waterStyles.quickBtn}
-          onPress={() => onAddWater(250)}
+          onPress={() => handleAdd(250)}
           activeOpacity={0.8}
         >
           <View style={waterStyles.btnIconBg}>
@@ -115,7 +129,7 @@ export const WaterTrackerCard = ({
 
         <TouchableOpacity
           style={waterStyles.quickBtn}
-          onPress={() => onAddWater(500)}
+          onPress={() => handleAdd(500)}
           activeOpacity={0.8}
         >
           <View style={waterStyles.btnIconBg}>
@@ -129,7 +143,7 @@ export const WaterTrackerCard = ({
 
         <TouchableOpacity
           style={waterStyles.quickBtn}
-          onPress={() => onAddWater(100)}
+          onPress={() => handleAdd(100)}
           activeOpacity={0.8}
         >
           <View style={waterStyles.btnIconBg}>

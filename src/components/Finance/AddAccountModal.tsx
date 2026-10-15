@@ -97,7 +97,7 @@ export const AddAccountModal = ({
                 activeOpacity={0.7}
               >
                 <Text style={[styles.typeOptionText, accFormType === 'main' && styles.typeOptionTextActive]}>
-                  Master Account
+                  Main Account
                 </Text>
               </TouchableOpacity>
 
@@ -107,7 +107,7 @@ export const AddAccountModal = ({
                 activeOpacity={0.7}
               >
                 <Text style={[styles.typeOptionText, accFormType === 'sub' && styles.typeOptionTextActive]}>
-                  Sub-Pocket
+                  Pocket
                 </Text>
               </TouchableOpacity>
             </View>
@@ -117,7 +117,7 @@ export const AddAccountModal = ({
               <Text style={styles.fieldLabel}>ACCOUNT NAME</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="e.g. BCA Main, Emergency Fund..."
+                placeholder="e.g. BCA, Wallet..."
                 placeholderTextColor={COLORS.textMuted}
                 value={newAccName}
                 onChangeText={setNewAccName}
@@ -193,10 +193,10 @@ export const AddAccountModal = ({
 
             {setNewAccDesc && (
               <View style={styles.fieldWrap}>
-                <Text style={styles.fieldLabel}>DESCRIPTION / NOTE (OPTIONAL)</Text>
+                <Text style={styles.fieldLabel}>DESCRIPTION</Text>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Short description..."
+                  placeholder=""
                   placeholderTextColor={COLORS.textMuted}
                   value={newAccDesc}
                   onChangeText={setNewAccDesc}

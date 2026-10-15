@@ -28,6 +28,7 @@ import RoutinePresetsModal from '../components/Fitness/RoutinePresetsModal';
 import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
 import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 import { fitnessStyles as styles } from '../styles/fitnessStyles';
+import { hapticSuccess } from '../utils/haptics';
 import { useFitnessStore } from '../stores';
 
 const formatDateKey = (d: Date): string => {
@@ -180,6 +181,7 @@ export default function FitnessScreen() {
       });
 
       setWorkouts(saved);
+      hapticSuccess();
       Keyboard.dismiss();
       setModalVisible(false);
       setPrefillWorkout(null);
@@ -217,6 +219,7 @@ export default function FitnessScreen() {
     try {
       const saved = await updateStored('fitnessWorkouts', (current) => [...newItems, ...current]);
       setWorkouts(saved);
+      hapticSuccess();
       setRoutineModalVisible(false);
       showAlert('success', 'Routine Loaded', `Added ${routine.exercises.length} exercises from ${routine.name}.`);
     } catch (e) {
@@ -238,7 +241,7 @@ export default function FitnessScreen() {
   };
 
   return (
-    <ErrorBoundary fallbackTitle="Modul Fitness Mengalami Kendala">
+    <ErrorBoundary fallbackTitle="Fitness Encountered an Issue">
       <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
 

@@ -273,7 +273,7 @@ function DayPickerContent({
               </TouchableOpacity>
             </View>
 
-            {/* Navigation Bulan */}
+            {/* Month navigation */}
             <View style={styles.monthNav}>
               <TouchableOpacity
                 style={styles.navBtn}
@@ -300,7 +300,7 @@ function DayPickerContent({
               </TouchableOpacity>
             </View>
 
-            {/* Header Hari */}
+            {/* Weekday header */}
             <View style={styles.weekHeader}>
               {DAYS_SHORT.map((day: string, idx: number) => (
                 <Text key={idx} style={styles.weekDayText}>
@@ -309,7 +309,7 @@ function DayPickerContent({
               ))}
             </View>
 
-            {/* Grid Tanggal */}
+            {/* Days grid */}
             <View style={styles.daysGrid}>
               {daysArray.map((day, idx) => {
                 if (day === null) {

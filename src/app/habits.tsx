@@ -420,7 +420,7 @@ export default function HabitTrackerScreen() {
   };
 
   return (
-    <ErrorBoundary fallbackTitle="Modul To-Do Mengalami Kendala">
+    <ErrorBoundary fallbackTitle="Habits Encountered an Issue">
       <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
 

@@ -21,7 +21,12 @@ export const FormAccountSelector = ({
   onSelectAccount,
   onSelectSubAccount,
 }: FormAccountSelectorProps) => {
+  const [showPockets, setShowPockets] = React.useState(false);
   const selectedAccount = accounts.find((a) => a.id === selectedAccId);
+  const selectedSubAccount = selectedAccount?.subAccounts?.find((s) => s.id === selectedSubAccId);
+  const hasMultiplePockets = Boolean(
+    selectedAccount && selectedAccount.subAccounts && selectedAccount.subAccounts.length > 1
+  );
 
   return (
     <View style={styles.container}>
@@ -44,7 +49,10 @@ export const FormAccountSelector = ({
                   borderColor: isSelected ? theme.color : hexToRgba(theme.color, 0.4),
                 },
               ]}
-              onPress={() => onSelectAccount(acc)}
+              onPress={() => {
+                onSelectAccount(acc);
+                setShowPockets(false);
+              }}
               activeOpacity={0.75}
             >
               <View
@@ -84,49 +92,74 @@ export const FormAccountSelector = ({
         })}
       </View>
 
-      {/* Sub-Accounts / Pockets */}
-      {selectedAccount && selectedAccount.subAccounts && selectedAccount.subAccounts.length > 0 && (
-        <View style={styles.subAccountsContainer}>
-          <View style={styles.subHeaderRow}>
-            <Ionicons name="folder-open-outline" size={14} color={COLORS.finance} />
-            <Text style={styles.subAccountTitle}>POCKETS / SUB-ACCOUNTS</Text>
-          </View>
-          <View style={styles.subAccountGrid}>
-            {selectedAccount.subAccounts.map((sub) => {
-              const isSubSelected = sub.id === selectedSubAccId;
+      {/* Optional Pockets Toggle Bar (Only when multiple pockets exist) */}
+      {hasMultiplePockets && (
+        <View style={styles.pocketSectionWrap}>
+          <TouchableOpacity
+            style={styles.togglePocketBar}
+            onPress={() => setShowPockets((prev) => !prev)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.togglePocketLeft}>
+              <Ionicons name="folder-outline" size={13} color={COLORS.finance} />
+              <Text style={styles.togglePocketLabel}>Pocket:</Text>
+              <Text style={styles.togglePocketCurrentName} numberOfLines={1}>
+                {selectedSubAccount?.name || 'Main Pocket'}
+              </Text>
+            </View>
+            <View style={styles.togglePocketRight}>
+              <Text style={styles.togglePocketActionText}>
+                {showPockets ? 'Hide' : 'Change Pocket'}
+              </Text>
+              <Ionicons
+                name={showPockets ? 'chevron-up' : 'chevron-down'}
+                size={12}
+                color={COLORS.textSecondary}
+              />
+            </View>
+          </TouchableOpacity>
 
-              return (
-                <TouchableOpacity
-                  key={sub.id}
-                  style={[
-                    styles.subPocketCard,
-                    isSubSelected
-                      ? styles.subPocketCardSelected
-                      : styles.subPocketCardUnselected,
-                  ]}
-                  onPress={() => onSelectSubAccount(sub.id)}
-                  activeOpacity={0.75}
-                >
-                  <Ionicons
-                    name={isSubSelected ? 'checkmark-circle' : 'wallet-outline'}
-                    size={16}
-                    color={isSubSelected ? '#08090C' : '#818CF8'}
-                  />
-                  <Text
-                    style={[
-                      styles.subPocketText,
-                      isSubSelected
-                        ? styles.subPocketTextSelected
-                        : styles.subPocketTextUnselected,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {sub.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          {/* Pockets Grid */}
+          {showPockets && selectedAccount?.subAccounts && (
+            <View style={styles.subAccountsContainer}>
+              <View style={styles.subAccountGrid}>
+                {selectedAccount.subAccounts.map((sub) => {
+                  const isSubSelected = sub.id === selectedSubAccId;
+
+                  return (
+                    <TouchableOpacity
+                      key={sub.id}
+                      style={[
+                        styles.subPocketCard,
+                        isSubSelected
+                          ? styles.subPocketCardSelected
+                          : styles.subPocketCardUnselected,
+                      ]}
+                      onPress={() => onSelectSubAccount(sub.id)}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons
+                        name={isSubSelected ? 'checkmark-circle' : 'wallet-outline'}
+                        size={15}
+                        color={isSubSelected ? '#08090C' : '#818CF8'}
+                      />
+                      <Text
+                        style={[
+                          styles.subPocketText,
+                          isSubSelected
+                            ? styles.subPocketTextSelected
+                            : styles.subPocketTextUnselected,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {sub.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -178,8 +211,49 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
+  pocketSectionWrap: {
+    marginTop: 10,
+  },
+  togglePocketBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+  },
+  togglePocketLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    marginRight: 10,
+  },
+  togglePocketLabel: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  togglePocketCurrentName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.finance,
+  },
+  togglePocketRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  togglePocketActionText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
   subAccountsContainer: {
-    marginTop: 12,
+    marginTop: 8,
     padding: 12,
     backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,

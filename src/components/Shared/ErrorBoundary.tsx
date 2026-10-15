@@ -68,11 +68,11 @@ export class ErrorBoundary extends Component<Props, State> {
               </View>
 
               <Text style={styles.title}>
-                {this.props.fallbackTitle || 'Terjadi Kesalahan'}
+                {this.props.fallbackTitle || 'Something Went Wrong'}
               </Text>
 
               <Text style={styles.subtitle}>
-                Aplikasi mengalami kendala tak terduga saat memuat komponen ini. Data Anda tetap aman.
+                The application encountered an unexpected issue while rendering this component. Your data remains safe.
               </Text>
 
               <View style={styles.errorBox}>
@@ -98,7 +98,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 activeOpacity={0.8}
               >
                 <Ionicons name="refresh" size={16} color="#08090C" style={styles.btnIcon} />
-                <Text style={styles.reloadBtnText}>Muat Ulang Layar</Text>
+                <Text style={styles.reloadBtnText}>Reload Screen</Text>
               </TouchableOpacity>
             </View>
           </View>

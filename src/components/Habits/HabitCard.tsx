@@ -700,7 +700,7 @@ export default function HabitCard({
                     activeOpacity={0.75}
                     style={cardStyles.popupCancelBtn}
                   >
-                    <Text style={cardStyles.popupCancelBtnText}>Batal</Text>
+                    <Text style={cardStyles.popupCancelBtnText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={saveEditedNote}
@@ -708,7 +708,7 @@ export default function HabitCard({
                     style={[cardStyles.popupSaveBtn, { backgroundColor: theme.accent }]}
                   >
                     <Ionicons name="checkmark" size={14} color="#08090C" style={{ marginRight: 4 }} />
-                    <Text style={cardStyles.popupSaveBtnText}>Simpan</Text>
+                    <Text style={cardStyles.popupSaveBtnText}>Save</Text>
                   </TouchableOpacity>
                 </View>
               </>

@@ -47,11 +47,14 @@ export interface RecurringBill {
   category: string;
   dueDateDay: number;
   currency: 'IDR' | 'USD';
+  startMonth?: number; // 0-11 (Jan=0, Dec=11)
+  startYear?: number;  // e.g. 2026
+  durationMonths?: number; // e.g. 1, 2, 3, 6, 12, or undefined/0 for ongoing
 }
 
 export interface DebtItem {
   id: string;
-  type: 'debt' | 'receivable'; // 'debt' (You Owe / Utang) vs 'receivable' (Owed to You / Piutang)
+  type: 'debt' | 'receivable'; // 'debt' (You Owe) vs 'receivable' (Owed to You)
   personName: string;
   title: string;
   originalAmount: number;

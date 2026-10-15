@@ -13,8 +13,14 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { formatMoney, hexToRgba } from '../../types/finance';
-import { CalculatorModal } from './CalculatorModal';
+import { hexToRgba } from '../../types/finance';
+import { CalculatorKeypad } from './CalculatorKeypad';
+import {
+  evaluateArithmeticStr,
+  formatCalculatedDisplay,
+  formatExpression,
+  hasMathOperators,
+} from '../../utils/math';
 import { COLORS, RADIUS } from '../../constants/theme';
 
 const SKY = '#38BDF8';
@@ -38,94 +44,89 @@ export const EditBalanceModal = ({
   onSave,
   onChangeValue,
 }: EditBalanceModalProps) => {
-  const [calcVisible, setCalcVisible] = useState(false);
-
   const handleDismiss = () => {
     Keyboard.dismiss();
     onClose();
   };
 
+  React.useEffect(() => {
+    if (visible && value && !hasMathOperators(value)) {
+      const formatted = formatExpression(value, currency);
+      if (formatted !== value) {
+        onChangeValue(formatted);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, currency]);
+
+  const evaluatedValStr = React.useMemo(() => evaluateArithmeticStr(value, currency), [value, currency]);
+  const isMath = React.useMemo(() => hasMathOperators(value), [value]);
+  const formattedVal = formatCalculatedDisplay(evaluatedValStr, currency);
   const currencySymbol = currency === 'USD' ? '$' : 'Rp';
-  const numericVal = parseFloat(value) || 0;
-  const formattedVal = formatMoney(numericVal, currency).replace(/[^0-9.,]/g, '').trim();
+
+  const handleApply = () => {
+    if (isMath) {
+      const res = evaluateArithmeticStr(value, currency);
+      if (res && res !== '0') onChangeValue(formatCalculatedDisplay(res, currency));
+    }
+    onSave();
+  };
 
   return (
-    <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
+    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
+      <View style={dialogStyles.overlayBottom}>
         <TouchableWithoutFeedback onPress={handleDismiss}>
-          <View style={dialogStyles.overlayCenter}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={dialogStyles.cardSmall}>
-                <View style={dialogStyles.headerBadge}>
-                  <View style={dialogStyles.headerBadgeIcon}>
-                    <Ionicons name="calculator-outline" size={18} color={SKY} />
-                  </View>
-                  <Text style={dialogStyles.headerBadgeText} numberOfLines={1}>BALANCE CORRECTION</Text>
-                </View>
-
-                <Text style={dialogStyles.titleCenter} numberOfLines={1} ellipsizeMode="tail">
-                  Adjust Balance
-                </Text>
-                <Text style={dialogStyles.subtitleCenter} numberOfLines={2}>
-                  Set the corrected total balance for this sub-account.
-                </Text>
-
-                {/* Amount Box */}
-                <TouchableOpacity
-                  style={dialogStyles.amountHeroBox}
-                  onPress={() => setCalcVisible(true)}
-                  activeOpacity={0.8}
-                >
-                  <View style={dialogStyles.amountHeroTop}>
-                    <Text style={dialogStyles.amountHeroLabel} numberOfLines={1}>TARGET BALANCE</Text>
-                    <View style={dialogStyles.calcBadge}>
-                      <Ionicons name="calculator-outline" size={12} color={SKY} style={dialogStyles.calcBadgeIcon} />
-                      <Text style={dialogStyles.calcBadgeText} numberOfLines={1}>Keypad</Text>
-                    </View>
-                  </View>
-                  <View style={dialogStyles.amountHeroValueRow}>
-                    <Text style={dialogStyles.currencySymbolLarge} numberOfLines={1}>{currencySymbol}</Text>
-                    <Text
-                      style={dialogStyles.amountNumberLarge}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.7}
-                    >
-                      {formattedVal || '0'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                <View style={dialogStyles.actionRow}>
-                  <TouchableOpacity style={dialogStyles.btnCancel} onPress={onClose} activeOpacity={0.7}>
-                    <Text style={dialogStyles.btnCancelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-                      CANCEL
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={dialogStyles.btnConfirm} onPress={onSave} activeOpacity={0.8}>
-                    <Text style={dialogStyles.btnConfirmText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-                      APPLY
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
+          <View style={dialogStyles.dismissArea} />
         </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
 
-      <CalculatorModal
-        visible={calcVisible}
-        initialValue={value}
-        currency={currency}
-        title="Adjust Sub-Account Balance"
-        onClose={() => setCalcVisible(false)}
-        onConfirm={(val) => onChangeValue(val)}
-      />
+        <View style={dialogStyles.bottomSheetContent}>
+          <View style={dialogStyles.sheetHandle} />
+
+          {/* Header */}
+          <View style={dialogStyles.sheetHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={dialogStyles.sheetTitle} numberOfLines={1}>Adjust Pocket Balance</Text>
+              <Text style={dialogStyles.sheetSubtitle} numberOfLines={1}>Set the corrected balance for this pocket</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} style={dialogStyles.sheetCloseBtn} activeOpacity={0.7} accessibilityRole="button">
+              <Ionicons name="close" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Target Balance Display Card */}
+          <View style={dialogStyles.balanceDisplayCard}>
+            <Text style={dialogStyles.balanceDisplayLabel} numberOfLines={1}>TARGET BALANCE ({currency})</Text>
+            <View style={dialogStyles.balanceValueRow}>
+              <Text style={dialogStyles.balanceCurrencySymbol}>{currencySymbol}</Text>
+              <Text style={dialogStyles.balanceValueText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
+                {value || '0'}
+              </Text>
+            </View>
+            <View style={dialogStyles.balancePreviewContainer}>
+              {isMath ? (
+                <Text style={dialogStyles.balancePreviewText} numberOfLines={1}>
+                  = {currencySymbol} {formattedVal}
+                </Text>
+              ) : (
+                <Text style={dialogStyles.balancePreviewTextMuted} numberOfLines={1}>
+                  {currencySymbol} {formattedVal}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {/* Embedded CalculatorKeypad */}
+          <View style={dialogStyles.keypadContainer}>
+            <CalculatorKeypad
+              value={value}
+              onChangeValue={onChangeValue}
+              onDone={handleApply}
+              currency={currency}
+              accentColor={COLORS.finance}
+            />
+          </View>
+        </View>
+      </View>
     </Modal>
   );
 };
@@ -183,19 +184,19 @@ export const RenameModal = ({
                     style={[dialogStyles.typePillText, { color: pillColor }]}
                     numberOfLines={1}
                   >
-                    {isMain ? 'MAIN ACCOUNT' : 'SUB-ACCOUNT'}
+                    {isMain ? 'MAIN ACCOUNT' : 'POCKET'}
                   </Text>
                 </View>
 
                 <Text style={dialogStyles.titleCenter} numberOfLines={1} ellipsizeMode="tail">
-                  Edit {isMain ? 'Account' : 'Sub-Account'}
+                  Edit {isMain ? 'Account' : 'Pocket'}
                 </Text>
 
                 <View style={dialogStyles.fieldBlock}>
                   <Text style={dialogStyles.fieldLabel} numberOfLines={1}>ACCOUNT NAME</Text>
                   <TextInput
                     style={dialogStyles.inputField}
-                    placeholder={isMain ? 'Enter account title...' : 'Enter sub-account title...'}
+                    placeholder={isMain ? 'Enter account title...' : 'Enter pocket title...'}
                     placeholderTextColor={COLORS.textMuted}
                     value={value}
                     onChangeText={onChangeValue}
@@ -670,5 +671,111 @@ const dialogStyles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  overlayBottom: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 6, 9, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  dismissArea: {
+    flex: 1,
+  },
+  bottomSheetContent: {
+    backgroundColor: COLORS.bgCardSub,
+    borderTopLeftRadius: RADIUS.xxl,
+    borderTopRightRadius: RADIUS.xxl,
+    borderTopWidth: 1,
+    borderColor: COLORS.border,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+    overflow: 'hidden',
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.borderSubtle,
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderSubtle,
+  },
+  sheetTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  sheetSubtitle: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  sheetCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.bgCard,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  balanceDisplayCard: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 8,
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.lg,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: COLORS.borderSubtle,
+    minHeight: 96,
+    justifyContent: 'space-between',
+  },
+  balanceDisplayLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
+  balanceValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  balanceCurrencySymbol: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.finance,
+  },
+  balanceValueText: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: COLORS.finance,
+    flex: 1,
+  },
+  balancePreviewContainer: {
+    height: 18,
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  balancePreviewText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.finance,
+  },
+  balancePreviewTextMuted: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: COLORS.textMuted,
+  },
+  keypadContainer: {
+    backgroundColor: COLORS.bgCardSub,
   },
 });

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { COLORS, RADIUS } from '../../constants/theme';
 import { NOTE_CATEGORIES, NoteCategory, StickyNote } from '../../types/notes';
@@ -101,16 +101,38 @@ export default function StickyNotesSection({
   onCreateNote,
 }: StickyNotesSectionProps) {
   const [activeCategory, setActiveCategory] = useState<string>('All');
+  const notesScrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    notesScrollRef.current?.scrollTo({ x: 0, animated: false });
+  }, [activeCategory]);
+
+  const handleCategoryPress = (catKey: string) => {
+    setActiveCategory(catKey);
+    notesScrollRef.current?.scrollTo({ x: 0, animated: false });
+  };
 
   const categoriesList = ['All', 'Personal', 'Finance', 'General', 'Work', 'Ideas', 'Lists'];
 
+  // Memoize counts per category to avoid multiple array filter scans per render
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { All: 0 };
+    for (const note of notes) {
+      const cat = note.category || 'General';
+      counts[cat] = (counts[cat] || 0) + 1;
+      if (note.category !== 'Personal' && note.category !== 'Finance') {
+        counts.All += 1;
+      }
+    }
+    return counts;
+  }, [notes]);
+
   // Personal and Finance notes are sensitive / private: they only appear under their own category tabs
-  const filteredNotes =
-    activeCategory === 'All'
+  const filteredNotes = useMemo(() => {
+    return activeCategory === 'All'
       ? notes.filter((n) => n.category !== 'Personal' && n.category !== 'Finance')
       : notes.filter((n) => (n.category || 'General') === activeCategory);
-
-  const allNotesCount = notes.filter((n) => n.category !== 'Personal' && n.category !== 'Finance').length;
+  }, [notes, activeCategory]);
 
   return (
     <View style={styles.sectionContainer}>
@@ -144,9 +166,7 @@ export default function StickyNotesSection({
             const catConfig = !isAll ? NOTE_CATEGORIES[catKey as NoteCategory] : null;
             const isSelected = activeCategory === catKey;
 
-            const count = isAll
-              ? allNotesCount
-              : notes.filter((n) => (n.category || 'General') === catKey).length;
+            const count = categoryCounts[catKey] || 0;
 
             if (count === 0 && !isAll && !isSelected) return null;
 
@@ -161,7 +181,7 @@ export default function StickyNotesSection({
                     ? { backgroundColor: pillColor, borderColor: pillColor }
                     : { backgroundColor: pillColor + '1A', borderColor: pillColor + '38' },
                 ]}
-                onPress={() => setActiveCategory(catKey)}
+                onPress={() => handleCategoryPress(catKey)}
                 activeOpacity={0.75}
               >
                 <Ionicons
@@ -199,6 +219,8 @@ export default function StickyNotesSection({
         </TouchableOpacity>
       ) : (
         <ScrollView
+          ref={notesScrollRef}
+          key={`sticky-notes-scroll-${activeCategory}`}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { readStored, writeStored, updateStored } from '../storage';
 import { Habit } from '../types/habits';
 import { HabitCategoryIconItem, HABIT_DEFAULT_CATEGORY_CONFIG, formatDateKey } from '../constants/habits';
+import { hapticSuccess, hapticLight } from '../utils/haptics';
 
 interface HabitsState {
   habits: Habit[];
@@ -58,6 +59,18 @@ export const useHabitsStore = create<HabitsState>((set, get) => ({
   },
   toggleHabitForDate: async (id: string, dateStr?: string) => {
     const habitKey = dateStr || formatDateKey(new Date());
+    const targetHabit = get().habits.find((h) => h.id === id);
+    const willBeCompleted = targetHabit
+      ? (!targetHabit.frequency || targetHabit.frequency === 'once'
+          ? !targetHabit.completed
+          : !(targetHabit.completedDates ?? []).includes(habitKey))
+      : false;
+
+    if (willBeCompleted) {
+      hapticSuccess();
+    } else {
+      hapticLight();
+    }
 
     const updated = get().habits.map((h) => {
       if (h.id !== id) return h;

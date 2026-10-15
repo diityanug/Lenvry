@@ -289,9 +289,6 @@ export const CashflowTrendCard = ({
           </View>
           <View style={styles.headerTitleCol}>
             <Text style={styles.title}>Cashflow Comparison</Text>
-            <Text style={styles.subtitle}>
-              Compare your income and spending cashflows • {currency}
-            </Text>
           </View>
         </View>
       </View>
@@ -412,17 +409,7 @@ export const CashflowTrendCard = ({
         </TouchableOpacity>
       </View>
 
-      {/* 4. Legend: Income (Green) vs Expense (Red) */}
-      <View style={styles.legendRow}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#34D399' }]} />
-          <Text style={styles.legendText}>Income (Inflow)</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#FB7185' }]} />
-          <Text style={styles.legendText}>Expense (Outflow)</Text>
-        </View>
-      </View>
+      
 
       {/* 5. Inspector Card: Vertical clean rows (Zero truncation, 100% full width per line) */}
       {activeDetail && (
@@ -439,7 +426,7 @@ export const CashflowTrendCard = ({
             <View style={styles.inspectorRow}>
               <View style={styles.inspectorRowLeft}>
                 <Ionicons name="arrow-down-circle" size={15} color="#34D399" />
-                <Text style={styles.inspectorRowLabel}>Income (Inflow)</Text>
+                <Text style={styles.inspectorRowLabel}>Inflow</Text>
               </View>
               <Text style={[styles.inspectorRowValue, { color: '#34D399' }]}>
                 +{formatMoney(activeDetail.income, currency)}
@@ -450,7 +437,7 @@ export const CashflowTrendCard = ({
             <View style={styles.inspectorRow}>
               <View style={styles.inspectorRowLeft}>
                 <Ionicons name="arrow-up-circle" size={15} color="#FB7185" />
-                <Text style={styles.inspectorRowLabel}>Expense (Outflow)</Text>
+                <Text style={styles.inspectorRowLabel}>Outflow</Text>
               </View>
               <Text style={[styles.inspectorRowValue, { color: '#FB7185' }]}>
                 -{formatMoney(activeDetail.expense, currency)}

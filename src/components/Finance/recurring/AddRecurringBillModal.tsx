@@ -7,16 +7,31 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  Keyboard,
+  BackHandler,
+  PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import {
   RecurringBill,
   formatMoney,
   getCategoryTheme,
   hexToRgba,
 } from '../../../types/finance';
+import { MONTHS, SHORT_MONTHS } from '../../../constants/date';
 import { COLORS } from '../../../constants/theme';
 import { useKeyboardHeight } from '../../../hooks/useKeyboardHeight';
+import { CalculatorKeypad } from '../CalculatorKeypad';
+import {
+  evaluateArithmetic,
+  evaluateArithmeticStr,
+  formatCalculatedDisplay,
+  formatExpression,
+  hasMathOperators,
+  MAX_NOMINAL_VALUE,
+} from '../../../utils/math';
+import { hapticLight } from '../../../utils/haptics';
 import {
   cardStyles,
   ACCENT,
@@ -30,6 +45,7 @@ import {
 interface AddRecurringBillModalProps {
   visible: boolean;
   currency: 'IDR' | 'USD';
+  initialDate?: Date;
   onClose: () => void;
   onSave: (bill: Omit<RecurringBill, 'id'>) => void;
 }
@@ -37,20 +53,44 @@ interface AddRecurringBillModalProps {
 export const AddRecurringBillModal = ({
   visible,
   currency,
+  initialDate,
   onClose,
   onSave,
 }: AddRecurringBillModalProps) => {
+  const initDate = initialDate || new Date();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
+  const [isKeypadOpen, setIsKeypadOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(BILL_CATEGORIES[0]);
   const [dueDateDay, setDueDateDay] = useState('1');
+  const [startMonth, setStartMonth] = useState(initDate.getMonth());
+  const [startYear, setStartYear] = useState(initDate.getFullYear());
+  const [durationMonths, setDurationMonths] = useState<number>(0); // 0 = Ongoing
+  const [isCustomDuration, setIsCustomDuration] = useState(false);
+  const [customDurationInput, setCustomDurationInput] = useState('');
   const keyboardHeight = useKeyboardHeight();
 
+  const evaluatedAmountStr = React.useMemo(() => evaluateArithmeticStr(amount, currency), [amount, currency]);
+  const isAmountMath = React.useMemo(() => hasMathOperators(amount), [amount]);
+  const formattedDisplayAmount = formatCalculatedDisplay(evaluatedAmountStr, currency);
+
+  const openAmountKeypad = () => {
+    Keyboard.dismiss();
+    setIsKeypadOpen(true);
+  };
+
   const handleClose = () => {
+    setIsKeypadOpen(false);
     setName('');
     setAmount('');
     setSelectedCategory(BILL_CATEGORIES[0]);
     setDueDateDay('1');
+    const d = initialDate || new Date();
+    setStartMonth(d.getMonth());
+    setStartYear(d.getFullYear());
+    setDurationMonths(0);
+    setIsCustomDuration(false);
+    setCustomDurationInput('');
     onClose();
   };
 
@@ -58,15 +98,17 @@ export const AddRecurringBillModal = ({
     setName(preset.name);
     setSelectedCategory(preset.category);
     if (currency === 'IDR' && preset.defaultAmount) {
-      setAmount(preset.defaultAmount);
+      setAmount(formatExpression(preset.defaultAmount, 'IDR'));
     } else if (currency === 'USD' && preset.defaultAmountUSD) {
-      setAmount(preset.defaultAmountUSD);
+      setAmount(formatExpression(preset.defaultAmountUSD, 'USD'));
     }
   };
 
   const handleSave = () => {
+    setIsKeypadOpen(false);
     const trimmedName = name.trim();
-    const parsedAmount = parseFloat(amount.replace(/[^0-9.]/g, '')) || 0;
+    const evaluated = evaluateArithmetic(amount, currency);
+    const parsedAmount = Math.min(MAX_NOMINAL_VALUE, Math.max(0, evaluated));
     const parsedDay = Math.max(1, Math.min(31, parseInt(dueDateDay, 10) || 1));
 
     if (!trimmedName || parsedAmount <= 0) return;
@@ -77,21 +119,85 @@ export const AddRecurringBillModal = ({
       category: selectedCategory,
       dueDateDay: parsedDay,
       currency,
+      startMonth,
+      startYear,
+      durationMonths: durationMonths > 0 ? durationMonths : undefined,
     });
 
     handleClose();
   };
+
+  const handleDismiss = () => {
+    Keyboard.dismiss();
+    if (isKeypadOpen) {
+      setIsKeypadOpen(false);
+      return;
+    }
+    handleClose();
+  };
+
+  const handleRequestClose = () => {
+    Keyboard.dismiss();
+    if (isKeypadOpen) {
+      setIsKeypadOpen(false);
+      return;
+    }
+    handleClose();
+  };
+
+  // Intercept smartphone back button or edge back swipe gesture:
+  // Dismiss calculator keypad first before closing the modal
+  React.useEffect(() => {
+    if (!visible) return;
+
+    const onBackPress = () => {
+      if (isKeypadOpen) {
+        setIsKeypadOpen(false);
+        return true; // Event consumed, prevents closing the modal
+      }
+      return false; // Allow standard modal close
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [visible, isKeypadOpen]);
+
+  // Swipe-down gesture detector on keypad area to smoothly dismiss it
+  const keypadPanResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          return gestureState.dy > 15 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.5;
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dy > 30 || gestureState.vy > 0.4) {
+            setIsKeypadOpen(false);
+          }
+        },
+      }),
+    []
+  );
+
+  // Preview range calculations
+  const endTotalMonths = startYear * 12 + startMonth + (durationMonths > 0 ? durationMonths - 1 : 0);
+  const endMonth = ((endTotalMonths % 12) + 12) % 12;
+  const endYear = Math.floor(endTotalMonths / 12);
+
+  const stopTotalMonths = endTotalMonths + 1;
+  const stopMonth = ((stopTotalMonths % 12) + 12) % 12;
+  const stopYear = Math.floor(stopTotalMonths / 12);
 
   return (
     <Modal
       animationType="slide"
       transparent={true}
       visible={visible}
-      onRequestClose={handleClose}
+      onRequestClose={handleRequestClose}
       statusBarTranslucent={true}
     >
       <View style={cardStyles.modalOverlay}>
-        <TouchableWithoutFeedback onPress={handleClose}>
+        <TouchableWithoutFeedback onPress={handleDismiss}>
           <View style={cardStyles.modalDismissArea} />
         </TouchableWithoutFeedback>
 
@@ -113,7 +219,7 @@ export const AddRecurringBillModal = ({
               </View>
             </View>
             <TouchableOpacity
-              onPress={handleClose}
+              onPress={handleDismiss}
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={cardStyles.modalCloseBtn}
@@ -126,6 +232,7 @@ export const AddRecurringBillModal = ({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             automaticallyAdjustKeyboardInsets={true}
+            onScrollBeginDrag={() => setIsKeypadOpen(false)}
             contentContainerStyle={[
               cardStyles.modalScrollContent,
               { paddingBottom: Math.max(28, keyboardHeight + 28) },
@@ -213,6 +320,7 @@ export const AddRecurringBillModal = ({
                 placeholderTextColor={COLORS.textMuted}
                 value={name}
                 onChangeText={setName}
+                onFocus={() => setIsKeypadOpen(false)}
               />
             </View>
 
@@ -221,14 +329,59 @@ export const AddRecurringBillModal = ({
               <Text style={cardStyles.inputLabel} numberOfLines={1}>
                 AMOUNT ({currency})
               </Text>
-              <TextInput
-                style={cardStyles.inputField}
-                placeholder="0"
-                placeholderTextColor={COLORS.textMuted}
-                keyboardType="numeric"
-                value={amount}
-                onChangeText={setAmount}
-              />
+              <TouchableOpacity
+                style={[
+                  cardStyles.amountCard,
+                  isKeypadOpen && cardStyles.amountCardActive,
+                ]}
+                onPress={openAmountKeypad}
+                activeOpacity={0.85}
+              >
+                <View style={cardStyles.amountCardRow}>
+                  <Text style={cardStyles.amountCardPrefix}>
+                    {currency === 'USD' ? '$' : 'Rp'}
+                  </Text>
+                  <TextInput
+                    style={[
+                      cardStyles.amountCardInput,
+                      { fontSize: amount.length > 20 ? 17 : amount.length > 14 ? 20 : 22 },
+                    ]}
+                    placeholder="0"
+                    placeholderTextColor={COLORS.textMuted}
+                    showSoftInputOnFocus={false}
+                    value={amount}
+                    onFocus={openAmountKeypad}
+                    onPressIn={openAmountKeypad}
+                    editable={true}
+                  />
+                  {amount !== '' && (
+                    <TouchableOpacity
+                      style={cardStyles.clearInputBtn}
+                      onPress={() => {
+                        hapticLight();
+                        setAmount('');
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                    >
+                      <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Sub-amount / Math Calculation Line */}
+                <View style={cardStyles.amountPreviewContainer}>
+                  {isAmountMath ? (
+                    <Text style={cardStyles.amountPreviewText} numberOfLines={1}>
+                      = {currency === 'USD' ? '$' : 'Rp'} {formattedDisplayAmount}
+                    </Text>
+                  ) : amount ? (
+                    <Text style={cardStyles.amountPreviewTextMuted} numberOfLines={1}>
+                      {currency === 'USD' ? '$' : 'Rp'} {formattedDisplayAmount}
+                    </Text>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
             </View>
 
             {/* Form Group: Category with Icons */}
@@ -319,6 +472,171 @@ export const AddRecurringBillModal = ({
               </View>
             </View>
 
+            {/* Form Group: Start Period (Month & Year) */}
+            <View style={cardStyles.formGroup}>
+              <View style={cardStyles.inputLabelRow}>
+                <Text style={[cardStyles.inputLabel, cardStyles.inputLabelInline]} numberOfLines={1}>
+                  START PERIOD (MONTH & YEAR)
+                </Text>
+                <Text style={cardStyles.dueDayPreview} numberOfLines={1}>
+                  Starts {SHORT_MONTHS[startMonth]} {startYear}
+                </Text>
+              </View>
+
+              <View style={cardStyles.periodPickerCard}>
+                <TouchableOpacity
+                  style={cardStyles.periodNavBtn}
+                  onPress={() => {
+                    if (startMonth === 0) {
+                      setStartMonth(11);
+                      setStartYear((y) => y - 1);
+                    } else {
+                      setStartMonth((m) => m - 1);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="chevron-back" size={18} color={COLORS.textPrimary} />
+                </TouchableOpacity>
+
+                <View style={cardStyles.periodCenterCol}>
+                  <Text style={cardStyles.periodMonthText}>
+                    {MONTHS[startMonth]} {startYear}
+                  </Text>
+                  <Text style={cardStyles.periodSubText}>
+                    First month bill will appear
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={cardStyles.periodNavBtn}
+                  onPress={() => {
+                    if (startMonth === 11) {
+                      setStartMonth(0);
+                      setStartYear((y) => y + 1);
+                    } else {
+                      setStartMonth((m) => m + 1);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.textPrimary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Form Group: Duration / Active Months */}
+            <View style={cardStyles.formGroup}>
+              <View style={cardStyles.inputLabelRow}>
+                <Text style={[cardStyles.inputLabel, cardStyles.inputLabelInline]} numberOfLines={1}>
+                  SUBSCRIPTION DURATION
+                </Text>
+                <Text style={cardStyles.dueDayPreview} numberOfLines={1}>
+                  {durationMonths === 0 ? 'Ongoing' : `${durationMonths} Month${durationMonths > 1 ? 's' : ''}`}
+                </Text>
+              </View>
+
+              {/* Duration Pills */}
+              <View style={cardStyles.durationPillsWrap}>
+                {[
+                  { label: 'Ongoing', val: 0 },
+                  { label: '1 Mo', val: 1 },
+                  { label: '2 Mos', val: 2 },
+                  { label: '3 Mos', val: 3 },
+                  { label: '6 Mos', val: 6 },
+                  { label: '12 Mos', val: 12 },
+                ].map((item) => {
+                  const isSelected = !isCustomDuration && durationMonths === item.val;
+                  return (
+                    <TouchableOpacity
+                      key={`dur-${item.val}`}
+                      style={[
+                        cardStyles.durationPill,
+                        isSelected && cardStyles.durationPillActive,
+                      ]}
+                      onPress={() => {
+                        setIsCustomDuration(false);
+                        setDurationMonths(item.val);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          cardStyles.durationPillText,
+                          isSelected && cardStyles.durationPillTextActive,
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+
+                {/* Custom Option */}
+                <TouchableOpacity
+                  style={[
+                    cardStyles.durationPill,
+                    isCustomDuration && cardStyles.durationPillActive,
+                  ]}
+                  onPress={() => {
+                    setIsCustomDuration(true);
+                    const parsed = parseInt(customDurationInput, 10);
+                    if (parsed > 0) setDurationMonths(parsed);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      cardStyles.durationPillText,
+                      isCustomDuration && cardStyles.durationPillTextActive,
+                    ]}
+                  >
+                    Custom
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* If custom is selected, show numeric input */}
+              {isCustomDuration && (
+                <View style={cardStyles.customDurationRow}>
+                  <Text style={cardStyles.customDurationLabel}>Number of months:</Text>
+                  <TextInput
+                    style={cardStyles.customDurationInput}
+                    placeholder="e.g. 4"
+                    placeholderTextColor={COLORS.textMuted}
+                    keyboardType="numeric"
+                    value={customDurationInput}
+                    onFocus={() => setIsKeypadOpen(false)}
+                    onChangeText={(text) => {
+                      const clean = text.replace(/[^0-9]/g, '');
+                      setCustomDurationInput(clean);
+                      const parsed = parseInt(clean, 10);
+                      setDurationMonths(parsed > 0 ? parsed : 0);
+                    }}
+                  />
+                </View>
+              )}
+
+              {/* Duration Live Explanation Banner */}
+              <View style={cardStyles.durationPreviewBox}>
+                <Ionicons
+                  name={durationMonths === 0 ? 'infinite-outline' : 'calendar-outline'}
+                  size={15}
+                  color={ACCENT}
+                  style={{ marginRight: 8, marginTop: 2 }}
+                />
+                <Text style={cardStyles.durationPreviewText}>
+                  {durationMonths === 0
+                    ? `Repeats monthly starting ${SHORT_MONTHS[startMonth]} ${startYear} until stopped.`
+                    : `Active for ${durationMonths} month${durationMonths > 1 ? 's' : ''}: ${SHORT_MONTHS[startMonth]} ${startYear}${
+                        durationMonths > 1 ? ` – ${SHORT_MONTHS[endMonth]} ${endYear}` : ''
+                      }.\nWill automatically stop appearing in ${SHORT_MONTHS[stopMonth]} ${stopYear}.`}
+                </Text>
+              </View>
+            </View>
+
             {/* Save CTA */}
             <TouchableOpacity
               style={[
@@ -342,6 +660,24 @@ export const AddRecurringBillModal = ({
               </Text>
             </View>
           </ScrollView>
+
+          {/* Custom In-App Calculator Keypad (Docked at Bottom) */}
+          {isKeypadOpen && (
+            <Animated.View
+              entering={SlideInDown.duration(220)}
+              exiting={SlideOutDown.duration(180)}
+              style={cardStyles.keypadWrapper}
+              {...keypadPanResponder.panHandlers}
+            >
+              <CalculatorKeypad
+                value={amount}
+                onChangeValue={setAmount}
+                onDone={() => setIsKeypadOpen(false)}
+                accentColor={ACCENT}
+                currency={currency}
+              />
+            </Animated.View>
+          )}
         </View>
       </View>
     </Modal>
