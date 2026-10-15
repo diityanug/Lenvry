@@ -1,6 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { COLORS, RADIUS } from '../../constants/theme';
 import { hapticMedium, hapticSuccess, hapticWarning } from '../../utils/haptics';
 
@@ -51,12 +50,6 @@ export const WaterTrackerCard = ({
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={waterStyles.title}>Water Intake</Text>
-              {isGoalReached && (
-                <View style={waterStyles.goalReachedBadge}>
-                  <Ionicons name="checkmark-circle" size={11} color="#10B981" />
-                  <Text style={waterStyles.goalReachedText}>GOAL REACHED</Text>
-                </View>
-              )}
             </View>
             <Text style={waterStyles.subtitle}>
               {isGoalReached
