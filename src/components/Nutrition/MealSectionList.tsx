@@ -43,7 +43,7 @@ export const MealSectionList = ({
 
         return (
           <View key={type} style={mealStyles.card}>
-            {/* Meal Header */}
+            {/* Meal Header (Rule 3: Clean header) */}
             <View style={mealStyles.headerRow}>
               <View style={mealStyles.titleGroup}>
                 <View style={mealStyles.iconWrap}>
@@ -54,19 +54,18 @@ export const MealSectionList = ({
                   <Text style={mealStyles.caloriesSub}>{mealTotalCals.toLocaleString('en-US')} kcal total</Text>
                 </View>
               </View>
-
-              {onCopyYesterdayMeal && (
-                <TouchableOpacity
-                  style={mealStyles.copyBtn}
-                  onPress={() => onCopyYesterdayMeal(type)}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                >
-                  <Ionicons name="copy-outline" size={13} color={COLORS.textSecondary} />
-                  <Text style={mealStyles.copyBtnText}>Copy Yesterday</Text>
-                </TouchableOpacity>
-              )}
             </View>
+
+            {onCopyYesterdayMeal && (
+              <TouchableOpacity
+                style={mealStyles.copyYesterdayBar}
+                onPress={() => onCopyYesterdayMeal(type)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="copy-outline" size={13} color={COLORS.nutrition} />
+                <Text style={mealStyles.copyYesterdayBarText}>{"Copy Yesterday's"} {config.label}</Text>
+              </TouchableOpacity>
+            )}
 
             {/* List of items logged for this meal */}
             {mealLogs.length > 0 && (
@@ -204,6 +203,24 @@ const mealStyles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.nutrition,
     marginTop: 1,
+  },
+  copyYesterdayBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.22)',
+    marginBottom: 12,
+  },
+  copyYesterdayBarText: {
+    color: COLORS.nutrition,
+    fontSize: 12,
+    fontWeight: '700',
   },
   copyBtn: {
     flexDirection: 'row',

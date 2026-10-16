@@ -3,11 +3,10 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Linking,
+  ScrollView,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { COLORS, RADIUS } from '../../constants/theme';
 import {
@@ -25,42 +24,14 @@ interface LearningTrackerSectionProps {
   courses: LearningCourse[];
   onSelectCourse: (course: LearningCourse) => void;
   onCreateCourse: () => void;
-  onUpdateStatus: (id: string, status: LearningStatus) => void;
 }
 
 export default function LearningTrackerSection({
   courses,
   onSelectCourse,
   onCreateCourse,
-  onUpdateStatus,
 }: LearningTrackerSectionProps) {
   const [selectedFilter, setSelectedFilter] = useState<'All' | LearningStatus>('All');
-  const [toastMessage, setToastMessage] = useState('');
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 2000);
-  };
-
-  const handleCopyLink = async (link: string) => {
-    if (!link) return;
-    await Clipboard.setStringAsync(link);
-  };
-
-  const handleOpenLink = async (link: string) => {
-    if (!link) return;
-    const url = link.startsWith('http://') || link.startsWith('https://') ? link : `https://${link}`;
-    try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (canOpen) {
-        await Linking.openURL(url);
-      } else {
-        showToast('Invalid URL format');
-      }
-    } catch {
-      showToast('Could not open link');
-    }
-  };
 
   const stats = useMemo(() => {
     const total = courses.length;
@@ -75,55 +46,92 @@ export default function LearningTrackerSection({
     return courses.filter((c) => c.status === selectedFilter);
   }, [courses, selectedFilter]);
 
-  const handleToggleCompleted = (course: LearningCourse) => {
-    const newStatus: LearningStatus =
-      course.status === 'Completed' ? 'In Progress' : 'Completed';
-    onUpdateStatus(course.id, newStatus);
-  };
-
   return (
     <View style={styles.container}>
-      {/* Toast Notification */}
-      {Boolean(toastMessage) && (
-        <View style={styles.toastBox}>
-          <Ionicons name="checkmark-circle" size={14} color={COLORS.accent} />
-          <Text style={styles.toastText}>{toastMessage}</Text>
-        </View>
-      )}
-
-      {/* Section Header */}
-      <View style={styles.sectionHeaderRow}>
-        <View>
-          <View style={styles.titleRow}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="school" size={14} color={COLORS.accent} />
-            </View>
-            <Text style={styles.sectionTitleText}>LEARNING TRACKER</Text>
+      {/* Section Header (Rule 3: Title only, no button in same row) */}
+      <View style={styles.sectionHeaderBlock}>
+        <View style={styles.titleRow}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="school" size={14} color={COLORS.accent} />
           </View>
-          <Text style={styles.sectionSubtitle}>
-            {stats.inProgress} Active • {stats.completed} Done • {stats.totalHours.toFixed(1)}h Studied
+          <Text style={styles.sectionTitleText}>LEARNING TRACKER</Text>
+        </View>
+      </View>
+
+      {/* HIGHLIGHTED STATS BANNER (In Progress, Completed & Hours Studied) */}
+      <View style={styles.statsBanner}>
+        {/* Metric 1: In Progress */}
+        <View style={[styles.statCard, styles.statCardInProgress]}>
+          <View style={styles.statCardTopRow}>
+            <Ionicons name="play-circle" size={13} color="#38BDF8" />
+            <Text style={[styles.statCardLabel, { color: '#38BDF8' }]}>IN PROGRESS</Text>
+          </View>
+          <Text style={[styles.statCardValue, { color: '#38BDF8' }]}>
+            {stats.inProgress}
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.addCourseBtn}
-          onPress={onCreateCourse}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={16} color="#08090C" />
-          <Text style={styles.addCourseBtnText}>Add Course</Text>
-        </TouchableOpacity>
+        {/* Metric 2: Completed */}
+        <View style={[styles.statCard, styles.statCardCompleted]}>
+          <View style={styles.statCardTopRow}>
+            <Ionicons name="checkmark-circle" size={13} color="#10B981" />
+            <Text style={[styles.statCardLabel, { color: '#10B981' }]}>COMPLETED</Text>
+          </View>
+          <Text style={[styles.statCardValue, { color: '#10B981' }]}>
+            {stats.completed}
+          </Text>
+        </View>
+
+        {/* Metric 3: Hours Studied */}
+        <View style={[styles.statCard, styles.statCardHours]}>
+          <View style={styles.statCardTopRow}>
+            <Ionicons name="time" size={13} color="#A78BFA" />
+            <Text style={[styles.statCardLabel, { color: '#A78BFA' }]}>STUDIED</Text>
+          </View>
+          <Text style={[styles.statCardValue, { color: '#A78BFA' }]}>
+            {stats.totalHours % 1 === 0 ? stats.totalHours : stats.totalHours.toFixed(1)}
+            <Text style={styles.statCardUnit}> hrs</Text>
+          </Text>
+        </View>
       </View>
 
-      {/* Filter Tabs */}
+      {/* Dedicated Add Course Action Bar */}
+      <TouchableOpacity
+        style={styles.addCourseBar}
+        onPress={onCreateCourse}
+        activeOpacity={0.75}
+      >
+        <Ionicons name="add-circle" size={18} color={COLORS.accentHover} />
+        <Text style={styles.addCourseBarText}>Track New Course</Text>
+      </TouchableOpacity>
+
+      {/* Category Filter Tabs (Single-row horizontal scroll, balanced & symmetrical) */}
       {courses.length > 0 && (
-        <View style={styles.filterTabsRow}>
-          {(['All', 'In Progress', 'Completed', 'Not Started'] as const).map((tab) => {
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterTabsScroll}
+          style={styles.filterScrollView}
+        >
+          {(['All', 'In Progress', 'Completed', 'Not Started', 'On Hold'] as const).map((tab) => {
             const isSelected = selectedFilter === tab;
             const count =
               tab === 'All'
                 ? courses.length
                 : courses.filter((c) => c.status === tab).length;
+            const tabLabel = tab === 'On Hold' ? 'Pending' : tab;
+
+            const tabIcon =
+              tab === 'All'
+                ? 'grid-outline'
+                : tab === 'In Progress'
+                ? 'play-circle-outline'
+                : tab === 'Completed'
+                ? 'checkmark-circle-outline'
+                : tab === 'Not Started'
+                ? 'time-outline'
+                : 'pause-circle-outline';
+
             return (
               <TouchableOpacity
                 key={tab}
@@ -131,21 +139,41 @@ export default function LearningTrackerSection({
                 onPress={() => setSelectedFilter(tab)}
                 activeOpacity={0.7}
               >
+                <Ionicons
+                  name={tabIcon as any}
+                  size={12}
+                  color={isSelected ? COLORS.accentHover : COLORS.textMuted}
+                />
                 <Text
                   style={[
                     styles.filterTabText,
                     isSelected && styles.filterTabTextActive,
                   ]}
                 >
-                  {tab} ({count})
+                  {tabLabel}
                 </Text>
+                <View
+                  style={[
+                    styles.filterBadge,
+                    isSelected && styles.filterBadgeActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterBadgeText,
+                      isSelected && styles.filterBadgeTextActive,
+                    ]}
+                  >
+                    {count}
+                  </Text>
+                </View>
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
       )}
 
-      {/* Course Cards List */}
+      {/* Course Cards List (Clean Cover Cards) */}
       {filteredCourses.length === 0 ? (
         <TouchableOpacity
           style={styles.emptyCard}
@@ -173,7 +201,7 @@ export default function LearningTrackerSection({
       ) : (
         <View style={styles.courseCardsContainer}>
           {filteredCourses.map((course, idx) => {
-            // Pick colorful theme based on course.color, provider default, or index rotation
+            // Theme selection based on color or provider
             const colorKey: CourseColor =
               course.color ||
               PROVIDER_DEFAULT_COLORS[course.provider] ||
@@ -189,15 +217,17 @@ export default function LearningTrackerSection({
             const isCompleted = course.status === 'Completed';
 
             return (
-              <View
+              <TouchableOpacity
                 key={course.id}
                 style={[
-                  styles.courseCard,
+                  styles.courseCoverCard,
                   {
                     backgroundColor: theme.cardBg,
                     borderColor: theme.border,
                   },
                 ]}
+                onPress={() => onSelectCourse(course)}
+                activeOpacity={0.78}
               >
                 {/* Top Colored Accent Stripe */}
                 <View
@@ -217,8 +247,8 @@ export default function LearningTrackerSection({
                         cy="12%"
                         r="68%"
                       >
-                        <Stop offset="0%" stopColor={theme.primary} stopOpacity={0.25} />
-                        <Stop offset="65%" stopColor={theme.primary} stopOpacity={0.06} />
+                        <Stop offset="0%" stopColor={theme.primary} stopOpacity={0.22} />
+                        <Stop offset="65%" stopColor={theme.primary} stopOpacity={0.05} />
                         <Stop offset="100%" stopColor={theme.primary} stopOpacity={0} />
                       </RadialGradient>
                     </Defs>
@@ -228,14 +258,13 @@ export default function LearningTrackerSection({
                       width="100%"
                       height="100%"
                       fill={`url(#glow_${course.id})`}
-                      rx={RADIUS.xxl}
+                      rx={RADIUS.xl}
                     />
                   </Svg>
                 </View>
 
-                {/* Meta Badges Header */}
+                {/* Cover Meta Row: Provider, Level, and Status Badge */}
                 <View style={styles.cardMetaRow}>
-                  {/* Provider & Level */}
                   <View style={styles.badgeGroup}>
                     <View
                       style={[
@@ -246,7 +275,7 @@ export default function LearningTrackerSection({
                         },
                       ]}
                     >
-                      <Ionicons name="cube-outline" size={12} color={theme.accent} />
+                      <Ionicons name="cube-outline" size={11} color={theme.accent} />
                       <Text style={[styles.providerBadgeText, { color: theme.badgeText }]}>
                         {course.provider}
                       </Text>
@@ -267,163 +296,57 @@ export default function LearningTrackerSection({
                     </View>
                   </View>
 
-                  {/* Status Badge */}
-                  <TouchableOpacity
+                  <View
                     style={[
                       styles.statusBadge,
                       {
                         backgroundColor: statusConfig.bg,
-                        borderColor: statusConfig.color + '55',
+                        borderColor: statusConfig.color + '45',
                       },
                     ]}
-                    onPress={() => handleToggleCompleted(course)}
-                    activeOpacity={0.7}
                   >
                     <Ionicons
                       name={statusConfig.icon as any}
-                      size={13}
+                      size={11}
                       color={statusConfig.color}
                     />
                     <Text style={[styles.statusBadgeText, { color: statusConfig.color }]}>
                       {statusConfig.label}
                     </Text>
-                  </TouchableOpacity>
+                  </View>
                 </View>
 
                 {/* Course Title */}
-                <TouchableOpacity
-                  onPress={() => onSelectCourse(course)}
-                  activeOpacity={0.75}
+                <Text
+                  style={[
+                    styles.courseTitle,
+                    isCompleted && styles.courseTitleCompleted,
+                  ]}
+                  numberOfLines={2}
                 >
-                  <Text
-                    style={[
-                      styles.courseTitle,
-                      isCompleted && styles.courseTitleCompleted,
-                    ]}
-                    numberOfLines={2}
-                  >
-                    {course.title}
-                  </Text>
-                </TouchableOpacity>
+                  {course.title}
+                </Text>
 
-                {/* Details Row (Hours & Start Date) */}
-                <View style={styles.cardDetailsRow}>
-                  <View style={styles.detailItem}>
-                    <Ionicons name="time-outline" size={13} color={theme.accent} />
-                    <Text style={styles.detailItemText}>
-                      <Text style={{ fontWeight: '800', color: theme.ink }}>
+                {/* Cover Footer Row: Hours Studied & View Details Hint */}
+                <View style={styles.cardFooterRow}>
+                  <View style={styles.hoursBadge}>
+                    <Ionicons name="time" size={13} color={theme.accent} />
+                    <Text style={styles.hoursBadgeText}>
+                      <Text style={[styles.hoursBadgeVal, { color: theme.ink }]}>
                         {course.hours}
                       </Text>{' '}
-                      hrs
+                      hrs studied
                     </Text>
                   </View>
 
-                  <View style={[styles.detailDot, { backgroundColor: theme.primary + '88' }]} />
-
-                  <View style={styles.detailItem}>
-                    <Ionicons name="calendar-outline" size={13} color={theme.accent} />
-                    <Text style={styles.detailItemText}>
-                      Started {course.startDate || 'Recently'}
+                  <View style={styles.viewDetailHint}>
+                    <Text style={[styles.viewDetailHintText, { color: theme.badgeText }]}>
+                      View Details
                     </Text>
+                    <Ionicons name="chevron-forward" size={13} color={theme.badgeText} />
                   </View>
                 </View>
-
-                {/* Course Link Section */}
-                {Boolean(course.link?.trim()) && (
-                  <View
-                    style={[
-                      styles.linkBar,
-                      {
-                        backgroundColor: theme.badgeBg,
-                        borderColor: theme.border,
-                      },
-                    ]}
-                  >
-                    <TouchableOpacity
-                      style={styles.openLinkBtn}
-                      onPress={() => handleOpenLink(course.link!)}
-                      activeOpacity={0.75}
-                    >
-                      <Ionicons name="open-outline" size={14} color={theme.accent} />
-                      <Text style={[styles.openLinkBtnText, { color: theme.badgeText }]} numberOfLines={1}>
-                        Open Course Page
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.copyLinkIconBtn}
-                      onPress={() => handleCopyLink(course.link!)}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons name="copy-outline" size={14} color={theme.accent} />
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {/* Notes Preview */}
-                {Boolean(course.notes?.trim()) && (
-                  <TouchableOpacity
-                    style={[
-                      styles.notesPreviewBox,
-                      {
-                        borderLeftColor: theme.primary,
-                      },
-                    ]}
-                    onPress={() => onSelectCourse(course)}
-                    activeOpacity={0.75}
-                  >
-                    <View style={styles.notesHeader}>
-                      <Ionicons name="document-text-outline" size={12} color={theme.accent} />
-                      <Text style={[styles.notesHeaderLabel, { color: theme.accent }]}>NOTES</Text>
-                    </View>
-                    <Text style={styles.notesPreviewText} numberOfLines={2}>
-                      {course.notes}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                {/* Card Footer Actions */}
-                <View style={[styles.cardFooter, { borderTopColor: theme.border }]}>
-                  <TouchableOpacity
-                    style={[
-                      styles.quickStatusToggleBtn,
-                      isCompleted && styles.quickStatusToggleBtnCompleted,
-                    ]}
-                    onPress={() => handleToggleCompleted(course)}
-                    activeOpacity={0.75}
-                  >
-                    <Ionicons
-                      name={isCompleted ? 'arrow-undo-outline' : 'checkmark-circle-outline'}
-                      size={15}
-                      color={isCompleted ? COLORS.textMuted : COLORS.success}
-                    />
-                    <Text
-                      style={[
-                        styles.quickStatusToggleText,
-                        { color: isCompleted ? COLORS.textMuted : COLORS.success },
-                      ]}
-                    >
-                      {isCompleted ? 'Mark Active' : 'Mark Completed'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.editBtn,
-                      {
-                        backgroundColor: theme.badgeBg,
-                        borderColor: theme.border,
-                      },
-                    ]}
-                    onPress={() => onSelectCourse(course)}
-                    activeOpacity={0.75}
-                  >
-                    <Ionicons name="pencil" size={13} color={theme.badgeText} />
-                    <Text style={[styles.editBtnText, { color: theme.badgeText }]}>Edit</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -434,31 +357,10 @@ export default function LearningTrackerSection({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 34,
+    marginBottom: 32,
   },
-  toastBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: COLORS.accentSoft,
-    borderWidth: 1,
-    borderColor: COLORS.accent,
-    borderRadius: RADIUS.md,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+  sectionHeaderBlock: {
     marginBottom: 12,
-    alignSelf: 'flex-start',
-  },
-  toastText: {
-    color: COLORS.accentHover,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
   },
   titleRow: {
     flexDirection: 'row',
@@ -484,33 +386,103 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 11.5,
     fontWeight: '500',
-    marginTop: 3,
+    marginTop: 4,
   },
-  addCourseBtn: {
+  // 3-Metric Highlight Stats Banner
+  statsBanner: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statCardInProgress: {
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+  },
+  statCardActiveInProgress: {
+    backgroundColor: 'rgba(56, 189, 248, 0.18)',
+    borderColor: '#38BDF8',
+  },
+  statCardCompleted: {
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+  },
+  statCardActiveCompleted: {
+    backgroundColor: 'rgba(16, 185, 129, 0.18)',
+    borderColor: '#10B981',
+  },
+  statCardHours: {
+    backgroundColor: 'rgba(167, 139, 250, 0.08)',
+    borderColor: 'rgba(167, 139, 250, 0.25)',
+  },
+  statCardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
-    backgroundColor: COLORS.accent,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: RADIUS.md,
+    marginBottom: 6,
   },
-  addCourseBtnText: {
-    color: '#08090C',
-    fontSize: 12,
+  statCardLabel: {
+    fontSize: 9.5,
     fontWeight: '800',
+    letterSpacing: 0.5,
   },
-  filterTabsRow: {
+  statCardValue: {
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+    textAlign: 'center',
+  },
+  statCardUnit: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  addCourseBar: {
     flexDirection: 'row',
-    gap: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.25)',
+    borderRadius: RADIUS.lg,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
     marginBottom: 14,
-    flexWrap: 'wrap',
+  },
+  addCourseBarText: {
+    color: COLORS.accentHover,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  filterScrollView: {
+    marginBottom: 14,
+  },
+  filterTabsScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 2,
+    paddingHorizontal: 1,
   },
   filterTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: COLORS.bgCardSub,
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: RADIUS.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -520,10 +492,31 @@ const styles = StyleSheet.create({
   },
   filterTabText: {
     color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 11.5,
+    fontWeight: '700',
   },
   filterTabTextActive: {
+    color: COLORS.accentHover,
+    fontWeight: '800',
+  },
+  filterBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: RADIUS.full,
+    minWidth: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBadgeActive: {
+    backgroundColor: 'rgba(99, 102, 241, 0.25)',
+  },
+  filterBadgeText: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  filterBadgeTextActive: {
     color: COLORS.accentHover,
     fontWeight: '800',
   },
@@ -584,26 +577,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   courseCardsContainer: {
-    gap: 14,
+    gap: 12,
   },
-  courseCard: {
-    borderRadius: RADIUS.xxl,
+  courseCoverCard: {
+    borderRadius: RADIUS.xl,
     borderWidth: 1.5,
-    padding: 16,
-    paddingTop: 18,
+    padding: 15,
+    paddingTop: 16,
     position: 'relative',
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 18,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 4,
   },
   cardAccentStripe: {
     position: 'absolute',
     top: 0,
-    left: 20,
-    right: 20,
+    left: 16,
+    right: 16,
     height: 3,
     borderBottomLeftRadius: 3,
     borderBottomRightRadius: 3,
@@ -612,7 +605,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   badgeGroup: {
     flexDirection: 'row',
@@ -622,19 +615,19 @@ const styles = StyleSheet.create({
   providerBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 4.5,
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
     borderRadius: RADIUS.xs,
     borderWidth: 1,
   },
   providerBadgeText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
   },
   levelBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4.5,
+    paddingHorizontal: 7,
+    paddingVertical: 3.5,
     borderRadius: RADIUS.xs,
     borderWidth: 1,
   },
@@ -645,22 +638,22 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 9,
-    paddingVertical: 4.5,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
     borderRadius: RADIUS.xs,
     borderWidth: 1,
   },
   statusBadgeText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
   },
   courseTitle: {
     color: COLORS.textPrimary,
-    fontSize: 16.5,
+    fontSize: 15.5,
     fontWeight: '800',
-    lineHeight: 23,
-    marginBottom: 10,
+    lineHeight: 22,
+    marginBottom: 12,
     letterSpacing: -0.2,
   },
   courseTitleCompleted: {
@@ -668,109 +661,40 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     opacity: 0.85,
   },
-  cardDetailsRow: {
+  cardFooterRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  detailItemText: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  detailDot: {
-    width: 3.5,
-    height: 3.5,
-    borderRadius: 2,
-  },
-  linkBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 12,
-  },
-  openLinkBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    flex: 1,
-  },
-  openLinkBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  copyLinkIconBtn: {
-    padding: 3,
-    marginLeft: 8,
-  },
-  notesPreviewBox: {
-    backgroundColor: 'rgba(0, 0, 0, 0.28)',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    borderLeftWidth: 3,
-    padding: 10,
-    marginBottom: 12,
-  },
-  notesHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginBottom: 4,
-  },
-  notesHeaderLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  notesPreviewText: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingTop: 10,
     borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
   },
-  quickStatusToggleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    borderRadius: RADIUS.xs,
-  },
-  quickStatusToggleBtnCompleted: {
-    opacity: 0.8,
-  },
-  quickStatusToggleText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  editBtn: {
+  hoursBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 5.5,
-    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: RADIUS.xs,
     borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  editBtnText: {
-    fontSize: 12,
+  hoursBadgeText: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  hoursBadgeVal: {
+    fontWeight: '800',
+  },
+  viewDetailHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  viewDetailHintText: {
+    fontSize: 11,
     fontWeight: '700',
   },
 });

@@ -5,8 +5,6 @@ import {
   Modal,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
   TouchableWithoutFeedback,
   Keyboard,
   ScrollView,
@@ -15,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS } from '../../constants/theme';
 import { AVAILABLE_HABIT_ICONS, HabitCategoryIconItem } from '../../constants/habits';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 interface AddCategoryModalProps {
   visible: boolean;
@@ -41,6 +40,7 @@ function AddCategoryContent({
   onSave: (categoryName: string, iconConfig?: HabitCategoryIconItem) => void;
   onClose: () => void;
 }) {
+  const keyboardHeight = useKeyboardHeight();
   const [localText, setLocalText] = useState('');
   const [selectedIconItem, setSelectedIconItem] = useState<HabitCategoryIconItem>(AVAILABLE_HABIT_ICONS[0]);
   const [error, setError] = useState('');
@@ -68,15 +68,21 @@ function AddCategoryContent({
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={{ flex: 1 }}
+    <ScrollView
+      contentContainerStyle={[
+        modalStyles.scrollOverlayCenter,
+        { paddingBottom: Math.max(16, keyboardHeight + 16) },
+      ]}
+      bounces={false}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       <TouchableWithoutFeedback onPress={handleDismissOverlay}>
-        <View style={modalStyles.overlayCenter}>
-          <TouchableWithoutFeedback onPress={() => {}}>
-            <View style={modalStyles.card}>
-              {/* Category Icon & Title Header */}
+        <View style={StyleSheet.absoluteFill} />
+      </TouchableWithoutFeedback>
+
+      <View style={modalStyles.card}>
+        {/* Category Icon & Title Header */}
               <View style={[modalStyles.iconWrap, { backgroundColor: selectedIconItem.bg, borderColor: selectedIconItem.color }]}>
                 <Ionicons name={selectedIconItem.icon as any} size={28} color={selectedIconItem.color} />
               </View>
@@ -186,16 +192,13 @@ function AddCategoryContent({
                 </TouchableOpacity>
               </View>
             </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+    </ScrollView>
   );
 }
 
 const modalStyles = StyleSheet.create({
-  overlayCenter: {
-    flex: 1,
+  scrollOverlayCenter: {
+    flexGrow: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',

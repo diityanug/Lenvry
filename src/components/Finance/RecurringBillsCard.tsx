@@ -237,7 +237,7 @@ export const RecurringBillsCard = ({
 
   return (
     <View style={cardStyles.containerCard}>
-      {/* Header with Title & Add Action */}
+      {/* Header with Title Only (Rule 3) */}
       <View style={cardStyles.headerRow}>
         <View style={cardStyles.titleGroup}>
           <View style={cardStyles.iconWrap}>
@@ -252,18 +252,19 @@ export const RecurringBillsCard = ({
             </Text>
           </View>
         </View>
-
-        <TouchableOpacity
-          style={cardStyles.addBtn}
-          onPress={() => setModalVisible(true)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={16} color={INK} />
-          <Text style={cardStyles.addBtnText} numberOfLines={1}>
-            Add
-          </Text>
-        </TouchableOpacity>
       </View>
+
+      {/* Dedicated Add Action Bar */}
+      <TouchableOpacity
+        style={cardStyles.addBillBar}
+        onPress={() => setModalVisible(true)}
+        activeOpacity={0.75}
+      >
+        <Ionicons name="add-circle" size={18} color={ACCENT} />
+        <Text style={cardStyles.addBillBarText}>
+          Add Recurring Bill or Subscription
+        </Text>
+      </TouchableOpacity>
 
       {/* Monthly Payment Health Tracker Banner */}
       {filteredBills.length > 0 && (
@@ -397,7 +398,7 @@ export const RecurringBillsCard = ({
               ? 'No Paid Bills Yet'
               : filterTab === 'unpaid'
               ? 'No Pending Bills!'
-              : 'No Bill / Subcrtiptions yet'}
+              : 'No Bills or Subscriptions yet'}
           </Text>
           <Text style={cardStyles.emptySubText}>
             {filterTab === 'paid'

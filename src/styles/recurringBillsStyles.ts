@@ -163,21 +163,23 @@ export const cardStyles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '600',
   },
-  addBtn: {
+  addBillBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: ACCENT,
+    gap: 8,
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderRadius: RADIUS.lg,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: RADIUS.md,
-    gap: 5,
-    minHeight: 44,
-    flexShrink: 0,
+    marginBottom: 16,
   },
-  addBtnText: {
-    color: INK,
-    fontSize: 12,
-    fontWeight: '800',
+  addBillBarText: {
+    color: ACCENT,
+    fontSize: 13,
+    fontWeight: '700',
     letterSpacing: 0.2,
   },
   summaryBox: {

@@ -25,6 +25,14 @@ import AppAlertModal, { AppAlertConfig } from '../Common/AppAlertModal';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { stickyNoteStyles as styles } from '../../styles/stickyNoteStyles';
 
+const CATEGORY_DEFAULT_COLORS: Record<NoteCategory, StickyNoteColor> = {
+  General: 'amber',
+  Personal: 'rose',
+  Finance: 'emerald',
+  Work: 'blue',
+  Ideas: 'purple',
+  Lists: 'amber',
+};
 
 interface StickyNoteModalProps {
   visible: boolean;
@@ -568,7 +576,12 @@ function StickyNoteModalContent({
                           { borderColor: isSel ? cfg.color : COLORS.border },
                           isSel && { backgroundColor: cfg.color + '22' },
                         ]}
-                        onPress={() => setCategory(catKey)}
+                        onPress={() => {
+                          setCategory(catKey);
+                          if (!isExisting) {
+                            setColor(CATEGORY_DEFAULT_COLORS[catKey] || 'amber');
+                          }
+                        }}
                         activeOpacity={0.75}
                       >
                         <Ionicons

@@ -10,14 +10,13 @@ export const debtsStyles = StyleSheet.create({
   containerCard: {
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.xl,
-    padding: 20,
+    padding: 18,
     marginBottom: 20,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
     marginBottom: 16,
@@ -56,23 +55,81 @@ export const debtsStyles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 16,
   },
-  btnAdd: {
+
+  // Dedicated Add Entry Bar
+  btnAddEntryBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: ACCENT,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
     borderRadius: RADIUS.lg,
-    flexShrink: 0,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
-  btnAddText: {
-    color: INK,
-    fontSize: 12,
-    fontWeight: '800',
+  btnAddEntryText: {
+    color: ACCENT,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
 
-  // Summary Banner
+  // Spacious Dual Summary Cards
+  summaryRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    padding: 12,
+    minHeight: 88,
+    justifyContent: 'space-between',
+  },
+  summaryCardReceivable: {
+    backgroundColor: 'rgba(16, 185, 129, 0.05)',
+    borderColor: 'rgba(16, 185, 129, 0.2)',
+  },
+  summaryCardDebt: {
+    backgroundColor: 'rgba(244, 63, 94, 0.05)',
+    borderColor: 'rgba(244, 63, 94, 0.2)',
+  },
+  summaryCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  summaryCardDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  summaryCardLabel: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: COLORS.textMuted,
+    letterSpacing: 0.5,
+  },
+  summaryCardAmount: {
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  summaryCardSub: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 4,
+  },
+
+  // Legacy Banner Compatibility
   summaryBanner: {
     flexDirection: 'row',
     backgroundColor: COLORS.bgCardSub,
@@ -129,22 +186,22 @@ export const debtsStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 12,
+    paddingVertical: 11,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.borderSubtle,
     backgroundColor: COLORS.bgCardSub,
   },
   tabBtnActiveReceivable: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: 'rgba(16, 185, 129, 0.18)',
     borderColor: RECEIVABLE_COLOR,
   },
   tabBtnActiveDebt: {
-    backgroundColor: 'rgba(244, 63, 94, 0.2)',
+    backgroundColor: 'rgba(244, 63, 94, 0.18)',
     borderColor: DEBT_COLOR,
   },
   tabText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '600',
     color: COLORS.textMuted,
   },
@@ -196,7 +253,7 @@ export const debtsStyles = StyleSheet.create({
     maxWidth: 260,
   },
   itemsList: {
-    gap: 12,
+    gap: 14,
   },
   itemCard: {
     backgroundColor: COLORS.bgCardSub,
@@ -206,24 +263,29 @@ export const debtsStyles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
-  itemHeaderRow: {
+  itemTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  personGroup: {
-    flex: 1,
+  itemIdentity: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginRight: 10,
+    flex: 1,
+    minWidth: 0,
+    marginRight: 8,
   },
-  avatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  itemAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  itemMeta: {
+    flex: 1,
+    minWidth: 0,
   },
   personName: {
     fontSize: 15,
@@ -235,63 +297,67 @@ export const debtsStyles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: 2,
   },
-  itemActions: {
-    flexDirection: 'row',
+  btnDelete: {
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  // Inner Balance Box
+  balanceBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    padding: 12,
     gap: 8,
   },
-  btnCheckmark: {
+  balanceMainRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
   },
-  btnCheckmarkText: {
-    fontSize: 12,
+  balanceLabel: {
+    fontSize: 10.5,
     fontWeight: '800',
+    color: COLORS.textMuted,
+    letterSpacing: 0.5,
   },
-  badgeSettled: {
+  remainingAmountText: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  balanceDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  balanceSubRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  balanceSubItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: RADIUS.md,
   },
-  badgeSettledText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: COLORS.success,
-  },
-  btnDelete: {
-    padding: 7,
-    borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-  },
-  itemAmountRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginTop: 2,
-  },
-  amountLabel: {
+  balanceSubLabel: {
     fontSize: 11,
     color: COLORS.textMuted,
+  },
+  balanceSubValue: {
+    fontSize: 11.5,
     fontWeight: '600',
+    color: COLORS.textPrimary,
   },
-  remainingAmountText: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginTop: 3,
-  },
-  paidAmountText: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: 3,
+
+  // Progress Section
+  progressSection: {
+    gap: 6,
   },
   progressTrack: {
     height: 6,
@@ -303,11 +369,77 @@ export const debtsStyles = StyleSheet.create({
     height: '100%',
     borderRadius: 3,
   },
-  notesPreview: {
+  progressLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  progressLabel: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+  },
+  progressPercent: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+  },
+
+  // Notes Box
+  notesBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: RADIUS.md,
+  },
+  notesText: {
+    flex: 1,
     fontSize: 11.5,
     color: COLORS.textMuted,
+    lineHeight: 16,
     fontStyle: 'italic',
-    paddingTop: 2,
+  },
+
+  // Primary Action Button (Full Width)
+  btnPrimaryAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+  },
+  btnPrimaryActionReceivable: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+  },
+  btnPrimaryActionDebt: {
+    backgroundColor: 'rgba(244, 63, 94, 0.12)',
+    borderColor: 'rgba(244, 63, 94, 0.35)',
+  },
+  btnPrimaryActionText: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  settledBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    paddingVertical: 10,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.2)',
+  },
+  settledBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.success,
   },
 
   // Modal Sheet Styles

@@ -145,7 +145,7 @@ export const LEARNING_STATUS_CONFIG: Record<
     icon: 'time-outline',
   },
   'On Hold': {
-    label: 'On Hold',
+    label: 'On Hold (Pending)',
     color: '#F59E0B',
     bg: 'rgba(245, 158, 11, 0.16)',
     icon: 'pause-circle-outline',

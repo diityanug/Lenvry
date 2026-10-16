@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Text,
   TouchableOpacity,
@@ -19,7 +19,6 @@ import {
   ACCENT,
   RECEIVABLE_COLOR,
   DEBT_COLOR,
-  INK,
 } from '../../styles/debtsStyles';
 
 interface DebtsCardProps {
@@ -80,21 +79,45 @@ export function DebtsCard({
   };
 
   // Filtered lists
-  const currentCurrencyDebts = debts.filter((d) => d.currency === currency);
-  const receivables = currentCurrencyDebts.filter((d) => d.type === 'receivable');
-  const payables = currentCurrencyDebts.filter((d) => d.type === 'debt');
+  const currentCurrencyDebts = useMemo(
+    () => debts.filter((d) => d.currency === currency),
+    [debts, currency]
+  );
+  const receivables = useMemo(
+    () => currentCurrencyDebts.filter((d) => d.type === 'receivable'),
+    [currentCurrencyDebts]
+  );
+  const payables = useMemo(
+    () => currentCurrencyDebts.filter((d) => d.type === 'debt'),
+    [currentCurrencyDebts]
+  );
 
-  const totalReceivablesRemaining = receivables
-    .filter((d) => d.status === 'active')
-    .reduce((sum, d) => sum + d.remainingAmount, 0);
+  const activeReceivables = useMemo(
+    () => receivables.filter((d) => d.status === 'active'),
+    [receivables]
+  );
+  const activePayables = useMemo(
+    () => payables.filter((d) => d.status === 'active'),
+    [payables]
+  );
 
-  const totalDebtsRemaining = payables
-    .filter((d) => d.status === 'active')
-    .reduce((sum, d) => sum + d.remainingAmount, 0);
+  const totalReceivablesRemaining = useMemo(
+    () => activeReceivables.reduce((sum, d) => sum + d.remainingAmount, 0),
+    [activeReceivables]
+  );
 
-  const currentTabItems = currentCurrencyDebts
-    .filter((d) => d.type === activeTab && d.status === statusFilter)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const totalDebtsRemaining = useMemo(
+    () => activePayables.reduce((sum, d) => sum + d.remainingAmount, 0),
+    [activePayables]
+  );
+
+  const currentTabItems = useMemo(
+    () =>
+      currentCurrencyDebts
+        .filter((d) => d.type === activeTab && d.status === statusFilter)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [currentCurrencyDebts, activeTab, statusFilter]
+  );
 
   return (
     <View style={styles.containerCard}>
@@ -106,48 +129,63 @@ export function DebtsCard({
           </View>
           <View style={styles.headerTitleWrap}>
             <Text style={styles.cardTitle}>RECEIVABLES & DEBTS</Text>
-            <Text style={styles.cardSubtitle}>Track loans & payables</Text>
+            <Text style={styles.cardSubtitle}>Track money owed to you and debts you owe</Text>
           </View>
         </View>
-
-        <TouchableOpacity
-          style={styles.btnAdd}
-          onPress={() => setIsAddModalVisible(true)}
-          activeOpacity={0.75}
-        >
-          <Ionicons name="add" size={16} color={INK} />
-          <Text style={styles.btnAddText}>Add Entry</Text>
-        </TouchableOpacity>
       </View>
 
-      {/* SUMMARY BANNER */}
-      <View style={styles.summaryBanner}>
-        {/* Receivables Summary */}
-        <View style={styles.summaryBox}>
-          <View style={styles.summaryLabelRow}>
-            <View style={[styles.dot, { backgroundColor: RECEIVABLE_COLOR }]} />
-            <Text style={styles.summaryLabel}>OWED TO YOU</Text>
+      {/* DUAL SUMMARY METRIC CARDS */}
+      <View style={styles.summaryRow}>
+        {/* Receivables Summary Card */}
+        <View style={[styles.summaryCard, styles.summaryCardReceivable]}>
+          <View style={styles.summaryCardTop}>
+            <View style={[styles.summaryCardDot, { backgroundColor: RECEIVABLE_COLOR }]} />
+            <Text style={styles.summaryCardLabel}>OWED TO YOU</Text>
           </View>
-          <Text style={[styles.summaryAmount, { color: RECEIVABLE_COLOR }]}>
+          <Text
+            style={[styles.summaryCardAmount, { color: RECEIVABLE_COLOR }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+          >
             {formatMoney(totalReceivablesRemaining, currency)}
           </Text>
-          <Text style={styles.summarySub}>{receivables.filter((d) => d.status === 'active').length} active balances</Text>
+          <Text style={styles.summaryCardSub}>
+            {activeReceivables.length} active balances
+          </Text>
         </View>
 
-        <View style={styles.summaryDivider} />
-
-        {/* Debts Summary */}
-        <View style={styles.summaryBox}>
-          <View style={styles.summaryLabelRow}>
-            <View style={[styles.dot, { backgroundColor: DEBT_COLOR }]} />
-            <Text style={styles.summaryLabel}>YOU OWE</Text>
+        {/* Debts Summary Card */}
+        <View style={[styles.summaryCard, styles.summaryCardDebt]}>
+          <View style={styles.summaryCardTop}>
+            <View style={[styles.summaryCardDot, { backgroundColor: DEBT_COLOR }]} />
+            <Text style={styles.summaryCardLabel}>YOU OWE</Text>
           </View>
-          <Text style={[styles.summaryAmount, { color: DEBT_COLOR }]}>
+          <Text
+            style={[styles.summaryCardAmount, { color: DEBT_COLOR }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+          >
             {formatMoney(totalDebtsRemaining, currency)}
           </Text>
-          <Text style={styles.summarySub}>{payables.filter((d) => d.status === 'active').length} active balances</Text>
+          <Text style={styles.summaryCardSub}>
+            {activePayables.length} active balances
+          </Text>
         </View>
       </View>
+
+      {/* DEDICATED ADD ENTRY ACTION BAR */}
+      <TouchableOpacity
+        style={styles.btnAddEntryBar}
+        onPress={() => setIsAddModalVisible(true)}
+        activeOpacity={0.75}
+      >
+        <Ionicons name="add-circle" size={18} color={ACCENT} />
+        <Text style={styles.btnAddEntryText}>
+          {activeTab === 'receivable' ? 'Record New Receivable' : 'Record New Debt'}
+        </Text>
+      </TouchableOpacity>
 
       {/* SEGMENTED TAB SWITCHER */}
       <View style={styles.tabBar}>
@@ -167,7 +205,7 @@ export function DebtsCard({
               activeTab === 'receivable' && { color: '#FFFFFF', fontWeight: '800' },
             ]}
           >
-            Receivables ({receivables.filter((d) => d.status === 'active').length})
+            Receivables ({activeReceivables.length})
           </Text>
         </TouchableOpacity>
 
@@ -187,7 +225,7 @@ export function DebtsCard({
               activeTab === 'debt' && { color: '#FFFFFF', fontWeight: '800' },
             ]}
           >
-            Debts ({payables.filter((d) => d.status === 'active').length})
+            Debts ({activePayables.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -200,7 +238,7 @@ export function DebtsCard({
           activeOpacity={0.7}
         >
           <Text style={[styles.statusPillText, statusFilter === 'active' && styles.statusPillTextActive]}>
-            Active Balance
+            Active Balances
           </Text>
         </TouchableOpacity>
 
@@ -246,12 +284,12 @@ export function DebtsCard({
 
             return (
               <View key={item.id} style={styles.itemCard}>
-                {/* Top Row: Person, Title & Action Checkmark */}
-                <View style={styles.itemHeaderRow}>
-                  <View style={styles.personGroup}>
+                {/* Layer 1: Identity & Delete Action */}
+                <View style={styles.itemTopRow}>
+                  <View style={styles.itemIdentity}>
                     <View
                       style={[
-                        styles.avatarCircle,
+                        styles.itemAvatar,
                         {
                           backgroundColor: isReceivable
                             ? 'rgba(16, 185, 129, 0.16)'
@@ -261,80 +299,43 @@ export function DebtsCard({
                     >
                       <Ionicons
                         name={isReceivable ? 'arrow-down' : 'arrow-up'}
-                        size={16}
+                        size={17}
                         color={isReceivable ? RECEIVABLE_COLOR : DEBT_COLOR}
                       />
                     </View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={styles.personName}>
+                    <View style={styles.itemMeta}>
+                      <Text style={styles.personName} numberOfLines={1}>
                         {item.personName}
                       </Text>
-                      <Text style={styles.itemTitle}>
+                      <Text style={styles.itemTitle} numberOfLines={1}>
                         {item.title}
                       </Text>
                     </View>
                   </View>
 
-                  <View style={styles.itemActions}>
-                    {item.status === 'active' ? (
-                      <TouchableOpacity
-                        style={[
-                          styles.btnCheckmark,
-                          {
-                            backgroundColor: isReceivable
-                              ? 'rgba(16, 185, 129, 0.18)'
-                              : 'rgba(244, 63, 94, 0.18)',
-                            borderColor: isReceivable ? RECEIVABLE_COLOR : DEBT_COLOR,
-                          },
-                        ]}
-                        onPress={() => setSelectedDebtForSettle(item)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons
-                          name="checkmark"
-                          size={16}
-                          color={isReceivable ? RECEIVABLE_COLOR : DEBT_COLOR}
-                        />
-                        <Text
-                          style={[
-                            styles.btnCheckmarkText,
-                            { color: isReceivable ? RECEIVABLE_COLOR : DEBT_COLOR },
-                          ]}
-                        >
-                          {isReceivable ? 'Receive' : 'Pay'}
-                        </Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <View style={styles.badgeSettled}>
-                        <Ionicons name="checkmark-done" size={14} color={COLORS.success} />
-                        <Text style={styles.badgeSettledText}>Settled</Text>
-                      </View>
-                    )}
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        showAlert(
-                          'danger',
-                          'Delete Record',
-                          `Are you sure you want to delete this record for "${item.personName}"?`,
-                          'Delete',
-                          'Cancel',
-                          () => onDeleteDebt(item.id)
-                        );
-                      }}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      style={styles.btnDelete}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="trash-outline" size={16} color={COLORS.textMuted} />
-                    </TouchableOpacity>
-                  </View>
+                  <TouchableOpacity
+                    onPress={() => {
+                      showAlert(
+                        'danger',
+                        'Delete Record',
+                        `Are you sure you want to delete this record for "${item.personName}"?`,
+                        'Delete',
+                        'Cancel',
+                        () => onDeleteDebt(item.id)
+                      );
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={styles.btnDelete}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="trash-outline" size={16} color={COLORS.textMuted} />
+                  </TouchableOpacity>
                 </View>
 
-                {/* Amount Row */}
-                <View style={styles.itemAmountRow}>
-                  <View>
-                    <Text style={styles.amountLabel}>Remaining Balance</Text>
+                {/* Layer 2: Financial Balance Box */}
+                <View style={styles.balanceBox}>
+                  <View style={styles.balanceMainRow}>
+                    <Text style={styles.balanceLabel}>REMAINING BALANCE</Text>
                     <Text
                       style={[
                         styles.remainingAmountText,
@@ -345,32 +346,85 @@ export function DebtsCard({
                     </Text>
                   </View>
 
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.amountLabel}>Original: {formatMoney(item.originalAmount, item.currency)}</Text>
-                    <Text style={styles.paidAmountText}>
-                      Paid: {formatMoney(item.paidAmount, item.currency)} ({progress}%)
-                    </Text>
+                  <View style={styles.balanceDivider} />
+
+                  <View style={styles.balanceSubRow}>
+                    <View style={styles.balanceSubItem}>
+                      <Text style={styles.balanceSubLabel}>Original:</Text>
+                      <Text style={styles.balanceSubValue}>
+                        {formatMoney(item.originalAmount, item.currency)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.balanceSubItem}>
+                      <Text style={styles.balanceSubLabel}>Paid:</Text>
+                      <Text style={styles.balanceSubValue}>
+                        {formatMoney(item.paidAmount, item.currency)}
+                      </Text>
+                    </View>
                   </View>
                 </View>
 
-                {/* Progress Bar */}
-                <View style={styles.progressTrack}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: `${progress}%`,
-                        backgroundColor: isReceivable ? RECEIVABLE_COLOR : DEBT_COLOR,
-                      },
-                    ]}
-                  />
+                {/* Layer 3: Progress Track */}
+                <View style={styles.progressSection}>
+                  <View style={styles.progressTrack}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        {
+                          width: `${progress}%`,
+                          backgroundColor: isReceivable ? RECEIVABLE_COLOR : DEBT_COLOR,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <View style={styles.progressLabelRow}>
+                    <Text style={styles.progressLabel}>Repayment Progress</Text>
+                    <Text style={styles.progressPercent}>{progress}%</Text>
+                  </View>
                 </View>
 
-                {/* Optional Note Preview */}
+                {/* Layer 4: Notes (if any) */}
                 {Boolean(item.notes) && (
-                  <Text style={styles.notesPreview}>
-                    Note: {item.notes}
-                  </Text>
+                  <View style={styles.notesBox}>
+                    <Ionicons name="document-text-outline" size={14} color={COLORS.textMuted} />
+                    <Text style={styles.notesText} numberOfLines={2}>
+                      {item.notes}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Layer 5: Full-width Primary Action Button or Settled Indicator */}
+                {item.status === 'active' ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.btnPrimaryAction,
+                      isReceivable
+                        ? styles.btnPrimaryActionReceivable
+                        : styles.btnPrimaryActionDebt,
+                    ]}
+                    onPress={() => setSelectedDebtForSettle(item)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={isReceivable ? 'checkmark-circle-outline' : 'arrow-up-circle-outline'}
+                      size={18}
+                      color={isReceivable ? RECEIVABLE_COLOR : DEBT_COLOR}
+                    />
+                    <Text
+                      style={[
+                        styles.btnPrimaryActionText,
+                        { color: isReceivable ? RECEIVABLE_COLOR : DEBT_COLOR },
+                      ]}
+                    >
+                      {isReceivable ? 'Receive Payment' : 'Record Payment'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.settledBadgeRow}>
+                    <Ionicons name="checkmark-done-circle" size={16} color={COLORS.success} />
+                    <Text style={styles.settledBadgeText}>Fully Settled</Text>
+                  </View>
                 )}
               </View>
             );

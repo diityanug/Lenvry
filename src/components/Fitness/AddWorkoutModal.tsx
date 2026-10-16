@@ -101,7 +101,7 @@ function AddWorkoutContent({
     suggestionScrollRef.current?.scrollTo({ x: 0, animated: false });
   };
 
-  const isCardio = selectedCategory === 'Cardio' || selectedCategory === 'Kardio';
+  const isCardio = selectedCategory === 'Cardio';
   const formattedDate = selectedDate.toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',

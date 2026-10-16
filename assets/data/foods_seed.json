@@ -23987,5 +23987,69 @@
     "fat": 0,
     "defaultServingText": "1 Kaleng (240ml)",
     "defaultServingGrams": 240
+  },
+  {
+    "id": "food_chicken_katsu_rumahan_ala_carte",
+    "name": "Ayam Katsu Ala Carte Buatan Sendiri (Homemade Chicken Katsu Dada Fillet)",
+    "indonesianName": "Ayam Katsu Ala Carte Buatan Sendiri",
+    "category": "Proteins",
+    "calories": 228,
+    "protein": 24.5,
+    "carbs": 11.2,
+    "fat": 9.6,
+    "fiber": 0.6,
+    "defaultServingText": "1 Potong Sedang (120g)",
+    "defaultServingGrams": 120
+  },
+  {
+    "id": "food_chicken_katsu_paha_rumahan_ala_carte",
+    "name": "Ayam Katsu Paha Fillet Buatan Sendiri (Homemade Chicken Thigh Katsu Ala Carte)",
+    "indonesianName": "Ayam Katsu Paha Fillet Buatan Sendiri",
+    "category": "Proteins",
+    "calories": 254,
+    "protein": 20.8,
+    "carbs": 11.5,
+    "fat": 13.8,
+    "fiber": 0.5,
+    "defaultServingText": "1 Potong Sedang (130g)",
+    "defaultServingGrams": 130
+  },
+  {
+    "id": "food_chicken_katsu_air_fryer_homemade",
+    "name": "Ayam Katsu Dada Air Fryer Rendah Minyak (Air Fried Chicken Katsu Ala Carte)",
+    "indonesianName": "Ayam Katsu Dada Air Fryer",
+    "category": "Proteins",
+    "calories": 185,
+    "protein": 26,
+    "carbs": 11,
+    "fat": 4.2,
+    "fiber": 0.6,
+    "defaultServingText": "1 Potong Sedang (120g)",
+    "defaultServingGrams": 120
+  },
+  {
+    "id": "food_chicken_katsu_keju_homemade",
+    "name": "Ayam Katsu Isi Keju Leleh Buatan Sendiri (Homemade Cheese Stuffed Chicken Katsu)",
+    "indonesianName": "Ayam Katsu Keju Buatan Sendiri",
+    "category": "Proteins",
+    "calories": 265,
+    "protein": 23.5,
+    "carbs": 12,
+    "fat": 13.5,
+    "fiber": 0.5,
+    "defaultServingText": "1 Potong Besar (140g)",
+    "defaultServingGrams": 140
+  },
+  {
+    "id": "food_sauce_katsu_homemade_1sdm",
+    "name": "Saus Katsu Tonkatsu Rumahan (Kecap Inggris, Saus Tomat & Tiram)",
+    "indonesianName": "Saus Katsu Rumahan",
+    "category": "Snacks",
+    "calories": 125,
+    "protein": 1.5,
+    "carbs": 28,
+    "fat": 0.2,
+    "defaultServingText": "1 sdm (15g)",
+    "defaultServingGrams": 15
   }
 ]

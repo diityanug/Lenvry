@@ -293,7 +293,7 @@ export default function FitnessScreen() {
 
             <CategoryFilter activeFilter={activeFilter} onSelectCategory={setActiveFilter} />
 
-            {/* SECTION TITLE & BADGE */}
+            {/* SECTION TITLE & BADGE (Rule 3: Clean header) */}
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
                 <Text style={styles.sectionTitle}>{"TODAY'S EXERCISES"}</Text>
@@ -301,18 +301,21 @@ export default function FitnessScreen() {
                   <Text style={styles.countBadgeText}>{filteredWorkouts.length}</Text>
                 </View>
               </View>
-
-              {workouts.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => setHistoryModalVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.warning }}>
-                    View All ({workouts.length})
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
+
+            {/* Dedicated Workout History Bar */}
+            {workouts.length > 0 && (
+              <TouchableOpacity
+                style={styles.historyActionBar}
+                onPress={() => setHistoryModalVisible(true)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="time-outline" size={16} color={COLORS.warning} />
+                <Text style={styles.historyActionBarText}>
+                  View All Logged Workouts ({workouts.length})
+                </Text>
+              </TouchableOpacity>
+            )}
           </>
         }
         renderItem={({ item }) => (

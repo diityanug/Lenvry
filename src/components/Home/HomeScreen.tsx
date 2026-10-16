@@ -64,7 +64,6 @@ export function HomeScreen() {
     handleDeleteStickyNote,
     handleSaveCourse,
     handleDeleteCourse,
-    handleUpdateCourseStatus,
     todayDateObj,
     habitKey,
   } = useHomeDashboard();
@@ -76,22 +75,12 @@ export function HomeScreen() {
   });
   const greeting = getGreeting(todayDateObj.getHours());
 
-  const handleOpenCreateNote = () => {
-    setSelectedNote(null);
-    setIsStickyModalVisible(true);
-  };
-
-  const handleSelectNote = (note: StickyNote) => {
+  const handleOpenNoteModal = (note: StickyNote | null = null) => {
     setSelectedNote(note);
     setIsStickyModalVisible(true);
   };
 
-  const handleOpenCreateCourse = () => {
-    setSelectedCourse(null);
-    setIsCourseModalVisible(true);
-  };
-
-  const handleSelectCourse = (course: LearningCourse) => {
+  const handleOpenCourseModal = (course: LearningCourse | null = null) => {
     setSelectedCourse(course);
     setIsCourseModalVisible(true);
   };
@@ -306,16 +295,15 @@ export function HomeScreen() {
             {/* Pinned Sticky Notes */}
             <StickyNotesSection
               notes={notes}
-              onSelectNote={handleSelectNote}
-              onCreateNote={handleOpenCreateNote}
+              onSelectNote={handleOpenNoteModal}
+              onCreateNote={() => handleOpenNoteModal(null)}
             />
 
             {/* Learning Tracker Section */}
             <LearningTrackerSection
               courses={courses}
-              onSelectCourse={handleSelectCourse}
-              onCreateCourse={handleOpenCreateCourse}
-              onUpdateStatus={handleUpdateCourseStatus}
+              onSelectCourse={handleOpenCourseModal}
+              onCreateCourse={() => handleOpenCourseModal(null)}
             />
           </Animated.View>
         )}

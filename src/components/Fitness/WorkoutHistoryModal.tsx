@@ -15,6 +15,7 @@ import { Workout } from '../../types/fitness';
 import { getCategoryIcon } from '../../constants/fitness';
 import { COLORS } from '../../constants/theme';
 import { fitnessStyles as styles } from '../../styles/fitnessStyles';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 interface WorkoutHistoryModalProps {
   visible: boolean;
@@ -31,6 +32,7 @@ export default function WorkoutHistoryModal({
   onDelete,
   onClone,
 }: WorkoutHistoryModalProps) {
+  const keyboardHeight = useKeyboardHeight();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
@@ -167,9 +169,9 @@ export default function WorkoutHistoryModal({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
-            contentContainerStyle={{ paddingBottom: 16 }}
+            contentContainerStyle={{ paddingBottom: Math.max(24, keyboardHeight + 24) }}
             renderItem={({ item }) => {
-              const isCardio = item.category === 'Cardio' || item.category === 'Kardio';
+              const isCardio = item.category === 'Cardio';
               return (
                 <View style={styles.workoutCard}>
                   <View style={styles.workoutHeader}>

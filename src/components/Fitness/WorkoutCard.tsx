@@ -13,7 +13,7 @@ interface WorkoutCardProps {
 }
 
 export default function WorkoutCard({ item, onDelete, onEdit, onClone }: WorkoutCardProps) {
-  const isCardio = item.category === 'Cardio' || item.category === 'Kardio';
+  const isCardio = item.category === 'Cardio';
   const exerciseVolume =
     (parseInt(item.sets || '0', 10) || 0) *
     (parseInt(item.reps || '0', 10) || 0) *

@@ -82,7 +82,7 @@ const COLOR_OVERRIDES: Record<string, { bg: string; ink: string; tileBg: string;
 function getNoteCardTheme(category?: NoteCategory, colorKey?: string) {
   const cat = (category || 'General') as NoteCategory;
   const base = CATEGORY_THEMES[cat] || CATEGORY_THEMES.General;
-  if (colorKey && COLOR_OVERRIDES[colorKey] && (!category || category === 'General')) {
+  if (colorKey && COLOR_OVERRIDES[colorKey]) {
     const override = COLOR_OVERRIDES[colorKey];
     return {
       ...base,
@@ -136,7 +136,7 @@ export default function StickyNotesSection({
 
   return (
     <View style={styles.sectionContainer}>
-      {/* Header Row */}
+      {/* Header Row (Rule 3: Title only) */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <Ionicons name="pin" size={15} color={COLORS.accentHover} />
@@ -147,12 +147,13 @@ export default function StickyNotesSection({
             </View>
           )}
         </View>
-
-        <TouchableOpacity onPress={onCreateNote} style={styles.addNoteBtnHeader} activeOpacity={0.7}>
-          <Ionicons name="add" size={14} color={COLORS.accentHover} />
-          <Text style={styles.addNoteBtnHeaderText}>Add Note</Text>
-        </TouchableOpacity>
       </View>
+
+      {/* Dedicated Add Note Action Bar */}
+      <TouchableOpacity onPress={onCreateNote} style={styles.addNoteBar} activeOpacity={0.75}>
+        <Ionicons name="add-circle" size={18} color={COLORS.accentHover} />
+        <Text style={styles.addNoteBarText}>Add Sticky Note</Text>
+      </TouchableOpacity>
 
       {/* Category Filter Bar */}
       {notes.length > 0 && (
@@ -342,21 +343,24 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
   },
-  addNoteBtnHeader: {
+  addNoteBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.accentSoft,
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(99, 102, 241, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.4)',
+    borderColor: 'rgba(99, 102, 241, 0.25)',
+    borderRadius: RADIUS.lg,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 14,
   },
-  addNoteBtnHeaderText: {
+  addNoteBarText: {
     color: COLORS.accentHover,
-    fontSize: 11.5,
+    fontSize: 13,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
   categoryFilterContainer: {
     flexDirection: 'row',

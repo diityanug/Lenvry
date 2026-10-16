@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StatusBar, ScrollView, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { updateStored } from '../storage';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 
@@ -35,6 +34,9 @@ import { evaluateArithmetic } from '../utils/math';
 export default function FinanceTracker() {
   const transactions = useFinanceStore((s) => s.transactions);
   const setTransactions = useFinanceStore((s) => s.setTransactions);
+  const addTransaction = useFinanceStore((s) => s.addTransaction);
+  const updateTransaction = useFinanceStore((s) => s.updateTransaction);
+  const deleteTransactionFromStore = useFinanceStore((s) => s.deleteTransaction);
   const accounts = useFinanceStore((s) => s.accounts);
   const setAccounts = useFinanceStore((s) => s.setAccounts);
   const expenseCategories = useFinanceStore((s) => s.expenseCategories);
@@ -480,29 +482,28 @@ export default function FinanceTracker() {
     const isSrcSubActive = Boolean(fromAcc?.subAccounts.some((s) => s.id === effectiveSubAccId));
     const isDstSubActive = Boolean(toAcc?.subAccounts.some((s) => s.id === effectiveToSubAccId));
 
-    let updatedTx: Transaction[];
     if (editingTxId) {
-      updatedTx = transactions.map((t) =>
-        t.id === editingTxId
-          ? {
-              ...t,
-              type,
-              amount: parsedAmount,
-              description: description.trim(),
-              category: type === 'transfer' ? 'Transfer' : selectedCategory,
-              date: txDate.toISOString(),
-              accountId: selectedAccId,
-              subAccountId: effectiveSubAccId,
-              deletedSubAccountName: isSrcSubActive ? undefined : t.deletedSubAccountName,
-              toAccountId: type === 'transfer' ? selectedToAccId : undefined,
-              toSubAccountId: type === 'transfer' ? effectiveToSubAccId : undefined,
-              deletedToSubAccountName:
-                type === 'transfer' && !isDstSubActive ? t.deletedToSubAccountName : undefined,
-              toAmount: isCrossCurrency ? parsedToAmount : undefined,
-              exchangeRate: isCrossCurrency ? exchangeRate : undefined,
-            }
-          : t
-      );
+      const existing = transactions.find((t) => t.id === editingTxId);
+      if (existing) {
+        const updated: Transaction = {
+          ...existing,
+          type,
+          amount: parsedAmount,
+          description: description.trim(),
+          category: type === 'transfer' ? 'Transfer' : selectedCategory,
+          date: txDate.toISOString(),
+          accountId: selectedAccId,
+          subAccountId: effectiveSubAccId,
+          deletedSubAccountName: isSrcSubActive ? undefined : existing.deletedSubAccountName,
+          toAccountId: type === 'transfer' ? selectedToAccId : undefined,
+          toSubAccountId: type === 'transfer' ? effectiveToSubAccId : undefined,
+          deletedToSubAccountName:
+            type === 'transfer' && !isDstSubActive ? existing.deletedToSubAccountName : undefined,
+          toAmount: isCrossCurrency ? parsedToAmount : undefined,
+          exchangeRate: isCrossCurrency ? exchangeRate : undefined,
+        };
+        await updateTransaction(updated);
+      }
     } else {
       const newTx: Transaction = {
         id: Date.now().toString(),
@@ -518,10 +519,9 @@ export default function FinanceTracker() {
         toAmount: isCrossCurrency ? parsedToAmount : undefined,
         exchangeRate: isCrossCurrency ? exchangeRate : undefined,
       };
-      updatedTx = [newTx, ...transactions];
+      await addTransaction(newTx);
     }
 
-    await setTransactions(updatedTx);
     hapticSuccess();
     setAmount('');
     setToAmount('');
@@ -576,9 +576,7 @@ export default function FinanceTracker() {
   };
 
   const handleUndoBillPayment = async (txId: string) => {
-    setTransactions(
-      await updateStored('financeTransactions', (current) => current.filter((t) => t.id !== txId))
-    );
+    await deleteTransactionFromStore(txId);
   };
 
   const saveDebts = async (newDebts: DebtItem[]) => {
@@ -704,16 +702,10 @@ export default function FinanceTracker() {
       'DELETE',
       'CANCEL',
       async () => {
-        setTransactions(
-          await updateStored('financeTransactions', (current) =>
-            current.filter((t) => t.accountId !== accId)
-          )
-        );
-        setAccounts(
-          await updateStored('financeAccounts', (current) =>
-            current.filter((acc) => acc.id !== accId)
-          )
-        );
+        const nextTx = transactions.filter((t) => t.accountId !== accId);
+        await setTransactions(nextTx);
+        const nextAccounts = accounts.filter((acc) => acc.id !== accId);
+        await setAccounts(nextAccounts);
         setAccDetailModalVisible(false);
       }
     );
@@ -747,65 +739,58 @@ export default function FinanceTracker() {
       'CANCEL',
       async () => {
         const nowIso = new Date().toISOString();
-        setTransactions(
-          await updateStored('financeTransactions', (current) => {
-            const tagged = current.map((t) => {
-              let next = t;
-              if (t.accountId === accId && t.subAccountId === subId && !t.deletedSubAccountName) {
-                next = { ...next, deletedSubAccountName: subToDelete.name };
-              }
-              if (t.toAccountId === accId && t.toSubAccountId === subId && !t.deletedToSubAccountName) {
-                next = { ...next, deletedToSubAccountName: subToDelete.name };
-              }
-              return next;
-            });
+        const tagged = transactions.map((t) => {
+          let next = t;
+          if (t.accountId === accId && t.subAccountId === subId && !t.deletedSubAccountName) {
+            next = { ...next, deletedSubAccountName: subToDelete.name };
+          }
+          if (t.toAccountId === accId && t.toSubAccountId === subId && !t.deletedToSubAccountName) {
+            next = { ...next, deletedToSubAccountName: subToDelete.name };
+          }
+          return next;
+        });
 
-            if (currentBalance > 0) {
-              const closingTransfer: Transaction = {
-                id: `${Date.now()}_close`,
-                type: 'transfer',
-                amount: currentBalance,
-                description: `Balance moved from deleted pocket (${subToDelete.name})`,
-                category: 'Transfer',
-                date: nowIso,
-                accountId: accId,
-                subAccountId: subId,
-                deletedSubAccountName: subToDelete.name,
-                toAccountId: accId,
-                toSubAccountId: fallbackSub.id,
-              };
-              return [closingTransfer, ...tagged];
-            }
+        let nextTx = tagged;
+        if (currentBalance > 0) {
+          const closingTransfer: Transaction = {
+            id: `${Date.now()}_close`,
+            type: 'transfer',
+            amount: currentBalance,
+            description: `Balance moved from deleted pocket (${subToDelete.name})`,
+            category: 'Transfer',
+            date: nowIso,
+            accountId: accId,
+            subAccountId: subId,
+            deletedSubAccountName: subToDelete.name,
+            toAccountId: accId,
+            toSubAccountId: fallbackSub.id,
+          };
+          nextTx = [closingTransfer, ...tagged];
+        } else if (currentBalance < 0) {
+          const closingTransfer: Transaction = {
+            id: `${Date.now()}_close`,
+            type: 'transfer',
+            amount: Math.abs(currentBalance),
+            description: `Negative balance moved from deleted pocket (${subToDelete.name})`,
+            category: 'Transfer',
+            date: nowIso,
+            accountId: accId,
+            subAccountId: fallbackSub.id,
+            toAccountId: accId,
+            toSubAccountId: subId,
+            deletedToSubAccountName: subToDelete.name,
+          };
+          nextTx = [closingTransfer, ...tagged];
+        }
 
-            if (currentBalance < 0) {
-              const closingTransfer: Transaction = {
-                id: `${Date.now()}_close`,
-                type: 'transfer',
-                amount: Math.abs(currentBalance),
-                description: `Negative balance moved from deleted pocket (${subToDelete.name})`,
-                category: 'Transfer',
-                date: nowIso,
-                accountId: accId,
-                subAccountId: fallbackSub.id,
-                toAccountId: accId,
-                toSubAccountId: subId,
-                deletedToSubAccountName: subToDelete.name,
-              };
-              return [closingTransfer, ...tagged];
-            }
+        await setTransactions(nextTx);
 
-            return tagged;
-          })
+        const updatedAcc = accounts.map((a) =>
+          a.id === accId
+            ? { ...a, subAccounts: a.subAccounts.filter((s) => s.id !== subId) }
+            : a
         );
-
-        const updatedAcc = await updateStored('financeAccounts', (current) =>
-          current.map((a) =>
-            a.id === accId
-              ? { ...a, subAccounts: a.subAccounts.filter((s) => s.id !== subId) }
-              : a
-          )
-        );
-        setAccounts(updatedAcc);
+        await setAccounts(updatedAcc);
         if (selectedAccountForDetail?.id === accId) {
           const updatedSelected = updatedAcc.find((a) => a.id === accId);
           if (updatedSelected) setSelectedAccountForDetail(updatedSelected);
@@ -822,34 +807,30 @@ export default function FinanceTracker() {
       'DELETE',
       'CANCEL',
       async () => {
-        setTransactions(
-          await updateStored('financeTransactions', (current) => current.filter((t) => t.id !== id))
-        );
+        await deleteTransactionFromStore(id);
       }
     );
   };
 
   const saveRename = async () => {
     if (!renameValue.trim() || !renameTarget) return;
-    const updated = await updateStored('financeAccounts', (current) =>
-      current.map((acc) => {
-        if (acc.id === renameTarget.accId) {
-          if (renameTarget.type === 'main') {
-            return {
-              ...acc,
-              name: renameValue.trim(),
-              description: renameDescValue.trim() || undefined,
-            };
-          }
+    const updated = accounts.map((acc) => {
+      if (acc.id === renameTarget.accId) {
+        if (renameTarget.type === 'main') {
           return {
             ...acc,
-            subAccounts: acc.subAccounts.map((s) => (s.id === renameTarget.subId ? { ...s, name: renameValue.trim() } : s)),
+            name: renameValue.trim(),
+            description: renameDescValue.trim() || undefined,
           };
         }
-        return acc;
-      })
-    );
-    setAccounts(updated);
+        return {
+          ...acc,
+          subAccounts: acc.subAccounts.map((s) => (s.id === renameTarget.subId ? { ...s, name: renameValue.trim() } : s)),
+        };
+      }
+      return acc;
+    });
+    await setAccounts(updated);
     if (selectedAccountForDetail?.id === renameTarget.accId) {
       const updatedAcc = updated.find((a) => a.id === renameTarget.accId);
       if (updatedAcc) setSelectedAccountForDetail(updatedAcc);
@@ -928,23 +909,19 @@ export default function FinanceTracker() {
           await setIncomeCategories(updated);
         }
 
-        // Option 1: Reassign transactions that used this deleted category to 'Others'
+        // Option 1: Reassign transactions that used this deleted category to fallbackCategory
         if (affectedTxCount > 0) {
-          const updatedTxList = await updateStored('financeTransactions', (current) =>
-            current.map((t) =>
-              t.category === catToDelete && t.type === (isExpense ? 'expense' : 'income')
-                ? { ...t, category: fallbackCategory }
-                : t
-            )
+          const updatedTxList = transactions.map((t) =>
+            t.category === catToDelete && t.type === (isExpense ? 'expense' : 'income')
+              ? { ...t, category: fallbackCategory }
+              : t
           );
           await setTransactions(updatedTxList);
         }
 
         // Also clean up any budgets tied to this category
         if (categoryBudgets.some((b) => b.category === catToDelete)) {
-          const nextBudgets = await updateStored('financeCategoryBudgets', (current) =>
-            current.filter((b) => b.category !== catToDelete)
-          );
+          const nextBudgets = categoryBudgets.filter((b) => b.category !== catToDelete);
           await setCategoryBudgets(nextBudgets);
         }
 
@@ -981,7 +958,7 @@ export default function FinanceTracker() {
       accountId: editAccId,
       subAccountId: editSubAccId,
     };
-    setTransactions(await updateStored('financeTransactions', (current) => [newTx, ...current]));
+    await addTransaction(newTx);
     setBalanceModalVisible(false);
     if (accDetailModalVisible && selectedAccountForDetail) {
       const updatedAcc = accounts.find((a) => a.id === selectedAccountForDetail.id);
@@ -1096,8 +1073,8 @@ export default function FinanceTracker() {
             exiting={FadeOut.duration(180)}
             layout={LinearTransition.springify().damping(22).stiffness(180)}
           >
-            {/* ACCOUNTS SECTION */}
-            <View style={styles.sectionHeader}>
+            {/* ACCOUNTS SECTION (Rule 3: Clean header) */}
+            <View style={styles.sectionHeaderBlock}>
               <View style={styles.sectionTitleRow}>
                 <Text style={styles.sectionTitle} numberOfLines={1}>
                   MY ACCOUNTS
@@ -1106,16 +1083,6 @@ export default function FinanceTracker() {
                   <Text style={styles.countBadgeText}>{accounts.length}</Text>
                 </View>
               </View>
-
-              <TouchableOpacity
-                style={styles.seeAllBtn}
-                onPress={() => setManageAccModalVisible(true)}
-                activeOpacity={0.7}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              >
-                <Ionicons name="swap-vertical" size={14} color={COLORS.finance} style={{ marginRight: 4 }} />
-                <Text style={styles.seeAllText}>Manage</Text>
-              </TouchableOpacity>
             </View>
 
             {/* Natural vertical flow for accounts */}
@@ -1132,10 +1099,20 @@ export default function FinanceTracker() {
                 />
               ))}
               <AddAccountCard onPress={() => setAccModalVisible(true)} />
+              {accounts.length > 0 && (
+                <TouchableOpacity
+                  style={styles.manageAccountsBar}
+                  onPress={() => setManageAccModalVisible(true)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="swap-vertical" size={15} color={COLORS.finance} />
+                  <Text style={styles.manageAccountsBarText}>Manage Accounts & Order</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
-            {/* TRANSACTIONS SECTION */}
-            <View style={styles.sectionHeader}>
+            {/* TRANSACTIONS SECTION (Rule 3: Clean header) */}
+            <View style={styles.sectionHeaderBlock}>
               <View style={styles.sectionTitleRow}>
                 <Text style={styles.sectionTitle} numberOfLines={1}>
                   TRANSACTIONS • {MONTHS[selectedMonthFilter.getMonth()].toUpperCase()}
@@ -1144,16 +1121,17 @@ export default function FinanceTracker() {
                   <Text style={styles.countBadgeText}>{displayedHomeTransactions.length}</Text>
                 </View>
               </View>
-
-              <TouchableOpacity
-                style={styles.headerHistoryBtn}
-                onPress={() => setHistoryModalVisible(true)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="search-outline" size={14} color={COLORS.textSecondary} />
-                <Text style={styles.headerHistoryBtnText}>History</Text>
-              </TouchableOpacity>
             </View>
+
+            {/* Dedicated Search & History Action Bar */}
+            <TouchableOpacity
+              style={styles.historySearchBar}
+              onPress={() => setHistoryModalVisible(true)}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="search-outline" size={15} color={COLORS.finance} />
+              <Text style={styles.historySearchBarText}>Search Transaction History</Text>
+            </TouchableOpacity>
 
             {/* QUICK FILTER SEGMENTED TABS */}
             <View style={styles.filterTabRow}>
