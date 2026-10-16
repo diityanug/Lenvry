@@ -84,7 +84,7 @@ export function useHomeDashboard() {
 
   const todayDateObj = currentDate;
   const habitKey = useMemo(() => formatDateKey(todayDateObj), [todayDateObj]);
-  const dateIsoKey = useMemo(() => todayDateObj.toISOString().split('T')[0], [todayDateObj]);
+  const localDateKey = useMemo(() => formatDateKey(todayDateObj), [todayDateObj]);
 
   const todayExpenses = useMemo(() => {
     return transactions
@@ -113,14 +113,14 @@ export function useHomeDashboard() {
   }, [todayHabits, habitKey]);
 
   const todayWorkoutCount = useMemo(() => {
-    return workouts.filter((w) => w.date === dateIsoKey).length;
-  }, [workouts, dateIsoKey]);
+    return workouts.filter((w) => w.date === localDateKey).length;
+  }, [workouts, localDateKey]);
 
   const todayCaloriesConsumed = useMemo(() => {
     return nutritionLogs
-      .filter((l) => l.date === dateIsoKey)
+      .filter((l) => l.date === localDateKey)
       .reduce((sum, item) => sum + (item.calories || 0), 0);
-  }, [nutritionLogs, dateIsoKey]);
+  }, [nutritionLogs, localDateKey]);
 
   const toggleHabitOnHome = useCallback(
     async (id: string) => {

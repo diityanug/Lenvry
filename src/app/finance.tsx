@@ -171,49 +171,84 @@ export default function FinanceTracker() {
     setAlertConfig((prev) => ({ ...prev, visible: false }));
   };
 
-  const getSubBalance = (accId: string, subId: string) => {
-    return transactions.reduce((sum, t) => {
-      if (t.type === 'income' && t.accountId === accId && t.subAccountId === subId) {
-        return sum + t.amount;
-      }
-      if (t.type === 'expense' && t.accountId === accId && t.subAccountId === subId) {
-        return sum - t.amount;
-      }
-      if (t.type === 'transfer') {
-        if (t.accountId === accId && t.subAccountId === subId) {
-          return sum - t.amount;
-        }
-        if (t.toAccountId === accId && t.toSubAccountId === subId) {
+  const accountsById = useMemo(() => {
+    const map: Record<string, Account> = {};
+    for (let i = 0; i < accounts.length; i++) {
+      map[accounts[i].id] = accounts[i];
+    }
+    return map;
+  }, [accounts]);
+
+  const balancesMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (let i = 0; i < transactions.length; i++) {
+      const t = transactions[i];
+      if (t.type === 'income') {
+        const key = `${t.accountId}:${t.subAccountId}`;
+        map[key] = (map[key] || 0) + t.amount;
+      } else if (t.type === 'expense') {
+        const key = `${t.accountId}:${t.subAccountId}`;
+        map[key] = (map[key] || 0) - t.amount;
+      } else if (t.type === 'transfer') {
+        const fromKey = `${t.accountId}:${t.subAccountId}`;
+        map[fromKey] = (map[fromKey] || 0) - t.amount;
+
+        if (t.toAccountId && t.toSubAccountId) {
+          const toKey = `${t.toAccountId}:${t.toSubAccountId}`;
           const received =
             typeof t.toAmount === 'number' && Number.isFinite(t.toAmount) && t.toAmount > 0
               ? t.toAmount
               : t.amount;
-          return sum + received;
+          map[toKey] = (map[toKey] || 0) + received;
         }
       }
-      return sum;
-    }, 0);
-  };
-
-  const getAccBalance = (accId: string) => {
-    const acc = accounts.find((a) => a.id === accId);
-    if (!acc) return 0;
-    return acc.subAccounts.reduce((sum, sub) => sum + getSubBalance(accId, sub.id), 0);
-  };
-
-  const totalBalanceIDR = accounts.filter((a) => a.currency === 'IDR').reduce((sum, acc) => sum + getAccBalance(acc.id), 0);
-  const totalBalanceUSD = accounts.filter((a) => a.currency === 'USD').reduce((sum, acc) => sum + getAccBalance(acc.id), 0);
-
-
-  const isInvestmentTransaction = useCallback((t: Transaction): boolean => {
-    const acc = accounts.find((a) => a.id === t.accountId);
-    if (acc?.type === 'Investment') return true;
-    if (t.toAccountId) {
-      const toAcc = accounts.find((a) => a.id === t.toAccountId);
-      if (toAcc?.type === 'Investment') return true;
     }
-    return false;
-  }, [accounts]);
+    return map;
+  }, [transactions]);
+
+  const getSubBalance = useCallback(
+    (accId: string, subId: string) => {
+      return balancesMap[`${accId}:${subId}`] || 0;
+    },
+    [balancesMap]
+  );
+
+  const getAccBalance = useCallback(
+    (accId: string) => {
+      const acc = accountsById[accId];
+      if (!acc) return 0;
+      return acc.subAccounts.reduce(
+        (sum, sub) => sum + (balancesMap[`${accId}:${sub.id}`] || 0),
+        0
+      );
+    },
+    [accountsById, balancesMap]
+  );
+
+  const totalBalanceIDR = useMemo(() => {
+    return accounts
+      .filter((a) => a.currency === 'IDR')
+      .reduce((sum, acc) => sum + getAccBalance(acc.id), 0);
+  }, [accounts, getAccBalance]);
+
+  const totalBalanceUSD = useMemo(() => {
+    return accounts
+      .filter((a) => a.currency === 'USD')
+      .reduce((sum, acc) => sum + getAccBalance(acc.id), 0);
+  }, [accounts, getAccBalance]);
+
+  const isInvestmentTransaction = useCallback(
+    (t: Transaction): boolean => {
+      const acc = accountsById[t.accountId];
+      if (acc?.type === 'Investment') return true;
+      if (t.toAccountId) {
+        const toAcc = accountsById[t.toAccountId];
+        if (toAcc?.type === 'Investment') return true;
+      }
+      return false;
+    },
+    [accountsById]
+  );
 
   const filteredMonthlyTransactions = useMemo(() => {
     return transactions.filter((t) => {
@@ -230,35 +265,46 @@ export default function FinanceTracker() {
     return filteredMonthlyTransactions.filter((t) => !isInvestmentTransaction(t));
   }, [filteredMonthlyTransactions, isInvestmentTransaction]);
 
-  const monthlyIncomeIDR = operationalMonthlyTransactions
-    .filter((t) => t.type === 'income' && accounts.find((a) => a.id === t.accountId)?.currency !== 'USD')
-    .reduce((sum, t) => sum + t.amount, 0);
-  const monthlyExpenseIDR = operationalMonthlyTransactions
-    .filter((t) => t.type === 'expense' && accounts.find((a) => a.id === t.accountId)?.currency !== 'USD')
-    .reduce((sum, t) => sum + t.amount, 0);
-  const monthlyIncomeUSD = operationalMonthlyTransactions
-    .filter((t) => t.type === 'income' && accounts.find((a) => a.id === t.accountId)?.currency === 'USD')
-    .reduce((sum, t) => sum + t.amount, 0);
-  const monthlyExpenseUSD = operationalMonthlyTransactions
-    .filter((t) => t.type === 'expense' && accounts.find((a) => a.id === t.accountId)?.currency === 'USD')
-    .reduce((sum, t) => sum + t.amount, 0);
+  const { monthlyIncomeIDR, monthlyExpenseIDR, monthlyIncomeUSD, monthlyExpenseUSD } = useMemo(() => {
+    let incIDR = 0;
+    let expIDR = 0;
+    let incUSD = 0;
+    let expUSD = 0;
+
+    for (let i = 0; i < operationalMonthlyTransactions.length; i++) {
+      const t = operationalMonthlyTransactions[i];
+      const isUSD = accountsById[t.accountId]?.currency === 'USD';
+      if (t.type === 'income') {
+        if (isUSD) incUSD += t.amount;
+        else incIDR += t.amount;
+      } else if (t.type === 'expense') {
+        if (isUSD) expUSD += t.amount;
+        else expIDR += t.amount;
+      }
+    }
+
+    return {
+      monthlyIncomeIDR: incIDR,
+      monthlyExpenseIDR: expIDR,
+      monthlyIncomeUSD: incUSD,
+      monthlyExpenseUSD: expUSD,
+    };
+  }, [operationalMonthlyTransactions, accountsById]);
 
   const monthlyTransactionsForActiveCurrency = useMemo(() => {
     return operationalMonthlyTransactions.filter((t) => {
-      const acc = accounts.find((a) => a.id === t.accountId);
-      const accCurrency = acc?.currency || 'IDR';
+      const accCurrency = accountsById[t.accountId]?.currency || 'IDR';
       return accCurrency === activeCurrency;
     });
-  }, [operationalMonthlyTransactions, accounts, activeCurrency]);
+  }, [operationalMonthlyTransactions, accountsById, activeCurrency]);
 
   const allTransactionsForActiveCurrency = useMemo(() => {
     return transactions.filter((t) => {
       if (isInvestmentTransaction(t)) return false;
-      const acc = accounts.find((a) => a.id === t.accountId);
-      const accCurrency = acc?.currency || 'IDR';
+      const accCurrency = accountsById[t.accountId]?.currency || 'IDR';
       return accCurrency === activeCurrency;
     });
-  }, [transactions, isInvestmentTransaction, accounts, activeCurrency]);
+  }, [transactions, isInvestmentTransaction, accountsById, activeCurrency]);
 
   const activeCategoryBudgets = useMemo(() => {
     return categoryBudgets.filter((b) => (b.currency || 'IDR') === activeCurrency);
@@ -325,6 +371,18 @@ export default function FinanceTracker() {
   };
 
   const editTransaction = (tx: Transaction) => {
+    const srcAcc = accounts.find((a) => a.id === tx.accountId);
+    const validSrcSubId = srcAcc?.subAccounts.some((s) => s.id === tx.subAccountId)
+      ? tx.subAccountId
+      : (srcAcc?.subAccounts[0]?.id || tx.subAccountId);
+
+    const dstAcc = tx.toAccountId ? accounts.find((a) => a.id === tx.toAccountId) : undefined;
+    const validDstSubId = dstAcc
+      ? dstAcc.subAccounts.some((s) => s.id === tx.toSubAccountId)
+        ? (tx.toSubAccountId || '')
+        : (dstAcc.subAccounts[0]?.id || '')
+      : (tx.toSubAccountId || '');
+
     setEditingTxId(tx.id);
     setIsPayingBill(false);
     setType(tx.type);
@@ -333,9 +391,9 @@ export default function FinanceTracker() {
     setDescription(tx.description);
     setSelectedCategory(tx.category);
     setSelectedAccId(tx.accountId);
-    setSelectedSubAccId(tx.subAccountId);
+    setSelectedSubAccId(validSrcSubId);
     setSelectedToAccId(tx.toAccountId || '');
-    setSelectedToSubAccId(tx.toSubAccountId || '');
+    setSelectedToSubAccId(validDstSubId);
     const dateObj = new Date(tx.date);
     setTxDate(dateObj);
     setTxModalVisible(true);
@@ -343,6 +401,18 @@ export default function FinanceTracker() {
   };
 
   const cloneTransaction = (tx: Transaction) => {
+    const srcAcc = accounts.find((a) => a.id === tx.accountId);
+    const validSrcSubId = srcAcc?.subAccounts.some((s) => s.id === tx.subAccountId)
+      ? tx.subAccountId
+      : (srcAcc?.subAccounts[0]?.id || tx.subAccountId);
+
+    const dstAcc = tx.toAccountId ? accounts.find((a) => a.id === tx.toAccountId) : undefined;
+    const validDstSubId = dstAcc
+      ? dstAcc.subAccounts.some((s) => s.id === tx.toSubAccountId)
+        ? (tx.toSubAccountId || '')
+        : (dstAcc.subAccounts[0]?.id || '')
+      : (tx.toSubAccountId || '');
+
     setEditingTxId(null);
     setIsPayingBill(false);
     setType(tx.type);
@@ -351,9 +421,9 @@ export default function FinanceTracker() {
     setDescription(tx.description);
     setSelectedCategory(tx.category);
     setSelectedAccId(tx.accountId);
-    setSelectedSubAccId(tx.subAccountId);
+    setSelectedSubAccId(validSrcSubId);
     setSelectedToAccId(tx.toAccountId || '');
-    setSelectedToSubAccId(tx.toSubAccountId || '');
+    setSelectedToSubAccId(validDstSubId);
     // When cloning, record with current date and time
     setTxDate(new Date());
     setTxModalVisible(true);
@@ -407,6 +477,9 @@ export default function FinanceTracker() {
       }
     }
 
+    const isSrcSubActive = Boolean(fromAcc?.subAccounts.some((s) => s.id === effectiveSubAccId));
+    const isDstSubActive = Boolean(toAcc?.subAccounts.some((s) => s.id === effectiveToSubAccId));
+
     let updatedTx: Transaction[];
     if (editingTxId) {
       updatedTx = transactions.map((t) =>
@@ -420,8 +493,11 @@ export default function FinanceTracker() {
               date: txDate.toISOString(),
               accountId: selectedAccId,
               subAccountId: effectiveSubAccId,
+              deletedSubAccountName: isSrcSubActive ? undefined : t.deletedSubAccountName,
               toAccountId: type === 'transfer' ? selectedToAccId : undefined,
               toSubAccountId: type === 'transfer' ? effectiveToSubAccId : undefined,
+              deletedToSubAccountName:
+                type === 'transfer' && !isDstSubActive ? t.deletedToSubAccountName : undefined,
               toAmount: isCrossCurrency ? parsedToAmount : undefined,
               exchangeRate: isCrossCurrency ? exchangeRate : undefined,
             }
@@ -644,23 +720,89 @@ export default function FinanceTracker() {
   };
 
   const deleteSubAccount = (accId: string, subId: string) => {
+    const acc = accounts.find((a) => a.id === accId);
+    if (!acc) return;
+
+    if (acc.subAccounts.length <= 1) {
+      showAlert('warning', 'Cannot Delete Pocket', 'At least one pocket must remain in this account.');
+      return;
+    }
+
+    const subToDelete = acc.subAccounts.find((s) => s.id === subId);
+    const fallbackSub = acc.subAccounts.find((s) => s.id !== subId);
+    if (!subToDelete || !fallbackSub) return;
+
+    const currentBalance = getSubBalance(accId, subId);
+    const hasBalance = currentBalance !== 0;
+
+    const message = hasBalance
+      ? `Past transactions in "${subToDelete.name}" will remain in history marked as deleted, and its remaining balance will be moved to "${fallbackSub.name}".`
+      : `Past transactions in "${subToDelete.name}" will remain in history marked as deleted.`;
+
     showAlert(
       'danger',
-      'Delete pocket?',
-      'Transactions recorded under this pocket will also be deleted.',
+      `Delete "${subToDelete.name}"?`,
+      message,
       'DELETE',
       'CANCEL',
       async () => {
+        const nowIso = new Date().toISOString();
         setTransactions(
-          await updateStored('financeTransactions', (current) =>
-            current.filter((t) => !(t.accountId === accId && t.subAccountId === subId))
-          )
+          await updateStored('financeTransactions', (current) => {
+            const tagged = current.map((t) => {
+              let next = t;
+              if (t.accountId === accId && t.subAccountId === subId && !t.deletedSubAccountName) {
+                next = { ...next, deletedSubAccountName: subToDelete.name };
+              }
+              if (t.toAccountId === accId && t.toSubAccountId === subId && !t.deletedToSubAccountName) {
+                next = { ...next, deletedToSubAccountName: subToDelete.name };
+              }
+              return next;
+            });
+
+            if (currentBalance > 0) {
+              const closingTransfer: Transaction = {
+                id: `${Date.now()}_close`,
+                type: 'transfer',
+                amount: currentBalance,
+                description: `Balance moved from deleted pocket (${subToDelete.name})`,
+                category: 'Transfer',
+                date: nowIso,
+                accountId: accId,
+                subAccountId: subId,
+                deletedSubAccountName: subToDelete.name,
+                toAccountId: accId,
+                toSubAccountId: fallbackSub.id,
+              };
+              return [closingTransfer, ...tagged];
+            }
+
+            if (currentBalance < 0) {
+              const closingTransfer: Transaction = {
+                id: `${Date.now()}_close`,
+                type: 'transfer',
+                amount: Math.abs(currentBalance),
+                description: `Negative balance moved from deleted pocket (${subToDelete.name})`,
+                category: 'Transfer',
+                date: nowIso,
+                accountId: accId,
+                subAccountId: fallbackSub.id,
+                toAccountId: accId,
+                toSubAccountId: subId,
+                deletedToSubAccountName: subToDelete.name,
+              };
+              return [closingTransfer, ...tagged];
+            }
+
+            return tagged;
+          })
         );
+
         const updatedAcc = await updateStored('financeAccounts', (current) =>
-          current.map((acc) =>
-            acc.id === accId
-              ? { ...acc, subAccounts: acc.subAccounts.filter((s) => s.id !== subId) }
-              : acc
+          current.map((a) =>
+            a.id === accId
+              ? { ...a, subAccounts: a.subAccounts.filter((s) => s.id !== subId) }
+              : a
           )
         );
         setAccounts(updatedAcc);
@@ -1109,6 +1251,7 @@ export default function FinanceTracker() {
                     key={item.id}
                     item={item}
                     accounts={accounts}
+                    customCategoryIcons={customCategoryIcons}
                     onClone={cloneTransaction}
                     onDelete={deleteTransaction}
                     onEdit={editTransaction}
@@ -1310,6 +1453,7 @@ export default function FinanceTracker() {
         visible={Boolean(selectedTxForDetail)}
         transaction={selectedTxForDetail}
         accounts={accounts}
+        customCategoryIcons={customCategoryIcons}
         onClose={() => setSelectedTxForDetail(null)}
         onEdit={(tx) => {
           setSelectedTxForDetail(null);
@@ -1329,6 +1473,7 @@ export default function FinanceTracker() {
         visible={historyModalVisible}
         historyTransactions={historyTransactions}
         accounts={accounts}
+        customCategoryIcons={customCategoryIcons}
         historyTypeFilter={historyTypeFilter}
         historyCatFilter={historyCatFilter}
         historyAvailableCategories={historyAvailableCategories}

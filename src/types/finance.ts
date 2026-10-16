@@ -21,11 +21,34 @@ export interface Transaction {
   date: string;
   accountId: string;
   subAccountId: string;
+  deletedSubAccountName?: string;
   toAccountId?: string;
   toSubAccountId?: string;
+  deletedToSubAccountName?: string;
   toAmount?: number;
   exchangeRate?: number;
 }
+
+// Resolve pocket display name and deleted state
+export const resolveSubAccountDisplay = (
+  account: Account | null | undefined,
+  subAccountId: string | undefined,
+  deletedName?: string,
+  fallback = 'Main'
+): { name: string; label: string; isDeleted: boolean } => {
+  const activeSub = account?.subAccounts?.find((s) => s.id === subAccountId);
+  if (activeSub) {
+    return { name: activeSub.name, label: activeSub.name, isDeleted: false };
+  }
+  if (deletedName) {
+    return { name: deletedName, label: `${deletedName} (Deleted)`, isDeleted: true };
+  }
+  const hasMissingPocket = Boolean(account && subAccountId && account.subAccounts.length > 0);
+  if (hasMissingPocket) {
+    return { name: 'Deleted Pocket', label: 'Deleted Pocket', isDeleted: true };
+  }
+  return { name: fallback, label: fallback, isDeleted: false };
+};
 
 export interface CategoryBudget {
   category: string;

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Text,
   View,
@@ -16,18 +16,22 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   Transaction,
   Account,
+  CategoryCustomIcon,
   MONTHS,
   TX_TYPE_THEME,
   getCategoryTheme,
+  resolveSubAccountDisplay,
 } from '../../types/finance';
 import { TransactionCard } from './FinanceCards';
 import { TransactionDetailModal } from './TransactionDetailModal';
 import { COLORS, RADIUS } from '../../constants/theme';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 interface HistoryModalProps {
   visible: boolean;
   historyTransactions: Transaction[];
   accounts: Account[];
+  customCategoryIcons?: CategoryCustomIcon[];
   historyTypeFilter: 'all' | 'income' | 'expense' | 'transfer';
   historyCatFilter: string;
   historyAvailableCategories: string[];
@@ -62,6 +66,7 @@ export const HistoryModal = ({
   visible,
   historyTransactions,
   accounts,
+  customCategoryIcons,
   historyTypeFilter,
   historyCatFilter,
   historyAvailableCategories,
@@ -73,23 +78,8 @@ export const HistoryModal = ({
   onEdit,
 }: HistoryModalProps) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardHeight = useKeyboardHeight();
   const [selectedTxForDetail, setSelectedTxForDetail] = useState<Transaction | null>(null);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
 
   const handleClose = () => {
     Keyboard.dismiss();
@@ -120,11 +110,19 @@ export const HistoryModal = ({
 
         const acc = accounts.find((a) => a.id === tx.accountId);
         const accName = acc?.name?.toLowerCase() || '';
-        const subAccName = acc?.subAccounts?.find((s) => s.id === tx.subAccountId)?.name?.toLowerCase() || '';
+        const subAccName = resolveSubAccountDisplay(
+          acc,
+          tx.subAccountId,
+          tx.deletedSubAccountName
+        ).label.toLowerCase();
 
         const toAcc = tx.toAccountId ? accounts.find((a) => a.id === tx.toAccountId) : undefined;
         const toAccName = toAcc?.name?.toLowerCase() || '';
-        const toSubAccName = toAcc?.subAccounts?.find((s) => s.id === tx.toSubAccountId)?.name?.toLowerCase() || '';
+        const toSubAccName = resolveSubAccountDisplay(
+          toAcc,
+          tx.toSubAccountId,
+          tx.deletedToSubAccountName
+        ).label.toLowerCase();
 
         const searchableTokensString = [
           tx.description?.toLowerCase() || '',
@@ -276,7 +274,7 @@ export const HistoryModal = ({
                 </TouchableOpacity>
                 {historyAvailableCategories.map((cat) => {
                   const active = historyCatFilter === cat;
-                  const theme = getCategoryTheme(cat);
+                  const theme = getCategoryTheme(cat, customCategoryIcons);
                   return (
                     <TouchableOpacity
                       key={cat}
@@ -331,6 +329,7 @@ export const HistoryModal = ({
               <TransactionCard
                 item={item}
                 accounts={accounts}
+                customCategoryIcons={customCategoryIcons}
                 onClone={onClone}
                 onDelete={onDelete}
                 onEdit={onEdit}
@@ -343,6 +342,7 @@ export const HistoryModal = ({
             visible={Boolean(selectedTxForDetail)}
             transaction={selectedTxForDetail}
             accounts={accounts}
+            customCategoryIcons={customCategoryIcons}
             onClose={() => setSelectedTxForDetail(null)}
             onEdit={(tx) => {
               setSelectedTxForDetail(null);

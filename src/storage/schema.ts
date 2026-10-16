@@ -233,8 +233,10 @@ const parseTransaction = (value: unknown): Transaction => {
     date: str(item.date) || new Date().toISOString(),
     accountId: str(item.accountId),
     subAccountId: str(item.subAccountId),
+    deletedSubAccountName: optStr(item.deletedSubAccountName),
     toAccountId: optStr(item.toAccountId),
     toSubAccountId: optStr(item.toSubAccountId),
+    deletedToSubAccountName: optStr(item.deletedToSubAccountName),
     toAmount: optNum(item.toAmount),
     exchangeRate: optNum(item.exchangeRate),
   };

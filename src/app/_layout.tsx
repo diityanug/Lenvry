@@ -11,6 +11,7 @@ import {
 } from '../services/habitNotificationService';
 import { isAndroidExpoGo } from '../utils/expoGoHelper';
 import { COLORS } from '../constants/theme';
+import { formatDateKey } from '../constants/date';
 import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 
 let Notifications: any = null;
@@ -101,7 +102,7 @@ export default function AppLayout() {
 
   const handleCompleteHabit = async (habitId: string) => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatDateKey(new Date());
       await updateStored('habits', (current) =>
         current.map((h) => {
           if (h.id !== habitId) return h;

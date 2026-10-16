@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Transaction, formatMoney, MONTHS } from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
+import { formatDateKey } from '../../constants/date';
 import { SharedCalendarModal } from '../Shared/CalendarModal';
 
 interface CashflowTrendCardProps {
@@ -98,8 +99,8 @@ export const CashflowTrendCard = ({
   }, [baseEndDate, dayOffset]);
 
   const isAtToday = useMemo(() => {
-    const todayStr = now.toISOString().slice(0, 10);
-    const targetStr = targetEndDate.toISOString().slice(0, 10);
+    const todayStr = formatDateKey(now);
+    const targetStr = formatDateKey(targetEndDate);
     return targetStr >= todayStr;
   }, [now, targetEndDate]);
 
@@ -131,25 +132,25 @@ export const CashflowTrendCard = ({
   // 1. Process 7 Days Data
   const dailyData = useMemo<BarData[]>(() => {
     const bars: BarData[] = [];
-    const todayStr = now.toISOString().slice(0, 10);
+    const todayStr = formatDateKey(now);
 
     for (let i = 6; i >= 0; i--) {
       const d = new Date(targetEndDate);
       d.setDate(targetEndDate.getDate() - i);
-      const dateStr = d.toISOString().slice(0, 10);
+      const dateStr = formatDateKey(d);
       const dayLabel = DAY_NAMES_SHORT[d.getDay()];
       const dayNum = d.getDate().toString().padStart(2, '0');
       const fullYear = d.getFullYear();
 
       const dayExpenses = txSource
-        .filter((t) => t.type === 'expense' && t.date.startsWith(dateStr))
+        .filter((t) => t.type === 'expense' && formatDateKey(new Date(t.date)) === dateStr)
         .reduce((sum, t) => sum + t.amount, 0);
 
       const dayIncomes = txSource
-        .filter((t) => t.type === 'income' && t.date.startsWith(dateStr))
+        .filter((t) => t.type === 'income' && formatDateKey(new Date(t.date)) === dateStr)
         .reduce((sum, t) => sum + t.amount, 0);
 
-      const dayTxCount = txSource.filter((t) => t.date.startsWith(dateStr)).length;
+      const dayTxCount = txSource.filter((t) => formatDateKey(new Date(t.date)) === dateStr).length;
       const isTodayItem = dateStr === todayStr;
 
       bars.push({

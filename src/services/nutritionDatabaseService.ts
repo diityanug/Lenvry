@@ -35,7 +35,7 @@ export async function getNutritionDb(): Promise<SQLite.SQLiteDatabase> {
     `);
 
     // Seed version tracking: increment this whenever foods_seed.json is updated.
-    const CURRENT_SEED_VERSION = 4;
+    const CURRENT_SEED_VERSION = 5;
     const versionResult = await db.getFirstAsync<{ user_version: number }>(
       'PRAGMA user_version;'
     );

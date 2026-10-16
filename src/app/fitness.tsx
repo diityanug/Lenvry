@@ -134,7 +134,7 @@ export default function FitnessScreen() {
     setAlertConfig((prev) => ({ ...prev, visible: false }));
   };
 
-  const currentDateKey = selectedDate.toISOString().split('T')[0];
+  const currentDateKey = formatDateKey(selectedDate);
   const currentDayWorkouts = workouts.filter((w) => w.date === currentDateKey);
   const filteredWorkouts =
     activeFilter === 'All'

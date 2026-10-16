@@ -13,12 +13,14 @@ import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import {
   Transaction,
   Account,
+  CategoryCustomIcon,
   formatMoney,
   TX_TYPE_THEME,
   getCategoryTheme,
   getAccountIcon,
   ACCOUNT_TYPE_THEME,
   hexToRgba,
+  resolveSubAccountDisplay,
 } from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
 import { getCategoryIconInfo } from './FinanceCards';
@@ -27,6 +29,7 @@ interface TransactionDetailModalProps {
   visible: boolean;
   transaction: Transaction | null;
   accounts: Account[];
+  customCategoryIcons?: CategoryCustomIcon[];
   onClose: () => void;
   onEdit: (tx: Transaction) => void;
   onClone: (tx: Transaction) => void;
@@ -57,6 +60,7 @@ export const TransactionDetailModal = ({
   visible,
   transaction,
   accounts,
+  customCategoryIcons,
   onClose,
   onEdit,
   onClone,
@@ -74,8 +78,18 @@ export const TransactionDetailModal = ({
   const toAccName = toAccount?.name || 'Destination Account';
   const accCurrency = account?.currency || 'IDR';
 
-  const subName = account?.subAccounts.find((s) => s.id === transaction.subAccountId)?.name || '';
-  const toSubName = toAccount?.subAccounts.find((s) => s.id === transaction.toSubAccountId)?.name || '';
+  const subName = resolveSubAccountDisplay(
+    account,
+    transaction.subAccountId,
+    transaction.deletedSubAccountName,
+    isTransfer ? 'Main' : 'Main Pocket'
+  ).label;
+  const toSubName = resolveSubAccountDisplay(
+    toAccount,
+    transaction.toSubAccountId,
+    transaction.deletedToSubAccountName,
+    'Main'
+  ).label;
 
   const fromTheme = account
     ? ACCOUNT_TYPE_THEME[account.type]
@@ -87,9 +101,9 @@ export const TransactionDetailModal = ({
     : { color: '#C084FC', bg: 'rgba(192, 132, 252, 0.14)', border: 'rgba(192, 132, 252, 0.34)' };
   const toIcon = toAccount ? getAccountIcon(toAccount.type) : 'university';
 
-  const iconInfo = getCategoryIconInfo(transaction.category, transaction.type);
+  const iconInfo = getCategoryIconInfo(transaction.category, transaction.type, customCategoryIcons);
   const typeTheme = TX_TYPE_THEME[transaction.type];
-  const catTheme = getCategoryTheme(transaction.category);
+  const catTheme = getCategoryTheme(transaction.category, customCategoryIcons);
 
   const amountColor = isIncome ? '#34D399' : isTransfer ? '#818CF8' : '#FB7185';
   const formattedAmount = `${isIncome ? '+ ' : isTransfer ? '' : '- '}${formatMoney(transaction.amount, accCurrency)}`;

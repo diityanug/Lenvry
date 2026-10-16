@@ -19,6 +19,7 @@ import {
   TX_TYPE_THEME,
   getCategoryTheme,
   hexToRgba,
+  resolveSubAccountDisplay,
 } from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
 
@@ -321,13 +322,15 @@ export const AccountDetailModal = ({
                           <Ionicons name="pencil-outline" size={14} color={COLORS.textSecondary} />
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                          style={[modalStyles.subActionBtn, modalStyles.subActionBtnDelete]}
-                          onPress={() => onDeleteSubAccount(account.id, sub.id)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="trash-outline" size={14} color={COLORS.danger} />
-                        </TouchableOpacity>
+                        {account.subAccounts.length > 1 && (
+                          <TouchableOpacity
+                            style={[modalStyles.subActionBtn, modalStyles.subActionBtnDelete]}
+                            onPress={() => onDeleteSubAccount(account.id, sub.id)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="trash-outline" size={14} color={COLORS.danger} />
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
                   );
@@ -463,11 +466,14 @@ export const AccountDetailModal = ({
                         : TX_TYPE_THEME.expense;
                     const color = isTransfer && delta === 0 ? TX_TYPE_THEME.transfer.color : theme.color;
                     const catTheme = getCategoryTheme(tx.category);
-                    const srcSub = account.subAccounts.find((s) => s.id === tx.subAccountId)?.name;
+                    const srcAcc = accounts.find((a) => a.id === tx.accountId) || account;
+                    const srcSub = resolveSubAccountDisplay(srcAcc, tx.subAccountId, tx.deletedSubAccountName).label;
                     const dstAcc = tx.toAccountId ? accounts.find((a) => a.id === tx.toAccountId) : undefined;
-                    const dstSub = dstAcc?.subAccounts.find((s) => s.id === tx.toSubAccountId)?.name;
+                    const dstSub = resolveSubAccountDisplay(dstAcc, tx.toSubAccountId, tx.deletedToSubAccountName).label;
+                    const srcPrefix = srcAcc && srcAcc.id !== account.id ? `${srcAcc.name} • ` : '';
+                    const dstPrefix = dstAcc && dstAcc.id !== account.id ? `${dstAcc.name} • ` : '';
                     const meta = isTransfer
-                      ? `Transfer • ${srcSub || 'Main'} → ${dstAcc && dstAcc.id !== account.id ? `${dstAcc.name} • ` : ''}${dstSub || 'Main'}`
+                      ? `Transfer • ${srcPrefix}${srcSub} → ${dstPrefix}${dstSub}`
                       : `${tx.category}${srcSub ? ` • ${srcSub}` : ''}`;
                     return (
                       <TouchableOpacity

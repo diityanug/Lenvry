@@ -143,8 +143,10 @@ export const TransactionSchema = z.object({
   date: safeStr().transform((v) => v || new Date().toISOString()),
   accountId: safeStr(''),
   subAccountId: safeStr(''),
+  deletedSubAccountName: safeOptStr(),
   toAccountId: safeOptStr(),
   toSubAccountId: safeOptStr(),
+  deletedToSubAccountName: safeOptStr(),
   toAmount: safeOptNum(),
   exchangeRate: safeOptNum(),
 });

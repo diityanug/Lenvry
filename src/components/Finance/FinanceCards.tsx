@@ -1,17 +1,32 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { Account, Transaction, formatMoney, getAccountIcon, MONTHS, ACCOUNT_TYPE_THEME, TX_TYPE_THEME, getCategoryTheme } from '../../types/finance';
+import { Account, Transaction, CategoryCustomIcon, formatMoney, getAccountIcon, MONTHS, ACCOUNT_TYPE_THEME, TX_TYPE_THEME, getCategoryTheme } from '../../types/finance';
 import { financeStyles as styles } from '../../styles/financeStyles';
 import { COLORS } from '../../constants/theme';
 import { useUserStore } from '../../stores/useUserStore';
 
 export const getCategoryIconInfo = (
   category: string,
-  type: 'income' | 'expense' | 'transfer'
+  type: 'income' | 'expense' | 'transfer',
+  customCategoryIcons?: CategoryCustomIcon[]
 ): { name: any; color: string; bg: string; border: string } => {
   if (type === 'transfer') {
     return { name: 'swap-horizontal', ...TX_TYPE_THEME.transfer };
+  }
+
+  // 1. Check custom category icons first
+  const custom = customCategoryIcons?.find(
+    (c) => c.category.toLowerCase() === category.toLowerCase()
+  );
+  if (custom?.icon) {
+    const theme = getCategoryTheme(category, customCategoryIcons);
+    return {
+      name: custom.icon,
+      color: theme.color,
+      bg: theme.bg,
+      border: theme.border,
+    };
   }
 
   if (type === 'income') {
@@ -53,7 +68,7 @@ export const getCategoryIconInfo = (
     Others: 'ellipsis-horizontal',
   };
 
-  return { name: iconMap[category] || 'pricetag-outline', ...getCategoryTheme(category) };
+  return { name: iconMap[category] || 'pricetag-outline', ...getCategoryTheme(category, customCategoryIcons) };
 };
 
 export const formatTxDate = (dateIso: string): string => {
@@ -323,8 +338,24 @@ const DEFAULT_CALM_FALLBACKS: Record<'expense' | 'income' | 'transfer', CalmTxTh
   },
 };
 
-function getCalmTxTheme(category: string, type: 'income' | 'expense' | 'transfer'): CalmTxTheme {
+function getCalmTxTheme(
+  category: string,
+  type: 'income' | 'expense' | 'transfer',
+  customCategoryIcons?: CategoryCustomIcon[]
+): CalmTxTheme {
   if (type === 'transfer') return CATEGORY_CALM_THEMES.Transfer;
+  const custom = customCategoryIcons?.find(
+    (c) => c.category.toLowerCase() === category.toLowerCase()
+  );
+  if (custom?.color) {
+    return {
+      accent: custom.color,
+      cardBg: '#141522',
+      borderColor: `${custom.color}33`,
+      pillBg: `${custom.color}1F`,
+      pillBorder: `${custom.color}47`,
+    };
+  }
   if (CATEGORY_CALM_THEMES[category]) return CATEGORY_CALM_THEMES[category];
   return DEFAULT_CALM_FALLBACKS[type];
 }
@@ -333,6 +364,7 @@ function getCalmTxTheme(category: string, type: 'income' | 'expense' | 'transfer
 interface TransactionCardProps {
   item: Transaction;
   accounts: Account[];
+  customCategoryIcons?: CategoryCustomIcon[];
   onClone?: (tx: Transaction) => void;
   onDelete?: (id: string) => void;
   onEdit?: (tx: Transaction) => void;
@@ -342,6 +374,7 @@ interface TransactionCardProps {
 export const TransactionCard = ({
   item,
   accounts,
+  customCategoryIcons,
   onClone,
   onDelete,
   onEdit,
@@ -350,9 +383,9 @@ export const TransactionCard = ({
   const account = accounts.find((a) => a.id === item.accountId);
   const toAccount = item.toAccountId ? accounts.find((a) => a.id === item.toAccountId) : null;
   const accCurrency = account?.currency || 'IDR';
-  const iconInfo = getCategoryIconInfo(item.category, item.type);
+  const iconInfo = getCategoryIconInfo(item.category, item.type, customCategoryIcons);
   const isTransfer = item.type === 'transfer';
-  const theme = getCalmTxTheme(item.category, item.type);
+  const theme = getCalmTxTheme(item.category, item.type, customCategoryIcons);
 
   // Fallback title if description is empty or whitespace
   const displayTitle = (item.description || '').trim() || item.category || (isTransfer ? 'Transfer' : 'Transaction');
