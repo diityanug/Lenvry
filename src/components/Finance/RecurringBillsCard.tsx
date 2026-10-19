@@ -103,9 +103,10 @@ export const RecurringBillsCard = ({
   const processedBills = filteredBills.map((bill) => {
     const matchingTx = monthlyTransactions.find((t) => {
       if (t.type !== 'expense') return false;
-      const desc = t.description.toLowerCase();
-      const bName = bill.name.toLowerCase();
-      return desc.includes(bName) || bName.includes(desc);
+      const desc = t.description.trim().toLowerCase();
+      const bName = bill.name.trim().toLowerCase();
+      if (!desc || !bName) return false;
+      return desc.includes(bName) || (desc.length >= 3 && bName.includes(desc));
     });
 
     const isPaid = Boolean(matchingTx);

@@ -4,19 +4,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { fitnessStyles as styles } from '../../styles/fitnessStyles';
 import { MONTHS, DAYS_SHORT } from '../../constants/fitness';
 import { COLORS } from '../../constants/theme';
+import { formatDateKey } from '../../constants/date';
 
 interface DateStripProps {
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
   onOpenCalendar: () => void;
+  todayDate?: Date;
 }
 
-export default function DateStrip({ selectedDate, onSelectDate, onOpenCalendar }: DateStripProps) {
-  const getFormattedDateKey = (date: Date) => date.toISOString().split('T')[0];
-  const currentDateKey = getFormattedDateKey(selectedDate);
-  const todayKey = getFormattedDateKey(new Date());
+export default function DateStrip({ selectedDate, onSelectDate, onOpenCalendar, todayDate }: DateStripProps) {
+  const currentDateKey = formatDateKey(selectedDate);
+  const now = todayDate || new Date();
+  const todayKey = formatDateKey(now);
 
-  // Show 7 days range
+  // Show 7 days range centered around selectedDate
   const getWeekDates = () => {
     const dates = [];
     for (let i = -3; i <= 3; i++) {
@@ -51,9 +53,10 @@ export default function DateStrip({ selectedDate, onSelectDate, onOpenCalendar }
 
       <View style={styles.dateStripRow}>
         {getWeekDates().map((d, index) => {
-          const isSelected = getFormattedDateKey(d) === currentDateKey;
-          const isCurrentToday = getFormattedDateKey(d) === todayKey;
-          const isFuture = d > new Date();
+          const dateKey = formatDateKey(d);
+          const isSelected = dateKey === currentDateKey;
+          const isCurrentToday = dateKey === todayKey;
+          const isFuture = dateKey > todayKey;
 
           return (
             <TouchableOpacity

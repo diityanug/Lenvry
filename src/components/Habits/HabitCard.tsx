@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Text,
   View,
@@ -7,11 +7,12 @@ import {
   Modal,
   ScrollView,
   TextInput,
-  Platform,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Habit } from '../../types/habits';
 import { COLORS, RADIUS } from '../../constants/theme';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 interface HabitCardProps {
   item: Habit;
@@ -126,6 +127,12 @@ const getCategoryTheme = (
   return PALETTE[Math.abs(hash) % PALETTE.length];
 };
 
+const buildNotesList = (habit: Habit): string[] => {
+  const base = habit.description ? [habit.description] : [];
+  const extra = habit.extraNotes || [];
+  return [...base, ...extra.filter((n) => n !== habit.description)];
+};
+
 export default function HabitCard({
   item,
   isCompleted,
@@ -137,22 +144,28 @@ export default function HabitCard({
   onUpdateNotes,
   customCategoryIcons,
 }: HabitCardProps) {
+  const keyboardHeight = useKeyboardHeight();
+  const detailScrollRef = useRef<ScrollView>(null);
+
   const [detailVisible, setDetailVisible] = useState(false);
-  // notes = [item.description (from AddHabitModal), ...extra notes added inline]
-  const [notes, setNotes] = useState<string[]>(() => {
-    const base = item.description ? [item.description] : [];
-    const extra = item.extraNotes || [];
-    // Merge: if extraNotes already contains description (migrated), skip dup
-    return [...base, ...extra.filter((n) => n !== item.description)];
-  });
   const [draftNote, setDraftNote] = useState('');
   const [addingNote, setAddingNote] = useState(false);
-  // popup state
   const [notePopupIndex, setNotePopupIndex] = useState<number>(-1);
   const [editDraft, setEditDraft] = useState('');
   const [isEditingNote, setIsEditingNote] = useState(false);
 
+  const notes = buildNotesList(item);
   const theme = getCategoryTheme(item.category, customCategoryIcons);
+
+  // Auto-scroll to note input when adding a note or when keyboard opens
+  useEffect(() => {
+    if (addingNote) {
+      const timer = setTimeout(() => {
+        detailScrollRef.current?.scrollToEnd({ animated: true });
+      }, 120);
+      return () => clearTimeout(timer);
+    }
+  }, [addingNote, keyboardHeight]);
 
   const priorityColor =
     item.priority === 'high'
@@ -161,57 +174,95 @@ export default function HabitCard({
       ? COLORS.warning
       : COLORS.success;
 
+  const priorityLabel =
+    item.priority === 'high' ? 'High' : item.priority === 'medium' ? 'Medium' : 'Low';
+
+  const frequencyLabel =
+    item.frequency === 'daily'
+      ? 'Daily'
+      : item.frequency === 'weekdays'
+      ? 'Weekdays'
+      : item.frequency === 'custom_days'
+      ? 'Custom Days'
+      : 'Once';
+
   const subtasksCount = item.subtasks?.length || 0;
   const completedSubtasksCount = item.subtasks?.filter((s) => s.completed).length || 0;
 
-  // Extra notes = everything beyond the first (which mirrors description)
-  const getExtraNotes = (list: string[]) => list.slice(1);
+  // Extra notes beyond base description
+  const getExtraNotes = (list: string[]) => (item.description ? list.slice(1) : list);
 
-  const saveNote = () => {
-    const trimmed = draftNote.trim();
+  // Unified save handler for both adding and editing notes
+  const handleSaveNote = (mode: 'add' | 'edit') => {
+    const raw = mode === 'add' ? draftNote : editDraft;
+    const trimmed = raw.trim();
     if (!trimmed) {
-      setAddingNote(false);
-      setDraftNote('');
+      if (mode === 'add') {
+        setAddingNote(false);
+        setDraftNote('');
+      }
       return;
     }
-    const updated = [...notes, trimmed];
-    setNotes(updated);
+
+    const updated =
+      mode === 'add'
+        ? [...notes, trimmed]
+        : notes.map((n, i) => (i === notePopupIndex ? trimmed : n));
+
     onUpdateNotes(item.id, getExtraNotes(updated));
-    setDraftNote('');
-    setAddingNote(false);
+    Keyboard.dismiss();
+
+    if (mode === 'add') {
+      setDraftNote('');
+      setAddingNote(false);
+    } else {
+      setIsEditingNote(false);
+    }
   };
 
   const removeNote = (index: number) => {
     const updated = notes.filter((_, i) => i !== index);
-    setNotes(updated);
     onUpdateNotes(item.id, getExtraNotes(updated));
   };
 
   const openNotePopup = (index: number) => {
     setEditDraft(notes[index]);
+    setIsEditingNote(false);
     setNotePopupIndex(index);
   };
 
   const closeNotePopup = () => {
+    Keyboard.dismiss();
     setNotePopupIndex(-1);
     setEditDraft('');
     setIsEditingNote(false);
   };
 
-  const saveEditedNote = () => {
-    const trimmed = editDraft.trim();
-    if (!trimmed) return;
-    const updated = notes.map((n, i) => (i === notePopupIndex ? trimmed : n));
-    setNotes(updated);
-    onUpdateNotes(item.id, getExtraNotes(updated));
-    setIsEditingNote(false);
-    // keep popup open in view mode so user can see saved result
+  // Step-back handler for inner note popup modal
+  const handleBackOrCloseNotePopup = () => {
+    if (isEditingNote) {
+      Keyboard.dismiss();
+      setEditDraft(notes[notePopupIndex] || '');
+      setIsEditingNote(false);
+      return;
+    }
+    closeNotePopup();
   };
 
-  const totalNotes = notes.length;
+  // Step-back handler for detail modal
+  const handleBackOrCloseDetail = () => {
+    if (addingNote) {
+      Keyboard.dismiss();
+      setAddingNote(false);
+      setDraftNote('');
+      return;
+    }
+    setDetailVisible(false);
+  };
 
   return (
     <>
+      {/* Cover Card: Category + Title + Complete Toggle */}
       <View
         style={[
           cardStyles.card,
@@ -221,187 +272,114 @@ export default function HabitCard({
           },
         ]}
       >
-        {/* Card Header: Icon + Category/Priority Tag + Edit/Delete Actions */}
-        <View style={cardStyles.header}>
-          <View style={cardStyles.headerLeftGroup}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setDetailVisible(true)}
-              style={[
-                cardStyles.iconWrapper,
-                { backgroundColor: isCompleted ? 'rgba(255,255,255,0.06)' : theme.bg, borderColor: isCompleted ? COLORS.border : theme.border },
-              ]}
-            >
-              <Ionicons name={theme.icon} size={22} color={isCompleted ? COLORS.textMuted : theme.accent} />
-            </TouchableOpacity>
-
-            <View style={cardStyles.headerMeta}>
-              <View style={cardStyles.metaRow}>
-                <Text style={[cardStyles.categoryName, { color: isCompleted ? COLORS.textMuted : theme.accent }]}>
-                  {item.category.toUpperCase()}
-                </Text>
-                {item.priority && (
-                  <View style={[cardStyles.priorityPill, { borderColor: priorityColor }]}>
-                    <View style={[cardStyles.priorityDot, { backgroundColor: priorityColor }]} />
-                    <Text style={[cardStyles.priorityText, { color: priorityColor }]}>
-                      {item.priority.toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              {totalCompletedCount > 0 && (
-                <Text style={cardStyles.streakText}>
-                  {totalCompletedCount} {totalCompletedCount === 1 ? 'day completed' : 'days completed'}
-                </Text>
-              )}
-            </View>
-          </View>
-
-          <View style={cardStyles.headerActionGroup}>
-            <TouchableOpacity
-              onPress={() => onEdit(item)}
-              style={cardStyles.actionHeaderBtn}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="create-outline" size={17} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => onDelete(item.id)}
-              style={cardStyles.actionHeaderBtn}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="trash-outline" size={17} color={COLORS.danger} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Content body — tap anywhere to open detail */}
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={() => setDetailVisible(true)}
-          style={cardStyles.bodyTouchable}
+          style={cardStyles.coverMainArea}
         >
-          {/* Main Habit Title */}
-          <Text
-            style={[cardStyles.title, isCompleted && cardStyles.titleCompleted]}
-            numberOfLines={2}
+          <View
+            style={[
+              cardStyles.iconWrapper,
+              {
+                backgroundColor: isCompleted ? 'rgba(255,255,255,0.05)' : theme.bg,
+                borderColor: isCompleted ? COLORS.border : theme.border,
+              },
+            ]}
           >
-            {item.title}
-          </Text>
+            <Ionicons
+              name={theme.icon}
+              size={20}
+              color={isCompleted ? COLORS.textMuted : theme.accent}
+            />
+          </View>
 
-          {/* Badges Row */}
-          <View style={cardStyles.badgeContainer}>
-            {item.frequency && item.frequency !== 'once' && (
-              <View style={[cardStyles.badge, { backgroundColor: 'rgba(16, 185, 129, 0.14)' }]}>
-                <Ionicons name="repeat" size={12} color={COLORS.success} style={{ marginRight: 4 }} />
-                <Text style={[cardStyles.badgeText, { color: COLORS.success }]}>
-                  {item.frequency === 'daily'
-                    ? 'Daily'
-                    : item.frequency === 'weekdays'
-                    ? 'Weekdays'
-                    : 'Custom Days'}
-                </Text>
-              </View>
-            )}
-
-            {item.timeSlot && item.timeSlot !== 'Anytime' && (
-              <View style={[cardStyles.badge, { backgroundColor: 'rgba(56, 189, 248, 0.14)' }]}>
-                <Ionicons name="time-outline" size={12} color={COLORS.accentUSD} style={{ marginRight: 4 }} />
-                <Text style={[cardStyles.badgeText, { color: COLORS.accentUSD }]}>
-                  {item.timeSlot}
-                </Text>
-              </View>
-            )}
-
-            {item.reminderTime ? (
-              <View style={[cardStyles.badge, { backgroundColor: 'rgba(245, 158, 11, 0.14)' }]}>
-                <Ionicons name="alarm-outline" size={12} color={COLORS.warning} style={{ marginRight: 4 }} />
-                <Text style={[cardStyles.badgeText, { color: COLORS.warning }]}>
-                  {item.reminderTime}
-                </Text>
-              </View>
-            ) : null}
-
-            {subtasksCount > 0 && (
-              <View style={[cardStyles.badge, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
-                <Ionicons name="checkbox-outline" size={12} color={COLORS.textSecondary} style={{ marginRight: 4 }} />
-                <Text style={cardStyles.badgeText}>
-                  {completedSubtasksCount}/{subtasksCount} done
-                </Text>
-              </View>
-            )}
-
-            {totalNotes > 0 && (
-              <View style={[cardStyles.badge, { backgroundColor: 'rgba(168, 85, 247, 0.14)' }]}>
-                <Ionicons name="document-text-outline" size={12} color="#A855F7" style={{ marginRight: 4 }} />
-                <Text style={[cardStyles.badgeText, { color: '#A855F7' }]}>
-                  {totalNotes === 1 ? '1 Note' : `${totalNotes} Notes`}
-                </Text>
-              </View>
-            )}
+          <View style={cardStyles.coverTextGroup}>
+            <Text
+              style={[
+                cardStyles.categoryName,
+                { color: isCompleted ? COLORS.textMuted : theme.accent },
+              ]}
+              numberOfLines={1}
+            >
+              {item.category.toUpperCase()}
+            </Text>
+            <Text
+              style={[cardStyles.title, isCompleted && cardStyles.titleCompleted]}
+              numberOfLines={2}
+            >
+              {item.title}
+            </Text>
           </View>
         </TouchableOpacity>
 
-        {/* Divider */}
-        <View style={[cardStyles.divider, { backgroundColor: isCompleted ? COLORS.border : theme.border }]} />
-
-        {/* Check / Complete Action Button */}
         <TouchableOpacity
-          activeOpacity={0.8}
+          activeOpacity={0.75}
           onPress={() => onToggle(item.id)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={[
-            cardStyles.actionButton,
+            cardStyles.checkBtn,
             {
-              backgroundColor: isCompleted ? theme.accent : COLORS.bgCardSub,
+              backgroundColor: isCompleted ? theme.accent : 'rgba(255,255,255,0.04)',
               borderColor: isCompleted ? theme.accent : COLORS.borderLight,
             },
           ]}
         >
           <Ionicons
-            name={isCompleted ? 'checkmark-circle' : 'checkmark-circle-outline'}
+            name="checkmark"
             size={18}
-            color={isCompleted ? '#08090C' : COLORS.textPrimary}
-            style={{ marginRight: 8 }}
+            color={isCompleted ? '#08090C' : COLORS.textMuted}
           />
-          <Text style={[cardStyles.actionButtonText, { color: isCompleted ? '#08090C' : COLORS.textPrimary }]}>
-            {isCompleted ? 'Completed (Tap to undo)' : 'Mark as Done'}
-          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* ── Detail Modal ── */}
+      {/* Detail Modal */}
       <Modal
         animationType="slide"
         transparent={true}
         visible={detailVisible}
-        onRequestClose={() => setDetailVisible(false)}
+        onRequestClose={handleBackOrCloseDetail}
       >
         <View style={cardStyles.modalOverlay}>
           <View style={cardStyles.modalBox}>
-            {/* Modal header */}
+            {/* Modal Header */}
             <View style={cardStyles.modalHeader}>
-              <View style={[cardStyles.modalTag, { backgroundColor: theme.bg, borderColor: theme.border }]}>
-                <Ionicons name={theme.icon} size={12} color={theme.accent} style={{ marginRight: 5 }} />
+              <View
+                style={[
+                  cardStyles.modalTag,
+                  { backgroundColor: theme.bg, borderColor: theme.border },
+                ]}
+              >
+                <Ionicons
+                  name={theme.icon}
+                  size={13}
+                  color={theme.accent}
+                  style={{ marginRight: 6 }}
+                />
                 <Text style={[cardStyles.modalTagText, { color: theme.accent }]}>
                   {item.category.toUpperCase()}
                 </Text>
               </View>
 
-              <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={cardStyles.modalHeaderActions}>
                 <TouchableOpacity
-                  onPress={() => {
-                    setDetailVisible(false);
-                    onEdit(item);
-                  }}
+                  onPress={() => onEdit(item)}
                   activeOpacity={0.7}
                   style={cardStyles.modalIconBtn}
                 >
-                  <Ionicons name="create-outline" size={16} color={COLORS.textPrimary} />
+                  <Ionicons name="create-outline" size={18} color={COLORS.textSecondary} />
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => onDelete(item.id)}
+                  activeOpacity={0.7}
+                  style={cardStyles.modalIconBtn}
+                >
+                  <Ionicons name="trash-outline" size={18} color={COLORS.danger} />
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   onPress={() => {
+                    Keyboard.dismiss();
                     setAddingNote(false);
                     setDraftNote('');
                     setDetailVisible(false);
@@ -409,821 +387,792 @@ export default function HabitCard({
                   activeOpacity={0.7}
                   style={cardStyles.modalIconBtn}
                 >
-                  <Ionicons name="close" size={18} color={COLORS.textPrimary} />
+                  <Ionicons name="close" size={20} color={COLORS.textSecondary} />
                 </TouchableOpacity>
               </View>
             </View>
 
-            <Text style={cardStyles.modalTitle}>{item.title}</Text>
-
             <ScrollView
-              style={cardStyles.modalScroll}
+              ref={detailScrollRef}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 16 }}
               keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets={true}
+              contentContainerStyle={[
+                cardStyles.modalScrollContent,
+                { paddingBottom: Math.max(24, keyboardHeight + 24) },
+              ]}
             >
-              {/* ── NOTES / DESCRIPTIONS ── */}
-              <View style={cardStyles.modalSection}>
-                <View style={cardStyles.notesSectionHeader}>
-                  <Text style={cardStyles.modalSectionLabel}>NOTES</Text>
-                  {!addingNote && (
-                    <TouchableOpacity
-                      onPress={() => setAddingNote(true)}
-                      activeOpacity={0.75}
-                      style={cardStyles.addNoteBtn}
-                    >
-                      <Ionicons name="add" size={13} color={theme.accent} />
-                      <Text style={[cardStyles.addNoteBtnText, { color: theme.accent }]}>
-                        Add Another
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+              {/* Title & Completion Status Banner */}
+              <Text style={cardStyles.modalTitle}>{item.title}</Text>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => onToggle(item.id)}
+                style={[
+                  cardStyles.statusBanner,
+                  {
+                    backgroundColor: isCompleted ? theme.accent : COLORS.bgCardSub,
+                    borderColor: isCompleted ? theme.accent : COLORS.borderLight,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={isCompleted ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={20}
+                  color={isCompleted ? '#08090C' : COLORS.textPrimary}
+                />
+                <Text
+                  style={[
+                    cardStyles.statusBannerText,
+                    { color: isCompleted ? '#08090C' : COLORS.textPrimary },
+                  ]}
+                >
+                  {isCompleted ? 'Completed Today (Tap to undo)' : 'Mark as Completed'}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={cardStyles.sectionDivider} />
+
+              {/* View-Only Overview Section */}
+              <Text style={cardStyles.sectionTitle}>OVERVIEW</Text>
+              <View style={cardStyles.metaList}>
+                <View style={cardStyles.metaItemRow}>
+                  <View style={cardStyles.metaLabelWrap}>
+                    <Ionicons name="flag-outline" size={16} color={COLORS.textSecondary} />
+                    <Text style={cardStyles.metaLabel}>Priority</Text>
+                  </View>
+                  <View style={cardStyles.priorityValueWrap}>
+                    <View style={[cardStyles.priorityDot, { backgroundColor: priorityColor }]} />
+                    <Text style={[cardStyles.metaValue, { color: priorityColor }]}>
+                      {priorityLabel}
+                    </Text>
+                  </View>
                 </View>
 
-                {/* Existing notes */}
-                {notes.length === 0 && !addingNote ? (
-                  <TouchableOpacity
-                    onPress={() => setAddingNote(true)}
-                    activeOpacity={0.75}
-                    style={cardStyles.emptyNoteBox}
-                  >
-                    <Ionicons name="document-text-outline" size={20} color={COLORS.textMuted} />
-                    <Text style={cardStyles.emptyNoteText}>
-                      {"There's no notes yet."}{'\n'}Tap to add.
-                    </Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View style={{ gap: 8 }}>
-                    {notes.map((note, idx) => (
+                <View style={cardStyles.metaItemRow}>
+                  <View style={cardStyles.metaLabelWrap}>
+                    <Ionicons name="repeat-outline" size={16} color={COLORS.textSecondary} />
+                    <Text style={cardStyles.metaLabel}>Frequency</Text>
+                  </View>
+                  <Text style={cardStyles.metaValue}>{frequencyLabel}</Text>
+                </View>
+
+                <View style={cardStyles.metaItemRow}>
+                  <View style={cardStyles.metaLabelWrap}>
+                    <Ionicons name="sunny-outline" size={16} color={COLORS.textSecondary} />
+                    <Text style={cardStyles.metaLabel}>Time of Day</Text>
+                  </View>
+                  <Text style={cardStyles.metaValue}>{item.timeSlot || 'Anytime'}</Text>
+                </View>
+
+                <View style={cardStyles.metaItemRow}>
+                  <View style={cardStyles.metaLabelWrap}>
+                    <Ionicons name="alarm-outline" size={16} color={COLORS.textSecondary} />
+                    <Text style={cardStyles.metaLabel}>Reminder</Text>
+                  </View>
+                  <Text style={cardStyles.metaValue}>{item.reminderTime || 'Off'}</Text>
+                </View>
+
+                <View style={cardStyles.metaItemRow}>
+                  <View style={cardStyles.metaLabelWrap}>
+                    <Ionicons name="flame-outline" size={16} color={COLORS.textSecondary} />
+                    <Text style={cardStyles.metaLabel}>Total Completed</Text>
+                  </View>
+                  <Text style={cardStyles.metaValue}>
+                    {totalCompletedCount} {totalCompletedCount === 1 ? 'day' : 'days'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Checklist Section */}
+              {subtasksCount > 0 && (
+                <>
+                  <View style={cardStyles.sectionDivider} />
+                  <Text style={cardStyles.sectionTitle}>
+                    CHECKLIST ({completedSubtasksCount}/{subtasksCount})
+                  </Text>
+
+                  <View style={cardStyles.checklistContainer}>
+                    {item.subtasks?.map((sub) => (
                       <TouchableOpacity
-                        key={idx}
-                        activeOpacity={0.75}
-                        onPress={() => openNotePopup(idx)}
-                        style={cardStyles.noteItem}
+                        key={sub.id}
+                        style={cardStyles.subtaskRow}
+                        onPress={() => onToggleSubtask(item.id, sub.id)}
+                        activeOpacity={0.7}
                       >
-                        <View style={cardStyles.noteNumberWrap}>
-                          <Text style={[cardStyles.noteNumber, { color: theme.accent }]}>
-                            {idx + 1}
-                          </Text>
+                        <View
+                          style={[
+                            cardStyles.checkbox,
+                            sub.completed && {
+                              backgroundColor: theme.accent,
+                              borderColor: theme.accent,
+                            },
+                          ]}
+                        >
+                          {sub.completed && (
+                            <Ionicons name="checkmark" size={12} color="#08090C" />
+                          )}
                         </View>
-                        <Text style={cardStyles.noteText} numberOfLines={3}>{note}</Text>
-                        <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
+                        <Text
+                          style={[
+                            cardStyles.subtaskText,
+                            sub.completed && cardStyles.subtaskCompletedText,
+                          ]}
+                        >
+                          {sub.title}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
-                )}
+                </>
+              )}
 
-                {/* Add note input */}
-                {addingNote && (
-                  <View style={cardStyles.addNoteInputWrap}>
-                    <View style={cardStyles.noteNumberWrap}>
-                      <Text style={[cardStyles.noteNumber, { color: theme.accent }]}>
-                        {notes.length + 1}
-                      </Text>
-                    </View>
-                    <TextInput
-                      style={cardStyles.addNoteInput}
-                      placeholder=""
-                      placeholderTextColor={COLORS.textMuted}
-                      value={draftNote}
-                      onChangeText={setDraftNote}
-                      multiline
-                      autoFocus
-                    />
-                    <View style={{ gap: 4 }}>
-                      <TouchableOpacity onPress={saveNote} style={cardStyles.noteSaveBtn}>
-                        <Ionicons name="checkmark" size={14} color="#08090C" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setAddingNote(false);
-                          setDraftNote('');
-                        }}
-                        style={cardStyles.noteCancelBtn}
-                      >
-                        <Ionicons name="close" size={14} color={COLORS.textMuted} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
+              <View style={cardStyles.sectionDivider} />
 
-                {/* Inline add button below existing notes */}
-                {notes.length > 0 && !addingNote && (
-                  <TouchableOpacity
-                    onPress={() => setAddingNote(true)}
-                    activeOpacity={0.75}
-                    style={[cardStyles.addNoteInlineBtn, { borderColor: theme.border }]}
-                  >
-                    <Ionicons name="add-circle-outline" size={14} color={theme.accent} style={{ marginRight: 6 }} />
-                    <Text style={[cardStyles.addNoteInlineBtnText, { color: theme.accent }]}>
-                      Add Another Notes {notes.length + 1}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+              {/* Notes Section */}
+              <Text style={cardStyles.sectionTitle}>NOTES</Text>
 
-              {/* ── CHECKLIST ── */}
-              {item.subtasks && item.subtasks.length > 0 ? (
-                <View style={cardStyles.modalSection}>
-                  <Text style={cardStyles.modalSectionLabel}>
-                    CHECKLIST ({completedSubtasksCount}/{subtasksCount})
-                  </Text>
-                  {item.subtasks.map((st) => (
+              {notes.length > 0 ? (
+                <View style={cardStyles.notesList}>
+                  {notes.map((note, idx) => (
                     <TouchableOpacity
-                      key={st.id}
-                      style={cardStyles.subtaskRow}
-                      onPress={() => onToggleSubtask(item.id, st.id)}
-                      activeOpacity={0.7}
+                      key={idx}
+                      style={cardStyles.noteRow}
+                      onPress={() => openNotePopup(idx)}
+                      activeOpacity={0.75}
                     >
-                      <Ionicons
-                        name={st.completed ? 'checkbox' : 'square-outline'}
-                        size={18}
-                        color={st.completed ? COLORS.success : COLORS.textMuted}
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text
-                        style={[
-                          cardStyles.subtaskText,
-                          st.completed && cardStyles.subtaskCompletedText,
-                        ]}
+                      <View style={[cardStyles.noteAccentBar, { backgroundColor: theme.accent }]} />
+                      <View style={cardStyles.noteContentWrap}>
+                        <Text style={cardStyles.noteIndexLabel}>Note #{idx + 1}</Text>
+                        <Text style={cardStyles.notePreviewText} numberOfLines={3}>
+                          {note}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => removeNote(idx)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={cardStyles.noteRemoveBtn}
                       >
-                        {st.title}
-                      </Text>
+                        <Ionicons name="trash-outline" size={15} color={COLORS.textMuted} />
+                      </TouchableOpacity>
                     </TouchableOpacity>
                   ))}
                 </View>
-              ) : null}
+              ) : (
+                !addingNote && (
+                  <Text style={cardStyles.emptyNotesText}>
+                    No notes added for this habit yet.
+                  </Text>
+                )
+              )}
 
-              {/* ── DETAILS ── */}
-              <View style={cardStyles.modalSection}>
-                <Text style={cardStyles.modalSectionLabel}>DETAILS</Text>
-                <View style={{ gap: 6 }}>
-                  <Text style={cardStyles.metaDetailText}>
-                    Priority:{' '}
-                    <Text style={{ color: priorityColor, fontWeight: '700' }}>
-                      {(item.priority || 'medium').toUpperCase()}
-                    </Text>
-                  </Text>
-                  <Text style={cardStyles.metaDetailText}>
-                    Frequency:{' '}
-                    <Text style={{ color: COLORS.textPrimary, fontWeight: '600' }}>
-                      {item.frequency || 'once'}
-                    </Text>
-                  </Text>
-                  {item.reminderTime ? (
-                    <Text style={cardStyles.metaDetailText}>
-                      Reminder:{' '}
-                      <Text style={{ color: COLORS.success, fontWeight: '600' }}>
-                        {item.reminderTime}
-                      </Text>
-                    </Text>
-                  ) : null}
+              {addingNote ? (
+                <View
+                  style={cardStyles.noteEditorWrap}
+                  onLayout={() => {
+                    detailScrollRef.current?.scrollToEnd({ animated: true });
+                  }}
+                >
+                  <TextInput
+                    style={cardStyles.noteInput}
+                    placeholder="Write a note..."
+                    placeholderTextColor={COLORS.textMuted}
+                    value={draftNote}
+                    onChangeText={setDraftNote}
+                    onFocus={() => {
+                      setTimeout(() => {
+                        detailScrollRef.current?.scrollToEnd({ animated: true });
+                      }, 100);
+                    }}
+                    multiline
+                    autoFocus
+                  />
+                  <View style={cardStyles.noteEditorActions}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        Keyboard.dismiss();
+                        setAddingNote(false);
+                        setDraftNote('');
+                      }}
+                      style={cardStyles.noteCancelBtn}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={cardStyles.noteCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleSaveNote('add')}
+                      style={[cardStyles.noteSaveBtn, { backgroundColor: theme.accent }]}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={cardStyles.noteSaveText}>Save Note</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => setAddingNote(true)}
+                  activeOpacity={0.75}
+                  style={cardStyles.addNoteBtn}
+                >
+                  <Ionicons name="add-circle-outline" size={16} color={theme.accent} />
+                  <Text style={[cardStyles.addNoteBtnText, { color: theme.accent }]}>
+                    Add Note
+                  </Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
-
-            {/* Check Button */}
-            <TouchableOpacity
-              onPress={() => onToggle(item.id)}
-              activeOpacity={0.8}
-              style={[
-                cardStyles.modalCheckBtn,
-                { backgroundColor: isCompleted ? COLORS.success : theme.accent },
-              ]}
-            >
-              <Ionicons
-                name={isCompleted ? 'checkmark-circle' : 'checkmark-circle-outline'}
-                size={18}
-                color="#08090C"
-                style={{ marginRight: 6 }}
-              />
-              <Text style={cardStyles.modalCheckBtnText}>
-                {isCompleted ? 'Completed (Tap to undo)' : 'Mark as Done'}
-              </Text>
-            </TouchableOpacity>
           </View>
         </View>
-      </Modal>
 
-      {/* ── Note Popup Modal ── */}
-      <Modal
-        animationType="fade"
-        transparent
-        visible={notePopupIndex >= 0}
-        onRequestClose={closeNotePopup}
-      >
-        <TouchableOpacity
-          style={cardStyles.popupOverlay}
-          activeOpacity={1}
-          onPress={() => {
-            if (isEditingNote) setIsEditingNote(false);
-            else closeNotePopup();
-          }}
+        {/* Inner Note View / Edit Modal (nested so closing returns to Detail Modal) */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={notePopupIndex >= 0}
+          onRequestClose={handleBackOrCloseNotePopup}
         >
-          <TouchableOpacity activeOpacity={1} style={cardStyles.popupBox}>
-            {/* Header */}
-            <View style={cardStyles.popupHeader}>
-              <View style={cardStyles.noteNumberWrap}>
-                <Text style={[cardStyles.noteNumber, { color: theme.accent }]}>
-                  {notePopupIndex + 1}
-                </Text>
-              </View>
-              <Text style={[cardStyles.popupHeaderTitle, { color: theme.accent }]}>
-                Notes {notePopupIndex + 1}
-              </Text>
+          <ScrollView
+            contentContainerStyle={[
+              cardStyles.popupOverlay,
+              { paddingBottom: Math.max(20, keyboardHeight + 20) },
+            ]}
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={cardStyles.popupBox}>
+              {/* Popup Header */}
+              <View style={cardStyles.popupHeader}>
+                <View style={cardStyles.popupTitleRow}>
+                  <View
+                    style={[
+                      cardStyles.popupIconBadge,
+                      { backgroundColor: theme.bg, borderColor: theme.border },
+                    ]}
+                  >
+                    <Ionicons name="document-text-outline" size={14} color={theme.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={cardStyles.popupLabel}>
+                      {isEditingNote ? 'EDITING NOTE' : `NOTE #${notePopupIndex + 1}`}
+                    </Text>
+                    <Text style={cardStyles.popupSubLabel} numberOfLines={1}>
+                      {item.title}
+                    </Text>
+                  </View>
+                </View>
 
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {/* Edit icon — only in view mode */}
-                {!isEditingNote && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setEditDraft(notePopupIndex >= 0 ? notes[notePopupIndex] : '');
-                      setIsEditingNote(true);
-                    }}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    style={cardStyles.popupEditIconBtn}
-                  >
-                    <Ionicons name="create-outline" size={18} color={COLORS.textSecondary} />
-                  </TouchableOpacity>
-                )}
-                {/* Delete icon — only for extra notes (idx > 0) in view mode */}
-                {!isEditingNote && notePopupIndex > 0 && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      removeNote(notePopupIndex);
-                      closeNotePopup();
-                    }}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    style={cardStyles.popupDeleteIconBtn}
-                  >
-                    <Ionicons name="trash-outline" size={17} color={COLORS.danger} />
-                  </TouchableOpacity>
-                )}
-                {/* Close */}
                 <TouchableOpacity
-                  onPress={closeNotePopup}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  onPress={handleBackOrCloseNotePopup}
+                  style={cardStyles.modalIconBtn}
+                  activeOpacity={0.7}
                 >
-                  <Ionicons name="close" size={20} color={COLORS.textMuted} />
+                  <Ionicons name="close" size={18} color={COLORS.textSecondary} />
                 </TouchableOpacity>
               </View>
-            </View>
 
-            {/* VIEW MODE */}
-            {!isEditingNote ? (
-              <View style={cardStyles.popupViewContent}>
-                <Text style={cardStyles.popupViewText}>
-                  {notePopupIndex >= 0 ? notes[notePopupIndex] : ''}
-                </Text>
-              </View>
-            ) : (
-              /* EDIT MODE */
-              <>
-                <TextInput
-                  style={cardStyles.popupTextInput}
-                  value={editDraft}
-                  onChangeText={setEditDraft}
-                  multiline
-                  placeholder=""
-                  placeholderTextColor={COLORS.textMuted}
-                  textAlignVertical="top"
-                  scrollEnabled
-                  autoFocus
-                />
-                <View style={cardStyles.popupActions}>
-                  <View style={{ flex: 1 }} />
-                  <TouchableOpacity
-                    onPress={() => {
-                      setIsEditingNote(false);
-                      setEditDraft('');
-                    }}
-                    activeOpacity={0.75}
-                    style={cardStyles.popupCancelBtn}
+              <View style={cardStyles.popupDivider} />
+
+              {/* View-Only vs Edit Mode */}
+              {!isEditingNote ? (
+                <>
+                  <ScrollView
+                    style={cardStyles.popupReaderScroll}
+                    contentContainerStyle={cardStyles.popupReaderContent}
+                    showsVerticalScrollIndicator={false}
                   >
-                    <Text style={cardStyles.popupCancelBtnText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={saveEditedNote}
-                    activeOpacity={0.8}
-                    style={[cardStyles.popupSaveBtn, { backgroundColor: theme.accent }]}
-                  >
-                    <Ionicons name="checkmark" size={14} color="#08090C" style={{ marginRight: 4 }} />
-                    <Text style={cardStyles.popupSaveBtnText}>Save</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </TouchableOpacity>
-        </TouchableOpacity>
+                    <Text style={cardStyles.popupReaderText} selectable>
+                      {notePopupIndex >= 0 ? notes[notePopupIndex] : ''}
+                    </Text>
+                  </ScrollView>
+
+                  <View style={cardStyles.popupFooter}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        const idx = notePopupIndex;
+                        closeNotePopup();
+                        removeNote(idx);
+                      }}
+                      style={cardStyles.popupDeleteBtn}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="trash-outline" size={15} color={COLORS.danger} />
+                      <Text style={cardStyles.popupDeleteText}>Delete</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => setIsEditingNote(true)}
+                      style={[cardStyles.popupPrimaryBtn, { backgroundColor: theme.accent }]}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="create-outline" size={15} color="#08090C" />
+                      <Text style={cardStyles.popupPrimaryText}>Edit Note</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <TextInput
+                    style={cardStyles.popupTextInput}
+                    value={editDraft}
+                    onChangeText={setEditDraft}
+                    multiline
+                    autoFocus
+                    placeholder="Write your note here..."
+                    placeholderTextColor={COLORS.textMuted}
+                  />
+
+                  <View style={cardStyles.popupFooter}>
+                    <TouchableOpacity
+                      onPress={handleBackOrCloseNotePopup}
+                      style={cardStyles.noteCancelBtn}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={cardStyles.noteCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => handleSaveNote('edit')}
+                      style={[cardStyles.popupPrimaryBtn, { backgroundColor: theme.accent }]}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="checkmark" size={16} color="#08090C" />
+                      <Text style={cardStyles.popupPrimaryText}>Save Changes</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          </ScrollView>
+        </Modal>
       </Modal>
     </>
   );
 }
 
 const cardStyles = StyleSheet.create({
+  // Cover Card
   card: {
-    width: '100%',
-    borderRadius: RADIUS.xl,
-    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 12,
     borderWidth: 1,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  headerLeftGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  coverMainArea: {
     flex: 1,
-    marginRight: 10,
-    gap: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
   },
   iconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
+    marginRight: 12,
   },
-  headerMeta: {
+  coverTextGroup: {
     flex: 1,
-  },
-  headerActionGroup: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionHeaderBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
   },
   categoryName: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  streakText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  priorityPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: RADIUS.xs,
-    borderWidth: 1,
-  },
-  priorityDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    marginRight: 4,
-  },
-  priorityText: {
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  bodyTouchable: {
-    marginBottom: 4,
+    letterSpacing: 0.8,
+    marginBottom: 3,
   },
   title: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '700',
     color: COLORS.textPrimary,
-    lineHeight: 23,
-    marginBottom: 12,
-    letterSpacing: -0.3,
+    lineHeight: 20,
   },
   titleCompleted: {
-    color: COLORS.textMuted,
     textDecorationLine: 'line-through',
+    color: COLORS.textMuted,
   },
-  badgeContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 6,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: RADIUS.sm,
+  checkBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
-  },
-  divider: {
-    height: 1,
-    marginVertical: 14,
-  },
-  actionButton: {
-    width: '100%',
-    paddingVertical: 13,
-    minHeight: 48,
-    borderRadius: RADIUS.md,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-  },
-  actionButtonText: {
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.2,
   },
 
-  // ── Modal ──
+  // Detail Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
     justifyContent: 'flex-end',
   },
   modalBox: {
-    width: '100%',
-    maxHeight: '90%',
     backgroundColor: COLORS.bgCard,
-    borderTopLeftRadius: RADIUS.modal,
-    borderTopRightRadius: RADIUS.modal,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 38 : 28,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: COLORS.borderLight,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    paddingBottom: 24,
+    maxHeight: '88%',
+    borderTopWidth: 1,
+    borderColor: COLORS.border,
   },
   modalHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   modalTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: RADIUS.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
     borderWidth: 1,
   },
   modalTagText: {
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.6,
+    letterSpacing: 0.7,
   },
   modalIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     backgroundColor: COLORS.bgCardSub,
-    borderWidth: 1,
-    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  modalTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-    lineHeight: 28,
-    marginBottom: 18,
-  },
-  modalScroll: {
-    maxHeight: 460,
-  },
-  modalSection: {
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.xl,
-    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  modalScrollContent: {
+    paddingBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    lineHeight: 28,
     marginBottom: 14,
   },
-  modalSectionLabel: {
-    color: COLORS.textSecondary,
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  statusBannerText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 18,
+  },
+  sectionTitle: {
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1,
+    color: COLORS.textMuted,
+    letterSpacing: 0.9,
     marginBottom: 12,
-    textTransform: 'uppercase',
   },
 
-  // ── Notes ──
-  notesSectionHeader: {
+  // View-Only Overview Rows
+  metaList: {
+    gap: 12,
+  },
+  metaItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  metaLabelWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  metaLabel: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  metaValue: {
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    fontWeight: '700',
+  },
+  priorityValueWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  priorityDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+
+  // Checklist
+  checklistContainer: {
+    gap: 10,
+  },
+  subtaskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: COLORS.textMuted,
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subtaskText: {
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    fontWeight: '500',
+    flex: 1,
+  },
+  subtaskCompletedText: {
+    textDecorationLine: 'line-through',
+    color: COLORS.textMuted,
+  },
+
+  // Notes List
+  notesList: {
+    gap: 10,
+    marginBottom: 12,
+  },
+  noteRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: COLORS.bgCardSub,
+  },
+  noteAccentBar: {
+    width: 3,
+    borderRadius: 2,
+    alignSelf: 'stretch',
+    marginRight: 10,
+  },
+  noteContentWrap: {
+    flex: 1,
+    marginRight: 8,
+  },
+  noteIndexLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  notePreviewText: {
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    lineHeight: 20,
+  },
+  noteRemoveBtn: {
+    padding: 4,
+  },
+  emptyNotesText: {
+    fontSize: 13,
+    color: COLORS.textMuted,
     marginBottom: 12,
   },
   addNoteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.bgCard,
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 11,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderStyle: 'dashed',
+    borderColor: COLORS.borderLight,
   },
   addNoteBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
-  emptyNoteBox: {
-    alignItems: 'center',
-    paddingVertical: 22,
-    gap: 8,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: COLORS.border,
+  noteEditorWrap: {
+    marginTop: 4,
   },
-  emptyNoteText: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  noteItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.md,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    minHeight: 52,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  noteNumberWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  noteInput: {
     backgroundColor: COLORS.bgCardSub,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noteNumber: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  noteText: {
-    flex: 1,
-    fontSize: 14,
+    borderRadius: 12,
+    padding: 12,
     color: COLORS.textPrimary,
-    lineHeight: 21,
-    fontWeight: '500',
-  },
-  addNoteInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginTop: 10,
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.md,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  addNoteInput: {
-    flex: 1,
     fontSize: 14,
-    color: COLORS.textPrimary,
-    lineHeight: 22,
-    minHeight: 70,
+    minHeight: 88,
     textAlignVertical: 'top',
-  },
-  noteSaveBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.success,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noteCancelBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.bgCardSub,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addNoteInlineBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    minHeight: 46,
-  },
-  addNoteInlineBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-
-  // ── Subtasks ──
-  subtaskRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    minHeight: 46,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  subtaskText: {
-    color: COLORS.textPrimary,
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
-  },
-  subtaskCompletedText: {
-    color: COLORS.textMuted,
-    textDecorationLine: 'line-through',
-  },
-
-  // ── Meta details ──
-  metaDetailText: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    lineHeight: 22,
-  },
-
-  // ── Check button ──
-  modalCheckBtn: {
-    marginTop: 16,
-    width: '100%',
-    paddingVertical: 16,
-    minHeight: 52,
-    borderRadius: RADIUS.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalCheckBtnText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#08090C',
-    letterSpacing: 0.3,
-  },
-
-  // ── Note Popup ──
-  popupOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  popupBox: {
-    width: '100%',
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.xl,
-    padding: 20,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
+  noteEditorActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 10,
+  },
+  noteCancelBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noteCancelText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  noteSaveBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noteSaveText: {
+    fontSize: 13,
+    color: '#08090C',
+    fontWeight: '700',
+  },
+
+  // Note View/Edit Popup
+  popupOverlay: {
+    flexGrow: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.78)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  popupBox: {
+    backgroundColor: COLORS.bgCard,
+    borderRadius: 22,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    width: '100%',
+  },
   popupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  popupTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 14,
-  },
-  popupHeaderTitle: {
     flex: 1,
-    fontSize: 13,
+    marginRight: 10,
+  },
+  popupIconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  popupLabel: {
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.3,
+    color: COLORS.textMuted,
+    letterSpacing: 0.8,
+  },
+  popupSubLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginTop: 1,
+  },
+  popupDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 14,
+  },
+  popupReaderScroll: {
+    maxHeight: 320,
+  },
+  popupReaderContent: {
+    paddingVertical: 4,
+  },
+  popupReaderText: {
+    fontSize: 15,
+    color: COLORS.textPrimary,
+    lineHeight: 24,
   },
   popupTextInput: {
     backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderRadius: 12,
     padding: 14,
-    fontSize: 14,
     color: COLORS.textPrimary,
+    fontSize: 15,
     lineHeight: 22,
-    minHeight: 140,
+    minHeight: 150,
     maxHeight: 280,
-    marginBottom: 16,
+    textAlignVertical: 'top',
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
   },
-  popupActions: {
+  popupFooter: {
     flexDirection: 'row',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+    marginTop: 16,
   },
   popupDeleteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(239,68,68,0.1)',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.25)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
   },
-  popupDeleteBtnText: {
-    fontSize: 12,
+  popupDeleteText: {
+    fontSize: 13,
     fontWeight: '700',
     color: COLORS.danger,
   },
-  popupCancelBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.bgCardSub,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  popupCancelBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.textMuted,
-  },
-  popupSaveBtn: {
+  popupPrimaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 16,
     paddingVertical: 9,
-    borderRadius: RADIUS.md,
+    borderRadius: 10,
   },
-  popupSaveBtnText: {
-    fontSize: 12,
+  popupPrimaryText: {
+    fontSize: 13,
     fontWeight: '700',
     color: '#08090C',
-  },
-  // view-only content area
-  popupViewContent: {
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 14,
-    minHeight: 100,
-    maxHeight: 300,
-  },
-  popupViewText: {
-    fontSize: 14,
-    color: COLORS.textPrimary,
-    lineHeight: 22,
-    fontWeight: '500',
-  },
-  // icon-only buttons in popup header
-  popupEditIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.bgCardSub,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  popupDeleteIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(239,68,68,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

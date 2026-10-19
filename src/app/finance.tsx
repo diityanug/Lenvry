@@ -130,17 +130,23 @@ export default function FinanceTracker() {
       }
     });
 
-    const now = new Date();
-    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2);
-    const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
+    let timer: ReturnType<typeof setTimeout>;
+    const scheduleNextMidnight = () => {
+      const now = new Date();
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+      const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
 
-    const timer = setTimeout(() => {
-      loadData();
-    }, msToMidnight);
+      timer = setTimeout(() => {
+        loadData();
+        scheduleNextMidnight();
+      }, msToMidnight);
+    };
+
+    scheduleNextMidnight();
 
     return () => {
       subscription.remove();
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
     };
   }, [loadData]);
 

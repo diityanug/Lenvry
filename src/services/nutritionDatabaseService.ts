@@ -35,7 +35,7 @@ export async function getNutritionDb(): Promise<SQLite.SQLiteDatabase> {
     `);
 
     // Seed version tracking: increment this whenever foods_seed.json is updated.
-    const CURRENT_SEED_VERSION = 5;
+    const CURRENT_SEED_VERSION = 7;
     const versionResult = await db.getFirstAsync<{ user_version: number }>(
       'PRAGMA user_version;'
     );
@@ -50,7 +50,7 @@ export async function getNutritionDb(): Promise<SQLite.SQLiteDatabase> {
     if (
       currentDbVersion < CURRENT_SEED_VERSION ||
       !countResult ||
-      countResult.count < masterItemsCount
+      countResult.count !== masterItemsCount
     ) {
       await seedMasterFoods(db);
       await db.execAsync(`PRAGMA user_version = ${CURRENT_SEED_VERSION};`);
@@ -67,6 +67,8 @@ async function seedMasterFoods(db: SQLite.SQLiteDatabase) {
   const masterItems = foodsSeedData as FoodItem[];
 
   await db.withTransactionAsync(async () => {
+    await db.execAsync('DELETE FROM foods WHERE is_custom = 0;');
+
     const insertStmt = await db.prepareAsync(`
       INSERT OR REPLACE INTO foods (
         id, name, indonesian_name, category, calories, protein, carbs, fat, fiber,
@@ -121,6 +123,9 @@ const COMMON_TYPOS: Record<string, string> = {
   aym: 'ayam',
   nasgor: 'nasi',
   dinsum: 'dimsum',
+  jalankote: 'jalangkote',
+  brownis: 'brownies',
+  bronis: 'brownies',
 };
 
 export async function searchFoodsAsync(
@@ -148,7 +153,7 @@ export async function searchFoodsAsync(
   for (const token of tokens) {
     whereClauses.push('(LOWER(name) LIKE ? OR LOWER(COALESCE(indonesian_name, "")) LIKE ?)');
     const wildcard = `%${token}%`;
-    params.push(wildwildcard(wildcard), wildwildcard(wildcard));
+    params.push(wildcard, wildcard);
   }
 
   const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
@@ -176,10 +181,6 @@ export async function searchFoodsAsync(
   return results;
 }
 
-function wildwildcard(w: string) {
-  return w;
-}
-
 export async function saveCustomFoodToDb(food: FoodItem): Promise<void> {
   const db = await getNutritionDb();
   await db.runAsync(
@@ -203,17 +204,32 @@ export async function saveCustomFoodToDb(food: FoodItem): Promise<void> {
   );
 }
 
-export async function deleteCustomFoodFromDb(id: string): Promise<void> {
+export async function syncCustomFoodsToDb(customFoods: FoodItem[]): Promise<void> {
   const db = await getNutritionDb();
-  await db.runAsync('DELETE FROM foods WHERE id = ? AND is_custom = 1;', [id]);
-}
-
-export async function getAllCustomFoodsFromDb(): Promise<FoodItem[]> {
-  const db = await getNutritionDb();
-  const rows = await db.getAllAsync<any>(
-    'SELECT * FROM foods WHERE is_custom = 1 ORDER BY name ASC;'
-  );
-  return rows.map(mapRowToFoodItem);
+  await db.withTransactionAsync(async () => {
+    await db.execAsync('DELETE FROM foods WHERE is_custom = 1;');
+    for (const food of customFoods) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO foods (
+          id, name, indonesian_name, category, calories, protein, carbs, fat, fiber,
+          default_serving_text, default_serving_grams, is_custom
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1);`,
+        [
+          food.id,
+          food.name,
+          food.indonesianName || null,
+          food.category,
+          food.calories,
+          food.protein,
+          food.carbs,
+          food.fat,
+          food.fiber !== undefined ? food.fiber : null,
+          food.defaultServingText,
+          food.defaultServingGrams,
+        ]
+      );
+    }
+  });
 }
 
 export function calculateNutrientsForWeight(item: FoodItem, grams: number) {

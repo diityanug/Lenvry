@@ -44,25 +44,7 @@ export function useHomeDashboard() {
   const [currentDate, setCurrentDate] = useState(() => new Date());
 
   useEffect(() => {
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active') {
-        const now = new Date();
-        setCurrentDate((prev) => {
-          if (
-            prev.getDate() !== now.getDate() ||
-            prev.getMonth() !== now.getMonth() ||
-            prev.getFullYear() !== now.getFullYear()
-          ) {
-            return now;
-          }
-          return prev;
-        });
-      }
-    };
-
-    const sub = AppState.addEventListener('change', handleAppStateChange);
-
-    const intervalId = setInterval(() => {
+    const syncIfDayChanged = () => {
       const now = new Date();
       setCurrentDate((prev) => {
         if (
@@ -74,11 +56,33 @@ export function useHomeDashboard() {
         }
         return prev;
       });
-    }, 30000);
+    };
+
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        syncIfDayChanged();
+      }
+    };
+
+    const sub = AppState.addEventListener('change', handleAppStateChange);
+
+    let timer: ReturnType<typeof setTimeout>;
+    const scheduleNextMidnight = () => {
+      const now = new Date();
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+      const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
+
+      timer = setTimeout(() => {
+        syncIfDayChanged();
+        scheduleNextMidnight();
+      }, msToMidnight);
+    };
+
+    scheduleNextMidnight();
 
     return () => {
       sub.remove();
-      clearInterval(intervalId);
+      if (timer) clearTimeout(timer);
     };
   }, []);
 

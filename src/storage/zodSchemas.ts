@@ -10,8 +10,10 @@ import { NOTE_CATEGORIES } from '../types/notes';
 const safeNum = (fallback = 0) =>
   z
     .unknown()
+    .optional()
     .transform((val) => {
       if (typeof val === 'number' && Number.isFinite(val)) return val;
+      if (val === undefined || val === null || val === '') return fallback;
       const parsed = Number(val);
       return Number.isFinite(parsed) ? parsed : fallback;
     });
@@ -19,6 +21,7 @@ const safeNum = (fallback = 0) =>
 const safeStr = (fallback = '') =>
   z
     .unknown()
+    .optional()
     .transform((val) => {
       if (typeof val === 'string') return val;
       if (typeof val === 'number' || typeof val === 'boolean') return String(val);
@@ -28,6 +31,7 @@ const safeStr = (fallback = '') =>
 const safeOptStr = () =>
   z
     .unknown()
+    .optional()
     .transform((val) => {
       if (typeof val === 'string' && val.trim().length > 0) return val;
       if (typeof val === 'number' || typeof val === 'boolean') return String(val);
@@ -37,7 +41,9 @@ const safeOptStr = () =>
 const safeOptNum = () =>
   z
     .unknown()
+    .optional()
     .transform((val) => {
+      if (val === undefined || val === null || val === '') return undefined;
       if (typeof val === 'number' && Number.isFinite(val)) return val;
       const parsed = Number(val);
       return Number.isFinite(parsed) ? parsed : undefined;
@@ -46,6 +52,7 @@ const safeOptNum = () =>
 const safeBool = (fallback = false) =>
   z
     .unknown()
+    .optional()
     .transform((val) => (typeof val === 'boolean' ? val : fallback));
 
 let uidCounter = 0;
@@ -75,37 +82,41 @@ export const HabitSchema = z.object({
   completed: safeBool(false),
   date: safeStr().transform((v) => v || getTodayKey()),
   description: safeOptStr(),
-  priority: z.enum(['low', 'medium', 'high']).catch('medium'),
-  timeSlot: z.enum(['Anytime', 'Morning', 'Afternoon', 'Evening']).catch('Anytime'),
+  priority: z.enum(['low', 'medium', 'high']).optional().catch('medium'),
+  timeSlot: z.enum(['Anytime', 'Morning', 'Afternoon', 'Evening']).optional().catch('Anytime'),
   reminderTime: safeOptStr(),
   reminderSound: safeOptStr(),
   notificationId: safeOptStr(),
-  frequency: z.enum(['once', 'daily', 'weekdays', 'custom_days']).catch('once'),
+  frequency: z.enum(['once', 'daily', 'weekdays', 'custom_days']).optional().catch('once'),
   repeatDays: z
     .array(z.unknown())
+    .optional()
     .catch([])
     .transform((arr) =>
-      arr
+      (arr ?? [])
         .map((d) => (typeof d === 'number' ? d : Number(d)))
         .filter((d) => Number.isFinite(d) && d >= 0 && d <= 6)
     ),
   completedDates: z
     .array(z.unknown())
+    .optional()
     .catch([])
-    .transform((arr) => arr.filter((x): x is string => typeof x === 'string')),
+    .transform((arr) => (arr ?? []).filter((x): x is string => typeof x === 'string')),
   subtasks: z
     .array(z.unknown())
+    .optional()
     .catch([])
     .transform((arr) =>
-      arr.map((item) => {
+      (arr ?? []).map((item) => {
         const res = SubTaskSchema.safeParse(item);
         return res.success ? res.data : { id: genUid('sub'), title: '', completed: false };
       })
     ),
   extraNotes: z
     .array(z.unknown())
+    .optional()
     .catch([])
-    .transform((arr) => arr.filter((x): x is string => typeof x === 'string')),
+    .transform((arr) => (arr ?? []).filter((x): x is string => typeof x === 'string')),
 });
 
 // ---------------------------------------------------------------------------
@@ -120,13 +131,14 @@ export const AccountSchema = z.object({
   id: safeStr().transform((v) => v || genUid('acc')),
   name: safeStr('Account').transform((v) => v.trim() || 'Account'),
   description: safeOptStr(),
-  type: z.enum(['Bank', 'E-Wallet', 'Cash', 'Investment', 'Credit Card', 'E-Money']).catch('Cash'),
-  currency: z.enum(['IDR', 'USD']).catch('IDR'),
+  type: z.enum(['Bank', 'E-Wallet', 'Cash', 'Investment', 'Credit Card', 'E-Money']).optional().catch('Cash'),
+  currency: z.enum(['IDR', 'USD']).optional().catch('IDR'),
   subAccounts: z
     .array(z.unknown())
+    .optional()
     .catch([])
     .transform((arr) => {
-      const parsed = arr.map((item) => {
+      const parsed = (arr ?? []).map((item) => {
         const res = SubAccountSchema.safeParse(item);
         return res.success ? res.data : { id: genUid('sub'), name: 'Main' };
       });
@@ -136,7 +148,7 @@ export const AccountSchema = z.object({
 
 export const TransactionSchema = z.object({
   id: safeStr().transform((v) => v || genUid('tx')),
-  type: z.enum(['income', 'expense', 'transfer']).catch('expense'),
+  type: z.enum(['income', 'expense', 'transfer']).optional().catch('expense'),
   amount: safeNum(0),
   description: safeStr(''),
   category: safeStr('Others').transform((v) => v.trim() || 'Others'),
@@ -154,7 +166,7 @@ export const TransactionSchema = z.object({
 export const CategoryBudgetSchema = z.object({
   category: safeStr(''),
   limit: safeNum(0),
-  currency: z.enum(['IDR', 'USD']).optional(),
+  currency: z.enum(['IDR', 'USD']).optional().catch(undefined),
 });
 
 export const CategoryCustomIconSchema = z.object({
@@ -170,22 +182,25 @@ export const RecurringBillSchema = z.object({
   amount: safeNum(0),
   category: safeStr('Bills & Utilities').transform((v) => v.trim() || 'Bills & Utilities'),
   dueDateDay: safeNum(1).transform((v) => Math.min(31, Math.max(1, Math.round(v)))),
-  currency: z.enum(['IDR', 'USD']).catch('IDR'),
+  currency: z.enum(['IDR', 'USD']).optional().catch('IDR'),
+  startMonth: safeOptNum(),
+  startYear: safeOptNum(),
+  durationMonths: safeOptNum(),
 });
 
 export const DebtItemSchema = z
   .object({
     id: safeStr().transform((v) => v || genUid('debt')),
-    type: z.enum(['debt', 'receivable']).catch('receivable'),
+    type: z.enum(['debt', 'receivable']).optional().catch('receivable'),
     personName: safeStr('Friend').transform((v) => v.trim() || 'Friend'),
     title: safeStr('').transform((v) => v.trim()),
     originalAmount: safeNum(0),
     paidAmount: safeNum(0),
     remainingAmount: safeNum(0),
-    currency: z.enum(['IDR', 'USD']).catch('IDR'),
+    currency: z.enum(['IDR', 'USD']).optional().catch('IDR'),
     dueDate: safeOptStr(),
     createdAt: safeStr().transform((v) => v || new Date().toISOString()),
-    status: z.enum(['active', 'settled']).catch('active'),
+    status: z.enum(['active', 'settled']).optional().catch('active'),
     notes: safeOptStr(),
   })
   .transform((item) => {
@@ -216,7 +231,7 @@ export const WorkoutSchema = z.object({
 export const NutritionLogSchema = z.object({
   id: safeStr().transform((v) => v || genUid('log')),
   date: safeStr().transform((v) => v || getTodayKey()),
-  mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']).catch('snack'),
+  mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']).optional().catch('snack'),
   foodId: safeOptStr(),
   foodName: safeStr('Food').transform((v) => v.trim() || 'Food'),
   portionGrams: safeNum(0),
@@ -234,21 +249,19 @@ export const FoodItemSchema = z.object({
   indonesianName: safeOptStr(),
   category: z
     .enum(['Staples', 'Proteins', 'Vegetables', 'Fruits', 'Dairy & Drinks', 'Snacks', 'Custom'])
+    .optional()
     .catch('Custom'),
   calories: safeNum(0),
   protein: safeNum(0),
   carbs: safeNum(0),
   fat: safeNum(0),
-  fiber: z
-    .unknown()
-    .optional()
-    .transform((v) => (v === undefined ? undefined : safeNum(0).parse(v))),
+  fiber: safeOptNum(),
   defaultServingText: safeStr('100 g'),
   defaultServingGrams: safeNum(100),
   isCustom: z
     .unknown()
     .optional()
-    .transform((v) => (v === undefined ? undefined : safeBool(false).parse(v))),
+    .transform((v) => (v === undefined ? undefined : typeof v === 'boolean' ? v : false)),
 });
 
 export const NutritionTargetSchema = z.object({
@@ -267,11 +280,24 @@ export const WaterLogSchema = z.object({
 // ---------------------------------------------------------------------------
 // Notes Schemas
 // ---------------------------------------------------------------------------
-export const ChecklistItemSchema = z.object({
-  id: safeStr().transform((v) => v || genUid('chk')),
-  text: safeStr(''),
-  done: safeBool(false),
-});
+export const ChecklistItemSchema = z
+  .object({
+    id: safeStr().transform((v) => v || genUid('chk')),
+    text: safeStr(''),
+    title: safeStr(''),
+    done: z.unknown().optional(),
+    completed: z.unknown().optional(),
+  })
+  .transform((item) => ({
+    id: item.id,
+    text: item.text || item.title || '',
+    done:
+      typeof item.done === 'boolean'
+        ? item.done
+        : typeof item.completed === 'boolean'
+          ? item.completed
+          : false,
+  }));
 
 export const NoteEntrySchema = z.object({
   id: safeStr().transform((v) => v || genUid('entry')),
@@ -285,7 +311,7 @@ export const StickyNoteSchema = z
   .object({
     id: safeStr().transform((v) => v || genUid('note')),
     title: safeStr('Note').transform((v) => v.trim() || 'Note'),
-    type: z.enum(['text', 'checklist']).catch('text'),
+    type: z.enum(['text', 'checklist']).optional().catch('text'),
     category: z
       .string()
       .optional()
@@ -294,7 +320,7 @@ export const StickyNoteSchema = z
       })
       .catch(undefined),
     description: safeStr(''),
-    content: safeStr('').optional(),
+    content: safeStr(''),
     entries: z
       .array(z.unknown())
       .optional()
@@ -308,14 +334,15 @@ export const StickyNoteSchema = z
       }),
     checklist: z
       .array(z.unknown())
+      .optional()
       .catch([])
       .transform((arr) =>
-        arr.map((item) => {
+        (arr ?? []).map((item) => {
           const res = ChecklistItemSchema.safeParse(item);
           return res.success ? res.data : { id: genUid('chk'), text: '', done: false };
         })
       ),
-    color: z.enum(['amber', 'blue', 'emerald', 'rose', 'purple']).catch('amber'),
+    color: z.enum(['amber', 'blue', 'emerald', 'rose', 'purple']).optional().catch('amber'),
     createdAt: safeStr().transform((v) => v || new Date().toISOString()),
     updatedAt: safeStr().transform((v) => v || new Date().toISOString()),
   })
@@ -351,11 +378,11 @@ export const NotificationSettingsSchema = z.object({
 export const LearningCourseSchema = z.object({
   id: safeStr().transform((v) => v || genUid('course')),
   title: safeStr('Untitled Course').transform((v) => v.trim() || 'Untitled Course'),
-  status: z.enum(['Not Started', 'In Progress', 'Completed', 'On Hold']).catch('In Progress'),
+  status: z.enum(['Not Started', 'In Progress', 'Completed', 'On Hold']).optional().catch('In Progress'),
   link: safeOptStr(),
   startDate: safeStr().transform((v) => v || getTodayKey()),
   provider: safeStr('Udemy').transform((v) => v.trim() || 'Udemy'),
-  level: z.enum(['Beginner', 'Intermediate', 'Advanced', 'All Levels']).catch('Beginner'),
+  level: z.enum(['Beginner', 'Intermediate', 'Advanced', 'All Levels']).optional().catch('Beginner'),
   hours: safeNum(0).transform((v) => Math.max(0, v)),
   notes: safeOptStr(),
   color: z.enum(['violet', 'blue', 'emerald', 'rose', 'amber', 'cyan']).optional().catch(undefined),

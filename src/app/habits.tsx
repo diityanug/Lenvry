@@ -9,7 +9,6 @@ import {
   AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { readManyStored, updateStored, writeStored } from '../storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
@@ -28,8 +27,6 @@ import {
   cancelHabitReminder,
 } from '../services/habitNotificationService';
 import {
-  DEFAULT_CATEGORIES,
-  HABIT_DEFAULT_CATEGORY_CONFIG,
   HabitCategoryIconItem,
   formatDateKey,
   isHabitActiveForDate,
@@ -44,13 +41,16 @@ import { useHabitsStore } from '../stores';
 
 export default function HabitTrackerScreen() {
   const habits = useHabitsStore((s) => s.habits);
+  const loadHabits = useHabitsStore((s) => s.loadHabits);
   const setHabits = useHabitsStore((s) => s.setHabits);
-  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
-  const [customCategoryIcons, setCustomCategoryIcons] = useState<
-    Record<string, { icon: string; color: string; bg: string }>
-  >(HABIT_DEFAULT_CATEGORY_CONFIG);
+  const toggleHabitInStore = useHabitsStore((s) => s.toggleHabitForDate);
+  const categories = useHabitsStore((s) => s.categories);
+  const setCategories = useHabitsStore((s) => s.setCategories);
+  const customCategoryIcons = useHabitsStore((s) => s.categoryConfigs);
+  const setCustomCategoryIcons = useHabitsStore((s) => s.setCategoryConfigs);
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [todayDate, setTodayDate] = useState<Date>(new Date());
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
@@ -68,7 +68,7 @@ export default function HabitTrackerScreen() {
     message: '',
   });
 
-  const todayDateKey = formatDateKey(new Date());
+  const todayDateKey = formatDateKey(todayDate);
   const currentDateKey = formatDateKey(selectedDate);
   const isTodayActive = currentDateKey === todayDateKey;
 
@@ -89,30 +89,14 @@ export default function HabitTrackerScreen() {
     filteredHabits.length > 0 ? (completedCount / filteredHabits.length) * 100 : 0;
 
   const loadData = useCallback(async () => {
-    try {
-      const stored = await readManyStored(['habits', 'habitCategories', 'habitCategoryIcons']);
-
-      if (stored.habits) {
-        setHabits(stored.habits);
-      }
-      if (stored.habitCategories) {
-        setCategories(stored.habitCategories);
-      }
-      if (stored.habitCategoryIcons) {
-        setCustomCategoryIcons({
-          ...HABIT_DEFAULT_CATEGORY_CONFIG,
-          ...stored.habitCategoryIcons,
-        });
-      }
-    } catch (e) {
-      console.error('Failed to load habit data', e);
-    }
-  }, [setHabits]);
+    await loadHabits();
+  }, [loadHabits]);
 
   const lastTodayKeyRef = useRef(formatDateKey(new Date()));
 
   const syncDateToTodayIfOnToday = useCallback(() => {
     const now = new Date();
+    setTodayDate(now);
     const newTodayKey = formatDateKey(now);
     const oldTodayKey = lastTodayKeyRef.current;
     lastTodayKeyRef.current = newTodayKey;
@@ -134,18 +118,24 @@ export default function HabitTrackerScreen() {
       }
     });
 
-    const now = new Date();
-    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2);
-    const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
+    let timer: ReturnType<typeof setTimeout>;
+    const scheduleNextMidnight = () => {
+      const now = new Date();
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+      const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
 
-    const timer = setTimeout(() => {
-      syncDateToTodayIfOnToday();
-      loadData();
-    }, msToMidnight);
+      timer = setTimeout(() => {
+        syncDateToTodayIfOnToday();
+        loadData();
+        scheduleNextMidnight();
+      }, msToMidnight);
+    };
+
+    scheduleNextMidnight();
 
     return () => {
       subscription.remove();
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
     };
   }, [syncDateToTodayIfOnToday, loadData]);
 
@@ -228,7 +218,7 @@ export default function HabitTrackerScreen() {
     if (habitData.id) {
       // Edit existing habit
       const existing = habits.find((h) => h.id === habitData.id);
-      let targetHabit: Habit = {
+      const targetHabit: Habit = {
         ...existing!,
         title: habitData.title.trim(),
         category: habitData.category,
@@ -252,7 +242,7 @@ export default function HabitTrackerScreen() {
       updatedHabits = habits.map((h) => (h.id === habitData.id ? targetHabit : h));
     } else {
       // Create new habit
-      let newHabit: Habit = {
+      const newHabit: Habit = {
         id: new Date().getTime().toString(),
         title: habitData.title.trim(),
         category: habitData.category,
@@ -276,7 +266,7 @@ export default function HabitTrackerScreen() {
       updatedHabits = [...habits, newHabit];
     }
 
-    setHabits(await writeStored('habits', updatedHabits));
+    await setHabits(updatedHabits);
 
     Keyboard.dismiss();
     setModalVisible(false);
@@ -284,65 +274,25 @@ export default function HabitTrackerScreen() {
   };
 
   const toggleHabitForDate = async (id: string) => {
-    setHabits(
-      await updateStored('habits', (current) =>
-        current.map((habit) => {
-          if (habit.id !== id) return habit;
-
-          const isFreqOnce = !habit.frequency || habit.frequency === 'once';
-          const currentDates = habit.completedDates ?? [];
-
-          if (isFreqOnce) {
-            const nextCompleted = !habit.completed;
-            const nextDates = nextCompleted
-              ? Array.from(new Set([...currentDates, currentDateKey]))
-              : currentDates.filter((d) => d !== currentDateKey);
-
-            return {
-              ...habit,
-              completed: nextCompleted,
-              completedDates: nextDates,
-            };
-          }
-
-          // Recurring habit: toggle date in completedDates
-          const exists = currentDates.includes(currentDateKey);
-          const nextDates = exists
-            ? currentDates.filter((d) => d !== currentDateKey)
-            : [...currentDates, currentDateKey];
-
-          return {
-            ...habit,
-            completed: nextDates.includes(todayDateKey),
-            completedDates: nextDates,
-          };
-        })
-      )
-    );
+    await toggleHabitInStore(id, currentDateKey);
   };
 
   const toggleSubtask = async (habitId: string, subtaskId: string) => {
-    setHabits(
-      await updateStored('habits', (current) =>
-        current.map((habit) => {
-          if (habit.id !== habitId || !habit.subtasks) return habit;
-          return {
-            ...habit,
-            subtasks: habit.subtasks.map((st) =>
-              st.id === subtaskId ? { ...st, completed: !st.completed } : st
-            ),
-          };
-        })
-      )
-    );
+    const updated = habits.map((habit) => {
+      if (habit.id !== habitId || !habit.subtasks) return habit;
+      return {
+        ...habit,
+        subtasks: habit.subtasks.map((st) =>
+          st.id === subtaskId ? { ...st, completed: !st.completed } : st
+        ),
+      };
+    });
+    await setHabits(updated);
   };
 
   const updateHabitNotes = async (habitId: string, extraNotes: string[]) => {
-    setHabits(
-      await updateStored('habits', (current) =>
-        current.map((h) => (h.id === habitId ? { ...h, extraNotes } : h))
-      )
-    );
+    const updated = habits.map((h) => (h.id === habitId ? { ...h, extraNotes } : h));
+    await setHabits(updated);
   };
 
   const deleteHabit = (id: string) => {
@@ -357,7 +307,7 @@ export default function HabitTrackerScreen() {
         if (target?.notificationId) {
           await cancelHabitReminder(target.notificationId);
         }
-        setHabits(await updateStored('habits', (current) => current.filter((h) => h.id !== id)));
+        await setHabits(habits.filter((h) => h.id !== id));
       }
     );
   };
@@ -373,19 +323,17 @@ export default function HabitTrackerScreen() {
       );
       return;
     }
-    setCategories(await writeStored('habitCategories', [...categories, trimmed]));
+    await setCategories([...categories, trimmed]);
 
     if (iconConfig) {
-      setCustomCategoryIcons(
-        await writeStored('habitCategoryIcons', {
-          ...customCategoryIcons,
-          [trimmed]: {
-            icon: iconConfig.icon,
-            color: iconConfig.color,
-            bg: iconConfig.bg,
-          },
-        })
-      );
+      await setCustomCategoryIcons({
+        ...customCategoryIcons,
+        [trimmed]: {
+          icon: iconConfig.icon,
+          color: iconConfig.color,
+          bg: iconConfig.bg,
+        },
+      });
     }
 
     setCategoryInputVisible(false);
@@ -401,22 +349,25 @@ export default function HabitTrackerScreen() {
       async () => {
         const updatedCategories = categories.filter((c) => c !== catToDelete);
         if (activeFilter === catToDelete) setActiveFilter('All');
-        setCategories(await writeStored('habitCategories', updatedCategories));
+        await setCategories(updatedCategories);
 
         if (customCategoryIcons[catToDelete]) {
           const nextIcons = { ...customCategoryIcons };
           delete nextIcons[catToDelete];
-          setCustomCategoryIcons(await writeStored('habitCategoryIcons', nextIcons));
+          await setCustomCategoryIcons(nextIcons);
         }
       }
     );
   };
 
   const getTotalCompletedCount = (habitTitle: string) => {
-    return habits.filter((h) => {
-      if (h.title.toLowerCase() !== habitTitle.toLowerCase()) return false;
-      return isHabitCompletedForDate(h, currentDateKey);
-    }).length;
+    return habits.reduce((sum, h) => {
+      if (h.title.toLowerCase() !== habitTitle.toLowerCase()) return sum;
+      if (h.frequency && h.frequency !== 'once') {
+        return sum + (h.completedDates?.length || 0);
+      }
+      return sum + (h.completed ? 1 : 0);
+    }, 0);
   };
 
   return (

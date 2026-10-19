@@ -8,7 +8,6 @@ import {
   AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { readManyStored, updateStored, writeStored } from '../storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
@@ -43,6 +42,10 @@ const formatDateKey = (d: Date): string => {
 
 export default function NutritionScreen() {
   const logs = useNutritionStore((s) => s.logs);
+  const loadNutrition = useNutritionStore((s) => s.loadNutrition);
+  const addLog = useNutritionStore((s) => s.addLog);
+  const updateLog = useNutritionStore((s) => s.updateLog);
+  const deleteLog = useNutritionStore((s) => s.deleteLog);
   const setLogs = useNutritionStore((s) => s.setLogs);
   const customFoods = useNutritionStore((s) => s.customFoods);
   const setCustomFoods = useNutritionStore((s) => s.setCustomFoods);
@@ -52,6 +55,7 @@ export default function NutritionScreen() {
   const setWaterLogs = useNutritionStore((s) => s.setWaterLogs);
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [todayDate, setTodayDate] = useState<Date>(new Date());
   const lastTodayKeyRef = useRef(formatDateKey(new Date()));
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   const [searchModalVisible, setSearchModalVisible] = useState(false);
@@ -69,6 +73,7 @@ export default function NutritionScreen() {
 
   const syncDateToTodayIfOnToday = useCallback(() => {
     const now = new Date();
+    setTodayDate(now);
     const newTodayKey = formatDateKey(now);
     const oldTodayKey = lastTodayKeyRef.current;
     lastTodayKeyRef.current = newTodayKey;
@@ -106,21 +111,8 @@ export default function NutritionScreen() {
   };
 
   const loadNutritionData = useCallback(async () => {
-    try {
-      const stored = await readManyStored([
-        'nutritionLogs',
-        'customFoods',
-        'nutritionTargets',
-        'waterLogs',
-      ]);
-
-      if (stored.nutritionLogs) setLogs(stored.nutritionLogs);
-      if (stored.customFoods) setCustomFoods(stored.customFoods);
-      if (stored.nutritionTargets) setTarget(stored.nutritionTargets);
-      if (stored.waterLogs) setWaterLogs(stored.waterLogs);
-    } catch {
-    }
-  }, [setCustomFoods, setLogs, setTarget, setWaterLogs]);
+    await loadNutrition();
+  }, [loadNutrition]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
@@ -130,18 +122,24 @@ export default function NutritionScreen() {
       }
     });
 
-    const now = new Date();
-    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2);
-    const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
+    let timer: ReturnType<typeof setTimeout>;
+    const scheduleNextMidnight = () => {
+      const now = new Date();
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+      const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
 
-    const timer = setTimeout(() => {
-      syncDateToTodayIfOnToday();
-      loadNutritionData();
-    }, msToMidnight);
+      timer = setTimeout(() => {
+        syncDateToTodayIfOnToday();
+        loadNutritionData();
+        scheduleNextMidnight();
+      }, msToMidnight);
+    };
+
+    scheduleNextMidnight();
 
     return () => {
       subscription.remove();
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
     };
   }, [syncDateToTodayIfOnToday, loadNutritionData]);
 
@@ -153,7 +151,7 @@ export default function NutritionScreen() {
   );
 
   const currentDateKey = formatDateKey(selectedDate);
-  const todayKey = formatDateKey(new Date());
+  const todayKey = formatDateKey(todayDate);
   const isToday = currentDateKey === todayKey;
 
   const currentDayLogs = logs.filter((l) => l.date === currentDateKey);
@@ -184,21 +182,19 @@ export default function NutritionScreen() {
 
   // Water handlers
   const handleAddWater = async (amount: number) => {
-    const newAmount = currentWaterMl + amount;
-    setWaterLogs(
-      await updateStored('waterLogs', (current) => [
-        ...current.filter((w) => w.date !== currentDateKey),
-        {
-          date: currentDateKey,
-          amountMl: newAmount,
-          targetMl: currentWaterTarget,
-        },
-      ])
-    );
+    const newAmount = Math.max(0, currentWaterMl + amount);
+    await setWaterLogs([
+      ...waterLogs.filter((w) => w.date !== currentDateKey),
+      {
+        date: currentDateKey,
+        amountMl: newAmount,
+        targetMl: currentWaterTarget,
+      },
+    ]);
   };
 
   const handleResetWater = async () => {
-    setWaterLogs(await updateStored('waterLogs', (current) => current.filter((w) => w.date !== currentDateKey)));
+    await setWaterLogs(waterLogs.filter((w) => w.date !== currentDateKey));
   };
 
   // Log food handler
@@ -209,16 +205,12 @@ export default function NutritionScreen() {
       createdAt: new Date().toISOString(),
     };
 
-    setLogs(await updateStored('nutritionLogs', (current) => [newLog, ...current]));
+    await addLog(newLog);
   };
 
   // Update portion handler
   const handleUpdateLog = async (updatedLog: NutritionLog) => {
-    setLogs(
-      await updateStored('nutritionLogs', (current) =>
-        current.map((l) => (l.id === updatedLog.id ? updatedLog : l))
-      )
-    );
+    await updateLog(updatedLog);
     setEditingLog(null);
   };
 
@@ -244,7 +236,7 @@ export default function NutritionScreen() {
       createdAt: new Date().toISOString(),
     }));
 
-    setLogs(await updateStored('nutritionLogs', (current) => [...copiedEntries, ...current]));
+    await setLogs([...copiedEntries, ...logs]);
     showAlert('success', 'Meals Copied', `Copied ${copiedEntries.length} ${mealType} items from yesterday.`);
   };
 
@@ -257,7 +249,7 @@ export default function NutritionScreen() {
       'DELETE',
       'CANCEL',
       async () => {
-        setLogs(await updateStored('nutritionLogs', (current) => current.filter((l) => l.id !== id)));
+        await deleteLog(id);
       }
     );
   };
@@ -269,13 +261,13 @@ export default function NutritionScreen() {
     } catch (e) {
       console.warn('Failed to save custom food to SQLite:', e);
     }
-    setCustomFoods(await updateStored('customFoods', (current) => [newFood, ...current]));
+    await setCustomFoods([newFood, ...customFoods]);
     showAlert('success', 'Food Saved', `${newFood.name} has been added to your local library.`);
   };
 
   // Target save handler
   const handleSaveTarget = async (newTarget: NutritionTarget) => {
-    setTarget(await writeStored('nutritionTargets', newTarget));
+    await setTarget(newTarget);
     showAlert('success', 'Goals Updated', 'Your daily calorie budget and macronutrient targets have been saved.');
   };
 
@@ -391,7 +383,6 @@ export default function NutritionScreen() {
         onClose={() => setSearchModalVisible(false)}
         onLogFood={handleLogFood}
         onOpenCreateCustom={() => {
-          setSearchModalVisible(false);
           setCustomModalVisible(true);
         }}
       />

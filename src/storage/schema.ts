@@ -12,10 +12,10 @@
 import { DEFAULT_CATEGORIES } from '../constants/habits';
 import { Account, CategoryBudget, CategoryCustomIcon, DebtItem, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, RecurringBill, Transaction } from '../types/finance';
 import { Workout } from '../types/fitness';
-import { FrequencyType, Habit, PriorityLevel, SubTask, TimeSlot } from '../types/habits';
-import { ChecklistItem, NoteCategory, NOTE_CATEGORIES, NoteEntry, StickyNote, StickyNoteColor } from '../types/notes';
-import { CourseColor, CourseLevel, LearningCourse, LearningStatus } from '../types/learning';
-import { DEFAULT_NUTRITION_TARGET, FoodCategory, FoodItem, MealType, NutritionLog, NutritionTarget, WaterLog } from '../types/nutrition';
+import { Habit } from '../types/habits';
+import { StickyNote } from '../types/notes';
+import { LearningCourse } from '../types/learning';
+import { DEFAULT_NUTRITION_TARGET, FoodItem, NutritionLog, NutritionTarget, WaterLog } from '../types/nutrition';
 import { DEFAULT_NOTIFICATION_SETTINGS, NotificationSettings } from '../types/settings';
 import { META_KEY_NAMES, STORAGE_KEYS, StorageKeyName } from './keys';
 import {
@@ -115,185 +115,18 @@ const str = (value: unknown, fallback = ''): string => {
   return fallback;
 };
 
-/** Optional string: empty/absent becomes undefined instead of ''. */
-const optStr = (value: unknown): string | undefined => {
-  const parsed = str(value);
-  return parsed.length > 0 ? parsed : undefined;
-};
-
-/** Optional finite number: undefined if empty/non-numeric. */
-const optNum = (value: unknown): number | undefined => {
-  if (value === undefined || value === null || value === '') return undefined;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : undefined;
-};
-
 const num = (value: unknown, fallback = 0): number => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const bool = (value: unknown, fallback: boolean): boolean =>
-  typeof value === 'boolean' ? value : fallback;
-
-const oneOf = <T extends string>(value: unknown, allowed: readonly T[], fallback: T): T =>
-  typeof value === 'string' && (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
-
 const strArray = (value: unknown): string[] =>
   (Array.isArray(value) ? value : []).filter((item): item is string => typeof item === 'string');
 
 /** Non-empty, de-duplicated list of strings (used for categories). */
-const uniqueStrArray = (value: unknown): string[] => Array.from(new Set(strArray(value).filter((s) => s.trim().length > 0)));
-
-let idCounter = 0;
-const uid = (prefix: string): string => {
-  idCounter += 1;
-  return `${prefix}_${Date.now().toString(36)}${idCounter.toString(36)}${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
-};
-
-const todayKey = (): string => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
-    now.getDate()
-  ).padStart(2, '0')}`;
-};
-
-// ---------------------------------------------------------------------------
-// Domain parsers
-// ---------------------------------------------------------------------------
-
-const parseSubTask = (value: unknown): SubTask => {
-  const item = isRecord(value) ? value : {};
-  return {
-    id: str(item.id) || uid('sub'),
-    title: str(item.title),
-    completed: bool(item.completed, false),
-  };
-};
-
-const HABIT_PRIORITIES: readonly PriorityLevel[] = ['low', 'medium', 'high'];
-const HABIT_TIME_SLOTS: readonly TimeSlot[] = ['Anytime', 'Morning', 'Afternoon', 'Evening'];
-const HABIT_FREQUENCIES: readonly FrequencyType[] = ['once', 'daily', 'weekdays', 'custom_days'];
-
-/**
- * Habit rows are the most patched payload in the app: rows written before
- * recurring habits existed have no `completedDates`/`frequency` at all.
- */
-const parseHabit = (value: unknown): Habit => {
-  const item = isRecord(value) ? value : {};
-  return {
-    id: str(item.id) || uid('habit'),
-    title: str(item.title, 'Untitled'),
-    category: str(item.category, DEFAULT_CATEGORIES[0]),
-    completed: bool(item.completed, false),
-    date: str(item.date) || todayKey(),
-    description: optStr(item.description),
-    priority: oneOf(item.priority, HABIT_PRIORITIES, 'medium'),
-    timeSlot: oneOf(item.timeSlot, HABIT_TIME_SLOTS, 'Anytime'),
-    reminderTime: optStr(item.reminderTime),
-    reminderSound: optStr(item.reminderSound),
-    notificationId: optStr(item.notificationId),
-    frequency: oneOf(item.frequency, HABIT_FREQUENCIES, 'once'),
-    repeatDays: (Array.isArray(item.repeatDays) ? item.repeatDays : [])
-      .map((day) => num(day, -1))
-      .filter((day) => day >= 0 && day <= 6),
-    completedDates: strArray(item.completedDates),
-    subtasks: records(item.subtasks).map(parseSubTask),
-    extraNotes: strArray(item.extraNotes),
-  };
-};
-
-const parseAccount = (value: unknown): Account => {
-  const item = isRecord(value) ? value : {};
-  const subAccounts = records(item.subAccounts).map((sub) => ({
-    id: str(sub.id) || uid('sub'),
-    name: str(sub.name, 'Main'),
-  }));
-  return {
-    id: str(item.id) || uid('acc'),
-    name: str(item.name, 'Account'),
-    description: optStr(item.description),
-    type: oneOf(item.type, ['Bank', 'E-Wallet', 'Cash', 'Investment', 'Credit Card', 'E-Money'], 'Cash'),
-    currency: oneOf(item.currency, ['IDR', 'USD'], 'IDR'),
-    subAccounts: subAccounts.length > 0 ? subAccounts : [{ id: uid('sub'), name: 'Main' }],
-  };
-};
-
-const parseTransaction = (value: unknown): Transaction => {
-  const item = isRecord(value) ? value : {};
-  return {
-    id: str(item.id) || uid('tx'),
-    type: oneOf(item.type, ['income', 'expense', 'transfer'], 'expense'),
-    amount: num(item.amount, 0),
-    description: str(item.description),
-    category: str(item.category, 'Others'),
-    date: str(item.date) || new Date().toISOString(),
-    accountId: str(item.accountId),
-    subAccountId: str(item.subAccountId),
-    deletedSubAccountName: optStr(item.deletedSubAccountName),
-    toAccountId: optStr(item.toAccountId),
-    toSubAccountId: optStr(item.toSubAccountId),
-    deletedToSubAccountName: optStr(item.deletedToSubAccountName),
-    toAmount: optNum(item.toAmount),
-    exchangeRate: optNum(item.exchangeRate),
-  };
-};
-
-const parseCategoryBudget = (value: unknown): CategoryBudget => {
-  const item = isRecord(value) ? value : {};
-  const curr = optStr(item.currency);
-  return {
-    category: str(item.category),
-    limit: num(item.limit, 0),
-    currency: curr === 'USD' ? 'USD' : curr === 'IDR' ? 'IDR' : undefined,
-  };
-};
-
-const parseCategoryCustomIcon = (value: unknown): CategoryCustomIcon => {
-  const item = isRecord(value) ? value : {};
-  return {
-    category: str(item.category),
-    icon: str(item.icon),
-    color: optStr(item.color),
-    bg: optStr(item.bg),
-  };
-};
-
-const parseRecurringBill = (value: unknown): RecurringBill => {
-  const item = isRecord(value) ? value : {};
-  return {
-    id: str(item.id) || uid('bill'),
-    name: str(item.name, 'Bill'),
-    amount: num(item.amount, 0),
-    category: str(item.category, 'Bills & Utilities'),
-    dueDateDay: Math.min(31, Math.max(1, Math.round(num(item.dueDateDay, 1)))),
-    currency: oneOf(item.currency, ['IDR', 'USD'], 'IDR'),
-  };
-};
-
-const parseDebtItem = (value: unknown): DebtItem => {
-  const item = isRecord(value) ? value : {};
-  const orig = num(item.originalAmount, 0);
-  const paid = num(item.paidAmount, 0);
-  const rem = Math.max(0, orig - paid);
-  return {
-    id: str(item.id) || uid('debt'),
-    type: oneOf(item.type, ['debt', 'receivable'], 'receivable'),
-    personName: str(item.personName, 'Friend'),
-    title: str(item.title),
-    originalAmount: orig,
-    paidAmount: paid,
-    remainingAmount: rem,
-    currency: oneOf(item.currency, ['IDR', 'USD'], 'IDR'),
-    dueDate: optStr(item.dueDate),
-    createdAt: str(item.createdAt) || new Date().toISOString(),
-    status: rem <= 0 ? 'settled' : 'active',
-    notes: optStr(item.notes),
-  };
-};
+const uniqueStrArray = (value: unknown): string[] =>
+  Array.from(new Set(strArray(value).filter((s) => s.trim().length > 0)));
 
 const parseHabitCategoryIcons = (value: unknown): HabitCategoryIconMap => {
   const source = isRecord(value) ? value : {};
@@ -308,179 +141,6 @@ const parseHabitCategoryIcons = (value: unknown): HabitCategoryIconMap => {
     };
   });
   return result;
-};
-
-const parseWorkout = (value: unknown): Workout => {
-  const item = isRecord(value) ? value : {};
-  return {
-    id: str(item.id) || uid('workout'),
-    exercise: str(item.exercise, 'Exercise'),
-    category: str(item.category, 'Others'),
-    // Originally stored as numbers by an early build, now free-text ("12", "12 kg").
-    sets: str(item.sets),
-    reps: str(item.reps),
-    weight: str(item.weight),
-    date: str(item.date) || todayKey(),
-  };
-};
-
-const MEAL_TYPES: readonly MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
-
-const parseNutritionLog = (value: unknown): NutritionLog => {
-  const item = isRecord(value) ? value : {};
-  return {
-    id: str(item.id) || uid('log'),
-    date: str(item.date) || todayKey(),
-    mealType: oneOf(item.mealType, MEAL_TYPES, 'snack'),
-    foodId: optStr(item.foodId),
-    foodName: str(item.foodName, 'Food'),
-    portionGrams: num(item.portionGrams, 0),
-    servingDescription: str(item.servingDescription),
-    calories: num(item.calories, 0),
-    protein: num(item.protein, 0),
-    carbs: num(item.carbs, 0),
-    fat: num(item.fat, 0),
-    createdAt: str(item.createdAt) || new Date().toISOString(),
-  };
-};
-
-const FOOD_CATEGORIES: readonly FoodCategory[] = [
-  'Staples',
-  'Proteins',
-  'Vegetables',
-  'Fruits',
-  'Dairy & Drinks',
-  'Snacks',
-  'Custom',
-];
-
-const parseFoodItem = (value: unknown): FoodItem => {
-  const item = isRecord(value) ? value : {};
-  return {
-    id: str(item.id) || uid('food'),
-    name: str(item.name, 'Food'),
-    indonesianName: optStr(item.indonesianName),
-    category: oneOf(item.category, FOOD_CATEGORIES, 'Custom'),
-    calories: num(item.calories, 0),
-    protein: num(item.protein, 0),
-    carbs: num(item.carbs, 0),
-    fat: num(item.fat, 0),
-    fiber: item.fiber === undefined ? undefined : num(item.fiber, 0),
-    defaultServingText: str(item.defaultServingText, '100 g'),
-    defaultServingGrams: num(item.defaultServingGrams, 100),
-    isCustom: item.isCustom === undefined ? undefined : bool(item.isCustom, false),
-  };
-};
-
-const parseNutritionTarget = (value: unknown): NutritionTarget => {
-  // Defensive: an early build wrote an array here, and the key is plural.
-  const source = Array.isArray(value) ? value[0] : value;
-  const item = isRecord(source) ? source : {};
-  return {
-    calories: num(item.calories, DEFAULT_NUTRITION_TARGET.calories),
-    protein: num(item.protein, DEFAULT_NUTRITION_TARGET.protein),
-    carbs: num(item.carbs, DEFAULT_NUTRITION_TARGET.carbs),
-    fat: num(item.fat, DEFAULT_NUTRITION_TARGET.fat),
-  };
-};
-
-const parseWaterLog = (value: unknown): WaterLog => {
-  const item = isRecord(value) ? value : {};
-  return {
-    date: str(item.date) || todayKey(),
-    amountMl: Math.max(0, num(item.amountMl, 0)),
-    targetMl: Math.max(0, num(item.targetMl, 2000)),
-  };
-};
-
-const parseChecklistItem = (value: unknown): ChecklistItem => {
-  const item = isRecord(value) ? value : {};
-  return {
-    id: str(item.id) || uid('chk'),
-    text: str(item.text, str(item.title)),
-    done: bool(item.done, bool(item.completed, false)),
-  };
-};
-
-const parseNoteEntry = (value: unknown): NoteEntry => {
-  const item = isRecord(value) ? value : {};
-  return {
-    id: str(item.id) || uid('entry'),
-    title: str(item.title),
-    content: str(item.content),
-  };
-};
-
-const STICKY_COLORS: readonly StickyNoteColor[] = ['amber', 'blue', 'emerald', 'rose', 'purple'];
-const NOTE_CATEGORY_KEYS = Object.keys(NOTE_CATEGORIES) as NoteCategory[];
-
-/**
- * Notes have the messiest history: `description` used to be `content`, ids and
- * timestamps were optional, and a note without a category is still valid.
- */
-const parseStickyNote = (value: unknown): StickyNote => {
-  const item = isRecord(value) ? value : {};
-  const checklist = records(item.checklist).map(parseChecklistItem);
-  const entries = records(item.entries).map(parseNoteEntry);
-  const type = oneOf(item.type, ['text', 'checklist'], checklist.length > 0 ? 'checklist' : 'text');
-  const createdAt = str(item.createdAt) || new Date().toISOString();
-  const category =
-    typeof item.category === 'string' && (NOTE_CATEGORY_KEYS as string[]).includes(item.category)
-      ? (item.category as NoteCategory)
-      : undefined;
-  return {
-    id: str(item.id) || uid('note'),
-    title: str(item.title, 'Note'),
-    type,
-    category,
-    description: str(item.description ?? item.content),
-    entries: entries.length > 0 ? entries : undefined,
-    checklist,
-    color: oneOf(item.color, STICKY_COLORS, 'amber'),
-    createdAt,
-    updatedAt: str(item.updatedAt) || createdAt,
-  };
-};
-
-const parseNotificationSettings = (value: unknown): NotificationSettings => {
-  const item = isRecord(value) ? value : {};
-  return {
-    enabled: bool(item.enabled, DEFAULT_NOTIFICATION_SETTINGS.enabled),
-    defaultSound: str(item.defaultSound, DEFAULT_NOTIFICATION_SETTINGS.defaultSound),
-    vibrate: bool(item.vibrate, DEFAULT_NOTIFICATION_SETTINGS.vibrate),
-    fullScreenAlarm: bool(item.fullScreenAlarm, DEFAULT_NOTIFICATION_SETTINGS.fullScreenAlarm),
-  };
-};
-
-const parseLearningCourse = (value: unknown): LearningCourse => {
-  const item = isRecord(value) ? value : {};
-  const createdAt = str(item.createdAt) || new Date().toISOString();
-  return {
-    id: str(item.id) || uid('course'),
-    title: str(item.title, 'Untitled Course').trim() || 'Untitled Course',
-    status: oneOf(
-      item.status,
-      ['Not Started', 'In Progress', 'Completed', 'On Hold'],
-      'In Progress'
-    ) as LearningStatus,
-    link: str(item.link) || undefined,
-    startDate: str(item.startDate) || createdAt.split('T')[0],
-    provider: str(item.provider, 'Udemy').trim() || 'Udemy',
-    level: oneOf(
-      item.level,
-      ['Beginner', 'Intermediate', 'Advanced', 'All Levels'],
-      'Beginner'
-    ) as CourseLevel,
-    hours: Math.max(0, num(item.hours, 0)),
-    notes: str(item.notes) || undefined,
-    color:
-      typeof item.color === 'string' &&
-      (['violet', 'blue', 'emerald', 'rose', 'amber', 'cyan'] as const).includes(item.color as any)
-        ? (item.color as CourseColor)
-        : undefined,
-    createdAt,
-    updatedAt: str(item.updatedAt) || createdAt,
-  };
 };
 
 // ---------------------------------------------------------------------------
@@ -534,89 +194,47 @@ export const PARSERS: { [K in StorageKeyName]: Parser<K> } = {
   },
 
   financeTransactions: (value) =>
-    records(value).map((item) => {
-      const zRes = TransactionSchema.safeParse(item);
-      return zRes.success ? (zRes.data as Transaction) : parseTransaction(item);
-    }),
+    records(value).map((item) => TransactionSchema.parse(item) as Transaction),
   financeAccounts: (value) =>
-    records(value).map((item) => {
-      const zRes = AccountSchema.safeParse(item);
-      return zRes.success ? (zRes.data as Account) : parseAccount(item);
-    }),
+    records(value).map((item) => AccountSchema.parse(item) as Account),
   financeExpenseCategories: (value) => uniqueStrArray(value),
   financeIncomeCategories: (value) => uniqueStrArray(value),
   financeCategoryBudgets: (value) =>
-    records(value).map((item) => {
-      const zRes = CategoryBudgetSchema.safeParse(item);
-      return zRes.success ? (zRes.data as CategoryBudget) : parseCategoryBudget(item);
-    }),
+    records(value).map((item) => CategoryBudgetSchema.parse(item) as CategoryBudget),
   financeRecurringBills: (value) =>
-    records(value).map((item) => {
-      const zRes = RecurringBillSchema.safeParse(item);
-      return zRes.success ? (zRes.data as RecurringBill) : parseRecurringBill(item);
-    }),
+    records(value).map((item) => RecurringBillSchema.parse(item) as RecurringBill),
   financeCustomCategoryIcons: (value) =>
-    records(value).map((item) => {
-      const zRes = CategoryCustomIconSchema.safeParse(item);
-      return zRes.success ? (zRes.data as CategoryCustomIcon) : parseCategoryCustomIcon(item);
-    }),
+    records(value).map((item) => CategoryCustomIconSchema.parse(item) as CategoryCustomIcon),
   financeDebts: (value) =>
-    records(value).map((item) => {
-      const zRes = DebtItemSchema.safeParse(item);
-      return zRes.success ? (zRes.data as DebtItem) : parseDebtItem(item);
-    }),
+    records(value).map((item) => DebtItemSchema.parse(item) as DebtItem),
 
   habits: (value) =>
-    records(value).map((item) => {
-      const zRes = HabitSchema.safeParse(item);
-      return zRes.success ? (zRes.data as Habit) : parseHabit(item);
-    }),
+    records(value).map((item) => HabitSchema.parse(item) as Habit),
   habitCategories: (value) => uniqueStrArray(value),
   habitCategoryIcons: parseHabitCategoryIcons,
-  notificationSettings: (value) => {
-    const zRes = NotificationSettingsSchema.safeParse(value);
-    return zRes.success ? (zRes.data as NotificationSettings) : parseNotificationSettings(value);
-  },
+  notificationSettings: (value) =>
+    NotificationSettingsSchema.parse(isRecord(value) ? value : {}) as NotificationSettings,
 
   fitnessWorkouts: (value) =>
-    records(value).map((item) => {
-      const zRes = WorkoutSchema.safeParse(item);
-      return zRes.success ? (zRes.data as Workout) : parseWorkout(item);
-    }),
+    records(value).map((item) => WorkoutSchema.parse(item) as Workout),
   fitnessInstallDate: (value) => str(value),
 
   nutritionLogs: (value) =>
-    records(value).map((item) => {
-      const zRes = NutritionLogSchema.safeParse(item);
-      return zRes.success ? (zRes.data as NutritionLog) : parseNutritionLog(item);
-    }),
+    records(value).map((item) => NutritionLogSchema.parse(item) as NutritionLog),
   nutritionTargets: (value) => {
     const source = Array.isArray(value) ? value[0] : value;
-    const zRes = NutritionTargetSchema.safeParse(source);
-    return zRes.success ? (zRes.data as NutritionTarget) : parseNutritionTarget(value);
+    return NutritionTargetSchema.parse(isRecord(source) ? source : {}) as NutritionTarget;
   },
   customFoods: (value) =>
-    records(value).map((item) => {
-      const zRes = FoodItemSchema.safeParse(item);
-      return zRes.success ? (zRes.data as FoodItem) : parseFoodItem(item);
-    }),
+    records(value).map((item) => FoodItemSchema.parse(item) as FoodItem),
   waterLogs: (value) =>
-    records(value).map((item) => {
-      const zRes = WaterLogSchema.safeParse(item);
-      return zRes.success ? (zRes.data as WaterLog) : parseWaterLog(item);
-    }),
+    records(value).map((item) => WaterLogSchema.parse(item) as WaterLog),
 
   generalNotes: (value) =>
-    records(value).map((item) => {
-      const zRes = StickyNoteSchema.safeParse(item);
-      return zRes.success ? (zRes.data as StickyNote) : parseStickyNote(item);
-    }),
+    records(value).map((item) => StickyNoteSchema.parse(item) as StickyNote),
 
   learningCourses: (value) =>
-    records(value).map((item) => {
-      const zRes = LearningCourseSchema.safeParse(item);
-      return zRes.success ? (zRes.data as LearningCourse) : parseLearningCourse(item);
-    }),
+    records(value).map((item) => LearningCourseSchema.parse(item) as LearningCourse),
 
   schemaVersion: (value) => Math.max(0, Math.round(num(value, 0))),
 };

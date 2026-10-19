@@ -3,7 +3,16 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 
-import { SCHEMA_VERSION, clearAllStored, exportStoredData, restoreStoredData } from '../storage';
+import {
+  SCHEMA_VERSION,
+  clearAllStored,
+  exportStoredData,
+  readStored,
+  restoreStoredData,
+} from '../storage';
+import { formatDateKey } from '../constants/habits';
+import { syncCustomFoodsToDb } from './nutritionDatabaseService';
+import { initializeAllStores } from '../stores';
 
 /**
  * Shape of a backup file written by this build.
@@ -109,6 +118,15 @@ export async function importRestore(
       return { success: false, message: 'Invalid backup file format.' };
     }
 
+    try {
+      const restoredCustomFoods = (await readStored('customFoods')) ?? [];
+      await syncCustomFoodsToDb(restoredCustomFoods);
+    } catch (err) {
+      console.warn('Failed to sync custom foods to SQLite on restore:', err);
+    }
+
+    await initializeAllStores();
+
     if (onSuccess) onSuccess();
     return { success: true };
   } catch (e) {
@@ -122,6 +140,12 @@ export async function clearAllAppData(
 ): Promise<{ success: boolean; message?: string }> {
   try {
     await clearAllStored();
+    try {
+      await syncCustomFoodsToDb([]);
+    } catch (err) {
+      console.warn('Failed to clear custom foods from SQLite:', err);
+    }
+    await initializeAllStores();
     if (onSuccess) onSuccess();
     return { success: true };
   } catch (e) {
@@ -163,7 +187,7 @@ export async function exportTransactionsCsv(): Promise<{ success: boolean; messa
     ].join(','));
 
     const csvContent = [headers.join(','), ...rows].join('\n');
-    const fileName = `lenvry_transactions_${new Date().toISOString().slice(0, 10)}.csv`;
+    const fileName = `lenvry_transactions_${formatDateKey(new Date())}.csv`;
 
     const baseDir = FileSystem.documentDirectory || FileSystem.cacheDirectory;
     if (!baseDir) {

@@ -9,7 +9,6 @@ import {
   AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { readStoredOr, updateStored } from '../storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
@@ -40,8 +39,13 @@ const formatDateKey = (d: Date): string => {
 
 export default function FitnessScreen() {
   const workouts = useFitnessStore((s) => s.workouts);
+  const loadFitness = useFitnessStore((s) => s.loadFitness);
+  const addWorkout = useFitnessStore((s) => s.addWorkout);
+  const updateWorkout = useFitnessStore((s) => s.updateWorkout);
+  const deleteWorkoutFromStore = useFitnessStore((s) => s.deleteWorkout);
   const setWorkouts = useFitnessStore((s) => s.setWorkouts);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [todayDate, setTodayDate] = useState<Date>(new Date());
   const lastTodayKeyRef = useRef(formatDateKey(new Date()));
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -60,6 +64,7 @@ export default function FitnessScreen() {
 
   const syncDateToTodayIfOnToday = useCallback(() => {
     const now = new Date();
+    setTodayDate(now);
     const newTodayKey = formatDateKey(now);
     const oldTodayKey = lastTodayKeyRef.current;
     lastTodayKeyRef.current = newTodayKey;
@@ -74,12 +79,8 @@ export default function FitnessScreen() {
   }, []);
 
   const loadWorkouts = useCallback(async () => {
-    try {
-      setWorkouts(await readStoredOr('fitnessWorkouts'));
-    } catch (e) {
-      console.error('Failed to load fitness data:', e);
-    }
-  }, [setWorkouts]);
+    await loadFitness();
+  }, [loadFitness]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
@@ -89,18 +90,24 @@ export default function FitnessScreen() {
       }
     });
 
-    const now = new Date();
-    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2);
-    const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
+    let timer: ReturnType<typeof setTimeout>;
+    const scheduleNextMidnight = () => {
+      const now = new Date();
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+      const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
 
-    const timer = setTimeout(() => {
-      syncDateToTodayIfOnToday();
-      loadWorkouts();
-    }, msToMidnight);
+      timer = setTimeout(() => {
+        syncDateToTodayIfOnToday();
+        loadWorkouts();
+        scheduleNextMidnight();
+      }, msToMidnight);
+    };
+
+    scheduleNextMidnight();
 
     return () => {
       subscription.remove();
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
     };
   }, [syncDateToTodayIfOnToday, loadWorkouts]);
 
@@ -135,6 +142,7 @@ export default function FitnessScreen() {
   };
 
   const currentDateKey = formatDateKey(selectedDate);
+  const todayDateKey = formatDateKey(todayDate);
   const currentDayWorkouts = workouts.filter((w) => w.date === currentDateKey);
   const filteredWorkouts =
     activeFilter === 'All'
@@ -150,24 +158,18 @@ export default function FitnessScreen() {
     weight: string;
   }) => {
     try {
-      const saved = await updateStored('fitnessWorkouts', (current) => {
-        if (data.id) {
-          // Edit existing workout
-          return current.map((w) =>
-            w.id === data.id
-              ? {
-                  ...w,
-                  exercise: data.exercise.trim(),
-                  category: data.category,
-                  sets: data.sets,
-                  reps: data.reps,
-                  weight: data.weight,
-                }
-              : w
-          );
-        }
-
-        // Create new workout
+      if (data.id) {
+        const existing = workouts.find((w) => w.id === data.id);
+        await updateWorkout({
+          id: data.id,
+          exercise: data.exercise.trim(),
+          category: data.category,
+          sets: data.sets,
+          reps: data.reps,
+          weight: data.weight,
+          date: existing?.date || currentDateKey,
+        });
+      } else {
         const newWorkout: Workout = {
           id: new Date().getTime().toString() + Math.random().toString().slice(2, 6),
           exercise: data.exercise.trim(),
@@ -177,10 +179,9 @@ export default function FitnessScreen() {
           weight: data.weight,
           date: currentDateKey,
         };
-        return [newWorkout, ...current];
-      });
+        await addWorkout(newWorkout);
+      }
 
-      setWorkouts(saved);
       hapticSuccess();
       Keyboard.dismiss();
       setModalVisible(false);
@@ -217,8 +218,7 @@ export default function FitnessScreen() {
     }));
 
     try {
-      const saved = await updateStored('fitnessWorkouts', (current) => [...newItems, ...current]);
-      setWorkouts(saved);
+      await setWorkouts([...newItems, ...workouts]);
       hapticSuccess();
       setRoutineModalVisible(false);
       showAlert('success', 'Routine Loaded', `Added ${routine.exercises.length} exercises from ${routine.name}.`);
@@ -235,7 +235,7 @@ export default function FitnessScreen() {
       'DELETE',
       'CANCEL',
       async () => {
-        setWorkouts(await updateStored('fitnessWorkouts', (current) => current.filter((w) => w.id !== id)));
+        await deleteWorkoutFromStore(id);
       }
     );
   };
@@ -285,6 +285,7 @@ export default function FitnessScreen() {
           <>
             <DateStrip
               selectedDate={selectedDate}
+              todayDate={todayDate}
               onSelectDate={setSelectedDate}
               onOpenCalendar={() => setCalendarModalVisible(true)}
             />
@@ -332,12 +333,12 @@ export default function FitnessScreen() {
               <Ionicons name="barbell-outline" size={32} color={COLORS.warning} />
             </View>
             <Text style={styles.emptyText}>
-              {selectedDate > new Date()
+              {currentDateKey > todayDateKey
                 ? 'No workout planned for this date.'
                 : 'No workouts recorded yet.'}
             </Text>
             <Text style={styles.emptySubText}>
-              {selectedDate > new Date()
+              {currentDateKey > todayDateKey
                 ? 'Tap "Add" or "Presets" above to schedule a session.'
                 : 'Tap "Add" or "Presets" above to record your sets and load.'}
             </Text>

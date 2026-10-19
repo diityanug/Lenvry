@@ -14,11 +14,7 @@ export const useUserStore = create<UserState>((set) => ({
   loadUserName: async () => {
     try {
       const stored = await readStored('userName');
-      if (stored) {
-        set({ userName: stored, isLoaded: true });
-      } else {
-        set({ isLoaded: true });
-      }
+      set({ userName: stored || 'User', isLoaded: true });
     } catch (e) {
       console.warn('Failed to load user name', e);
     }

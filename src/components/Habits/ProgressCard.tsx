@@ -34,13 +34,10 @@ export default function ProgressCard({ completedCount, totalCount, progressPerce
           <Text style={cardStyles.title}>Daily Momentum</Text>
         </View>
 
-        <View style={cardStyles.badgeWrap}>
+        <View style={cardStyles.badgePill}>
           <Text style={cardStyles.badgeCount}>
             {completedCount}/{totalCount}
           </Text>
-          <View style={cardStyles.badgePill}>
-            <Text style={cardStyles.badgePercent}>{roundedPercent}%</Text>
-          </View>
         </View>
       </View>
 
@@ -95,27 +92,17 @@ const cardStyles = StyleSheet.create({
     color: COLORS.textPrimary,
     letterSpacing: -0.2,
   },
-  badgeWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  badgeCount: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.textMuted,
-  },
   badgePill: {
-    backgroundColor: COLORS.successSoft,
-    paddingHorizontal: 8,
+    backgroundColor: COLORS.bgCardSub,
+    paddingHorizontal: 9,
     paddingVertical: 3,
     borderRadius: RADIUS.xs,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderColor: COLORS.border,
   },
-  badgePercent: {
-    fontSize: 11,
-    fontWeight: '800',
+  badgeCount: {
+    fontSize: 12,
+    fontWeight: '700',
     color: COLORS.success,
   },
   subtitle: {
