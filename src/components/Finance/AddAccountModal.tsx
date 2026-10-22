@@ -114,10 +114,10 @@ export const AddAccountModal = ({
 
             {/* Form Inputs */}
             <View style={styles.fieldWrap}>
-              <Text style={styles.fieldLabel}>ACCOUNT NAME</Text>
+              <Text style={styles.fieldLabel}>{accFormType === 'main' ? 'ACCOUNT NAME' : 'POCKET NAME'}</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="e.g. BCA, Wallet..."
+                placeholder={accFormType === 'main' ? 'e.g. BCA, Wallet...' : 'e.g. Savings, Daily...'}
                 placeholderTextColor={COLORS.textMuted}
                 value={newAccName}
                 onChangeText={setNewAccName}
@@ -191,12 +191,12 @@ export const AddAccountModal = ({
               </View>
             )}
 
-            {setNewAccDesc && (
+            {accFormType === 'main' && setNewAccDesc && (
               <View style={styles.fieldWrap}>
                 <Text style={styles.fieldLabel}>DESCRIPTION</Text>
                 <TextInput
                   style={styles.textInput}
-                  placeholder=""
+                  placeholder="e.g. Primary salary account"
                   placeholderTextColor={COLORS.textMuted}
                   value={newAccDesc}
                   onChangeText={setNewAccDesc}
@@ -206,7 +206,9 @@ export const AddAccountModal = ({
 
             <TouchableOpacity style={styles.saveBtn} onPress={onSave} activeOpacity={0.85}>
               <Ionicons name="checkmark-circle-outline" size={18} color="#08090C" />
-              <Text style={styles.saveBtnText}>CREATE ACCOUNT</Text>
+              <Text style={styles.saveBtnText}>
+                {accFormType === 'main' ? 'CREATE ACCOUNT' : 'CREATE POCKET'}
+              </Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
