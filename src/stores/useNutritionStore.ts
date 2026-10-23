@@ -14,7 +14,7 @@ interface NutritionState {
   target: NutritionTarget;
   waterLogs: WaterLog[];
   isLoaded: boolean;
-  loadNutrition: () => Promise<void>;
+  loadNutrition: (force?: boolean) => Promise<void>;
   addLog: (log: NutritionLog) => Promise<void>;
   updateLog: (log: NutritionLog) => Promise<void>;
   deleteLog: (id: string) => Promise<void>;
@@ -31,7 +31,8 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
   target: DEFAULT_NUTRITION_TARGET,
   waterLogs: [],
   isLoaded: false,
-  loadNutrition: async () => {
+  loadNutrition: async (force = false) => {
+    if (get().isLoaded && !force) return;
     try {
       const [logs, customFoods, target, waterLogs] = await Promise.all([
         readStored('nutritionLogs'),

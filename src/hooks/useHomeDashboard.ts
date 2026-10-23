@@ -169,7 +169,7 @@ export function useHomeDashboard() {
   );
 
   const fetchDashboardData = useCallback(async () => {
-    await initializeAllStores();
+    await initializeAllStores(true);
   }, []);
 
   return {

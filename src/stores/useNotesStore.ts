@@ -5,7 +5,7 @@ import { StickyNote } from '../types/notes';
 interface NotesState {
   notes: StickyNote[];
   isLoaded: boolean;
-  loadNotes: () => Promise<void>;
+  loadNotes: (force?: boolean) => Promise<void>;
   saveNote: (note: StickyNote) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
 }
@@ -13,7 +13,8 @@ interface NotesState {
 export const useNotesStore = create<NotesState>((set, get) => ({
   notes: [],
   isLoaded: false,
-  loadNotes: async () => {
+  loadNotes: async (force = false) => {
+    if (get().isLoaded && !force) return;
     try {
       const stored = await readStored('generalNotes');
       set({ notes: stored ?? [], isLoaded: true });

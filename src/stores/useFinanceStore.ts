@@ -21,7 +21,7 @@ interface FinanceState {
   customCategoryIcons: CategoryCustomIcon[];
   debts: DebtItem[];
   isLoaded: boolean;
-  loadFinance: () => Promise<void>;
+  loadFinance: (force?: boolean) => Promise<void>;
   addTransaction: (tx: Transaction) => Promise<void>;
   updateTransaction: (tx: Transaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
@@ -45,7 +45,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   customCategoryIcons: [],
   debts: [],
   isLoaded: false,
-  loadFinance: async () => {
+  loadFinance: async (force = false) => {
+    if (get().isLoaded && !force) return;
     try {
       const [
         transactions,

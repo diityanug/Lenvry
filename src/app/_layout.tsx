@@ -151,10 +151,12 @@ export default function AppLayout() {
         <Tabs
           initialRouteName="index"
           backBehavior="initialRoute"
+          detachInactiveScreens={false}
           tabBar={(props: any) => <CurvedTabBar {...props} />}
           screenOptions={{
             headerShown: false,
             animation: 'none',
+            lazy: false,
           }}
         >
           <Tabs.Screen name="fitness" options={{ title: 'Fitness' }} />

@@ -4,14 +4,15 @@ import { readStored, writeStored } from '../storage';
 interface UserState {
   userName: string;
   isLoaded: boolean;
-  loadUserName: () => Promise<void>;
+  loadUserName: (force?: boolean) => Promise<void>;
   updateUserName: (name: string) => Promise<void>;
 }
 
-export const useUserStore = create<UserState>((set) => ({
+export const useUserStore = create<UserState>((set, get) => ({
   userName: 'User',
   isLoaded: false,
-  loadUserName: async () => {
+  loadUserName: async (force = false) => {
+    if (get().isLoaded && !force) return;
     try {
       const stored = await readStored('userName');
       set({ userName: stored || 'User', isLoaded: true });

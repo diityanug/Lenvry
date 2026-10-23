@@ -5,7 +5,7 @@ import { Workout } from '../types/fitness';
 interface FitnessState {
   workouts: Workout[];
   isLoaded: boolean;
-  loadFitness: () => Promise<void>;
+  loadFitness: (force?: boolean) => Promise<void>;
   addWorkout: (workout: Workout) => Promise<void>;
   updateWorkout: (workout: Workout) => Promise<void>;
   deleteWorkout: (id: string) => Promise<void>;
@@ -15,7 +15,8 @@ interface FitnessState {
 export const useFitnessStore = create<FitnessState>((set, get) => ({
   workouts: [],
   isLoaded: false,
-  loadFitness: async () => {
+  loadFitness: async (force = false) => {
+    if (get().isLoaded && !force) return;
     try {
       const stored = await readStored('fitnessWorkouts');
       set({ workouts: stored ?? [], isLoaded: true });

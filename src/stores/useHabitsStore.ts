@@ -13,7 +13,7 @@ interface HabitsState {
   categories: string[];
   categoryConfigs: HabitCategoryIconMap;
   isLoaded: boolean;
-  loadHabits: () => Promise<void>;
+  loadHabits: (force?: boolean) => Promise<void>;
   addHabit: (habit: Habit) => Promise<void>;
   updateHabit: (habit: Habit) => Promise<void>;
   deleteHabit: (id: string) => Promise<void>;
@@ -28,7 +28,8 @@ export const useHabitsStore = create<HabitsState>((set, get) => ({
   categories: DEFAULT_CATEGORIES,
   categoryConfigs: HABIT_DEFAULT_CATEGORY_CONFIG,
   isLoaded: false,
-  loadHabits: async () => {
+  loadHabits: async (force = false) => {
+    if (get().isLoaded && !force) return;
     try {
       const stored = await readManyStored(['habits', 'habitCategories', 'habitCategoryIcons']);
       set({

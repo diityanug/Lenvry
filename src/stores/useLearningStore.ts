@@ -5,7 +5,7 @@ import { LearningCourse, LearningStatus } from '../types/learning';
 interface LearningState {
   courses: LearningCourse[];
   isLoaded: boolean;
-  loadCourses: () => Promise<void>;
+  loadCourses: (force?: boolean) => Promise<void>;
   saveCourse: (course: LearningCourse) => Promise<void>;
   deleteCourse: (id: string) => Promise<void>;
   updateCourseStatus: (id: string, status: LearningStatus) => Promise<void>;
@@ -14,7 +14,8 @@ interface LearningState {
 export const useLearningStore = create<LearningState>((set, get) => ({
   courses: [],
   isLoaded: false,
-  loadCourses: async () => {
+  loadCourses: async (force = false) => {
+    if (get().isLoaded && !force) return;
     try {
       const stored = await readStored('learningCourses');
       set({ courses: stored ?? [], isLoaded: true });

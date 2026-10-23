@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StatusBar, ScrollView, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 
 import { Account, Transaction, CategoryBudget, CategoryCustomIcon, DebtItem, RecurringBill, DEFAULT_EXPENSE_CATEGORIES, MONTHS } from '../types/finance';
 import { TransactionCard, AccountCard, AddAccountCard, HeroSummaryCard } from '../components/Finance/FinanceCards';
@@ -1072,13 +1071,7 @@ export default function FinanceTracker() {
           </TouchableOpacity>
         </View>
 
-        {financeViewMode === 'overview' ? (
-          <Animated.View
-            key="overview_view"
-            entering={FadeIn.duration(260)}
-            exiting={FadeOut.duration(180)}
-            layout={LinearTransition.springify().damping(22).stiffness(180)}
-          >
+        <View style={{ display: financeViewMode === 'overview' ? 'flex' : 'none' }}>
             {/* ACCOUNTS SECTION (Rule 3: Clean header) */}
             <View style={styles.sectionHeaderBlock}>
               <View style={styles.sectionTitleRow}>
@@ -1199,12 +1192,7 @@ export default function FinanceTracker() {
 
             {/* NATURAL SCROLLABLE TRANSACTIONS LIST */}
             {displayedHomeTransactions.length === 0 ? (
-              <Animated.View
-                key="empty_tx_state"
-                entering={FadeIn.duration(240)}
-                layout={LinearTransition.springify().damping(22).stiffness(180)}
-                style={styles.emptyState}
-              >
+              <View style={styles.emptyState}>
                 <View style={styles.emptyIconBox}>
                   <Ionicons name="receipt-outline" size={26} color={COLORS.finance} />
                 </View>
@@ -1222,14 +1210,9 @@ export default function FinanceTracker() {
                   <Ionicons name="add" size={16} color="#08090C" />
                   <Text style={[styles.emptyActionBtnText, { color: '#08090C' }]}>Add Transaction</Text>
                 </TouchableOpacity>
-              </Animated.View>
+              </View>
             ) : (
-              <Animated.View
-                key={`tx_list_${homeTxFilter}`}
-                entering={FadeIn.duration(240)}
-                layout={LinearTransition.springify().damping(22).stiffness(180)}
-                style={{ marginBottom: 14 }}
-              >
+              <View style={{ marginBottom: 14 }}>
                 {displayedHomeTransactions.map((item) => (
                   <TransactionCard
                     key={item.id}
@@ -1242,16 +1225,11 @@ export default function FinanceTracker() {
                     onPress={(tx) => setSelectedTxForDetail(tx)}
                   />
                 ))}
-              </Animated.View>
+              </View>
             )}
-          </Animated.View>
-        ) : (
-          <Animated.View
-            key="insights_view"
-            entering={FadeIn.duration(260)}
-            exiting={FadeOut.duration(180)}
-            layout={LinearTransition.springify().damping(22).stiffness(180)}
-          >
+        </View>
+
+        <View style={{ display: financeViewMode === 'insights' ? 'flex' : 'none' }}>
             {/* CASHFLOW & EXPENSE TREND CHART */}
             <CashflowTrendCard
               allTransactions={allTransactionsForActiveCurrency}
@@ -1312,8 +1290,7 @@ export default function FinanceTracker() {
               onDeleteDebt={handleDeleteDebt}
               onSettlePayment={handleSettleDebtPayment}
             />
-          </Animated.View>
-        )}
+        </View>
       </ScrollView>
 
       {/* MODALS */}

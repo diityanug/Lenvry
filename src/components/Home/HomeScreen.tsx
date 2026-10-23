@@ -11,7 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Href } from 'expo-router';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
-import Animated, { FadeIn } from 'react-native-reanimated';
 
 import {
   isHabitCompletedForDate,
@@ -186,127 +185,125 @@ export function HomeScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_HEIGHT + 36 }]}
         showsVerticalScrollIndicator={false}
       >
-        {activeTab === 'today' ? (
-          <Animated.View entering={FadeIn.duration(180)}>
-            {/* Daily Overview */}
-            <DailyOverviewCard
-              habitCompletedCount={habitCompletedCount}
-              habitTotalCount={habitTotalCount}
-              todayWorkoutCount={todayWorkoutCount}
-              todayExpenses={todayExpenses}
-              todayCaloriesConsumed={todayCaloriesConsumed}
-              calorieTarget={calorieTarget}
-            />
+        <View style={{ display: activeTab === 'today' ? 'flex' : 'none' }}>
+          {/* Daily Overview */}
+          <DailyOverviewCard
+            habitCompletedCount={habitCompletedCount}
+            habitTotalCount={habitTotalCount}
+            todayWorkoutCount={todayWorkoutCount}
+            todayExpenses={todayExpenses}
+            todayCaloriesConsumed={todayCaloriesConsumed}
+            calorieTarget={calorieTarget}
+          />
 
-            {/* Today's Activities Section Header */}
-            <View style={styles.sectionHeaderBlock}>
-              <Text style={styles.sectionTitleText}>{"TODAY'S ACTIVITIES"}</Text>
-              <Text style={styles.sectionSubtitleText}>
-                {habitCompletedCount} of {habitTotalCount} activities completed
-              </Text>
-            </View>
+          {/* Today's Activities Section Header */}
+          <View style={styles.sectionHeaderBlock}>
+            <Text style={styles.sectionTitleText}>{"TODAY'S ACTIVITIES"}</Text>
+            <Text style={styles.sectionSubtitleText}>
+              {habitCompletedCount} of {habitTotalCount} activities completed
+            </Text>
+          </View>
 
-            {todayHabits.length === 0 ? (
-              <TouchableOpacity
-                style={styles.emptyCard}
-                onPress={() => router.push('/habits' as Href)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.emptyCardIconWrap}>
-                  <Ionicons name="sparkles-outline" size={24} color={COLORS.accent} />
-                </View>
-                <Text style={styles.emptyCardTitle}>No activities scheduled for today</Text>
-                <Text style={styles.emptyCardSub}>Tap here to manage your habits & daily tasks</Text>
-              </TouchableOpacity>
-            ) : (
-              <View>
-                <View style={styles.habitsPreviewCard}>
-                  {todayHabits.slice(0, 4).map((habit, idx) => {
-                    const isDone = isHabitCompletedForDate(habit, habitKey);
-                    const isLast = idx === Math.min(todayHabits.length, 4) - 1;
-                    const catCfg =
-                      HABIT_DEFAULT_CATEGORY_CONFIG[habit.category] || {
-                        icon: 'pricetag-outline',
-                        label: habit.category,
-                        color: COLORS.textSecondary,
-                        bg: 'rgba(148, 163, 184, 0.12)',
-                      };
-                    return (
-                      <TouchableOpacity
-                        key={habit.id}
-                        style={[styles.habitItemRow, !isLast && styles.habitItemBorder]}
-                        onPress={() => toggleHabitOnHome(habit.id)}
-                        activeOpacity={0.7}
-                      >
-                        <View
-                          style={[
-                            styles.habitIconChip,
-                            { backgroundColor: catCfg.bg, borderColor: catCfg.color + '40' },
-                          ]}
-                        >
-                          <Ionicons name={catCfg.icon as any} size={17} color={catCfg.color} />
-                        </View>
-                        <View style={{ flex: 1, marginRight: 10 }}>
-                          <Text
-                            style={[styles.habitItemTitle, isDone && styles.habitItemTitleDone]}
-                            numberOfLines={1}
-                          >
-                            {habit.title}
-                          </Text>
-                          <Text style={styles.habitItemMeta} numberOfLines={1}>
-                            <Text style={{ color: catCfg.color, fontWeight: '700' }}>
-                              {habit.category}
-                            </Text>
-                            {habit.timeSlot && habit.timeSlot !== 'Anytime' ? ` • ${habit.timeSlot}` : ''}
-                          </Text>
-                        </View>
-                        {habit.priority === 'high' && (
-                          <View style={styles.priorityBadge}>
-                            <Text style={styles.priorityBadgeText}>HIGH</Text>
-                          </View>
-                        )}
-                        <Ionicons
-                          name={isDone ? 'checkmark-circle' : 'ellipse-outline'}
-                          size={24}
-                          color={isDone ? COLORS.success : COLORS.textMuted}
-                          style={{ marginLeft: 12 }}
-                        />
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                {/* Footer Action Button */}
-                <TouchableOpacity
-                  style={styles.sectionFooterBtn}
-                  onPress={() => router.push('/habits' as Href)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={styles.sectionFooterBtnText}>
-                    View All Activities ({habitTotalCount})
-                  </Text>
-                  <Ionicons name="arrow-forward" size={14} color={COLORS.accentHover} />
-                </TouchableOpacity>
+          {todayHabits.length === 0 ? (
+            <TouchableOpacity
+              style={styles.emptyCard}
+              onPress={() => router.push('/habits' as Href)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.emptyCardIconWrap}>
+                <Ionicons name="sparkles-outline" size={24} color={COLORS.accent} />
               </View>
-            )}
-          </Animated.View>
-        ) : (
-          <Animated.View entering={FadeIn.duration(180)}>
-            {/* Pinned Sticky Notes */}
-            <StickyNotesSection
-              notes={notes}
-              onSelectNote={handleOpenNoteModal}
-              onCreateNote={() => handleOpenNoteModal(null)}
-            />
+              <Text style={styles.emptyCardTitle}>No activities scheduled for today</Text>
+              <Text style={styles.emptyCardSub}>Tap here to manage your habits & daily tasks</Text>
+            </TouchableOpacity>
+          ) : (
+            <View>
+              <View style={styles.habitsPreviewCard}>
+                {todayHabits.slice(0, 4).map((habit, idx) => {
+                  const isDone = isHabitCompletedForDate(habit, habitKey);
+                  const isLast = idx === Math.min(todayHabits.length, 4) - 1;
+                  const catCfg =
+                    HABIT_DEFAULT_CATEGORY_CONFIG[habit.category] || {
+                      icon: 'pricetag-outline',
+                      label: habit.category,
+                      color: COLORS.textSecondary,
+                      bg: 'rgba(148, 163, 184, 0.12)',
+                    };
+                  return (
+                    <TouchableOpacity
+                      key={habit.id}
+                      style={[styles.habitItemRow, !isLast && styles.habitItemBorder]}
+                      onPress={() => toggleHabitOnHome(habit.id)}
+                      activeOpacity={0.7}
+                    >
+                      <View
+                        style={[
+                          styles.habitIconChip,
+                          { backgroundColor: catCfg.bg, borderColor: catCfg.color + '40' },
+                        ]}
+                      >
+                        <Ionicons name={catCfg.icon as any} size={17} color={catCfg.color} />
+                      </View>
+                      <View style={{ flex: 1, marginRight: 10 }}>
+                        <Text
+                          style={[styles.habitItemTitle, isDone && styles.habitItemTitleDone]}
+                          numberOfLines={1}
+                        >
+                          {habit.title}
+                        </Text>
+                        <Text style={styles.habitItemMeta} numberOfLines={1}>
+                          <Text style={{ color: catCfg.color, fontWeight: '700' }}>
+                            {habit.category}
+                          </Text>
+                          {habit.timeSlot && habit.timeSlot !== 'Anytime' ? ` • ${habit.timeSlot}` : ''}
+                        </Text>
+                      </View>
+                      {habit.priority === 'high' && (
+                        <View style={styles.priorityBadge}>
+                          <Text style={styles.priorityBadgeText}>HIGH</Text>
+                        </View>
+                      )}
+                      <Ionicons
+                        name={isDone ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={24}
+                        color={isDone ? COLORS.success : COLORS.textMuted}
+                        style={{ marginLeft: 12 }}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
-            {/* Learning Tracker Section */}
-            <LearningTrackerSection
-              courses={courses}
-              onSelectCourse={handleOpenCourseModal}
-              onCreateCourse={() => handleOpenCourseModal(null)}
-            />
-          </Animated.View>
-        )}
+              {/* Footer Action Button */}
+              <TouchableOpacity
+                style={styles.sectionFooterBtn}
+                onPress={() => router.push('/habits' as Href)}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.sectionFooterBtnText}>
+                  View All Activities ({habitTotalCount})
+                </Text>
+                <Ionicons name="arrow-forward" size={14} color={COLORS.accentHover} />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        <View style={{ display: activeTab === 'growth' ? 'flex' : 'none' }}>
+          {/* Pinned Sticky Notes */}
+          <StickyNotesSection
+            notes={notes}
+            onSelectNote={handleOpenNoteModal}
+            onCreateNote={() => handleOpenNoteModal(null)}
+          />
+
+          {/* Learning Tracker Section */}
+          <LearningTrackerSection
+            courses={courses}
+            onSelectCourse={handleOpenCourseModal}
+            onCreateCourse={() => handleOpenCourseModal(null)}
+          />
+        </View>
       </ScrollView>
 
       {/* Settings Modal */}

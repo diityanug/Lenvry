@@ -17,14 +17,14 @@ export * from './useLearningStore';
 /**
  * Pre-warm all global stores in parallel on application launch
  */
-export async function initializeAllStores() {
+export async function initializeAllStores(force = false) {
   await Promise.all([
-    useUserStore.getState().loadUserName(),
-    useHabitsStore.getState().loadHabits(),
-    useFitnessStore.getState().loadFitness(),
-    useNutritionStore.getState().loadNutrition(),
-    useFinanceStore.getState().loadFinance(),
-    useNotesStore.getState().loadNotes(),
-    useLearningStore.getState().loadCourses(),
+    useUserStore.getState().loadUserName(force),
+    useHabitsStore.getState().loadHabits(force),
+    useFitnessStore.getState().loadFitness(force),
+    useNutritionStore.getState().loadNutrition(force),
+    useFinanceStore.getState().loadFinance(force),
+    useNotesStore.getState().loadNotes(force),
+    useLearningStore.getState().loadCourses(force),
   ]);
 }
