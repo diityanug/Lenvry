@@ -525,8 +525,8 @@ export const AccountDetailModal = ({
                             minimumFontScale={0.7}
                             ellipsizeMode="tail"
                           >
-                            {delta > 0 ? '+' : delta < 0 ? '-' : ''}
-                            {formatMoney(Math.abs(delta), account.currency)}
+                            {isTransfer && delta === 0 ? '' : delta > 0 ? '+' : delta < 0 ? '-' : ''}
+                            {formatMoney(isTransfer && delta === 0 ? tx.amount : Math.abs(delta), account.currency)}
                           </Text>
                         </View>
                       </TouchableOpacity>
