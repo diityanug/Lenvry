@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   StyleSheet,
   TouchableWithoutFeedback,
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { FadeModalHost } from '../Common/BottomSheetModal';
 import { COLORS, RADIUS } from '../../constants/theme';
 import { DAYS_SHORT, MONTHS, SHORT_MONTHS } from '../../constants/date';
 
@@ -25,25 +25,25 @@ export interface SharedCalendarModalProps {
 }
 
 const MONTH_COLORS = [
-  '#38BDF8',
-  '#818CF8',
-  '#A855F7',
-  '#EC4899',
-  '#F43F5E',
-  '#F97316',
-  '#F59E0B',
-  '#84CC16',
-  '#10B981',
-  '#2DD4BF',
-  '#22D3EE',
-  '#6366F1',
+  '#2563EB',
+  '#4F46E5',
+  '#7E22CE',
+  '#DB2777',
+  '#C93B3B',
+  '#EA580C',
+  '#D97706',
+  '#65A30D',
+  '#16794B',
+  '#0D8A7E',
+  '#0284C7',
+  '#4338CA',
 ];
 
 function MonthPickerContent({
   selectedDate,
   onClose,
   onSelectDate,
-  themeColor = COLORS.finance || '#38BDF8',
+  themeColor = COLORS.finance,
   title = 'Select Period',
   subtitle = 'Choose a month to review',
 }: Omit<SharedCalendarModalProps, 'visible' | 'mode'>) {
@@ -392,31 +392,31 @@ export function SharedCalendarModal({
   subtitle,
   accentBg,
 }: SharedCalendarModalProps) {
-  if (!visible) return null;
-
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      {mode === 'month' ? (
-        <MonthPickerContent
-          selectedDate={selectedDate}
-          onClose={onClose}
-          onSelectDate={onSelectDate}
-          themeColor={themeColor}
-          title={title}
-          subtitle={subtitle}
-          accentBg={accentBg}
-        />
-      ) : (
-        <DayPickerContent
-          selectedDate={selectedDate}
-          onClose={onClose}
-          onSelectDate={onSelectDate}
-          themeColor={themeColor}
-          title={title}
-          accentBg={accentBg}
-        />
-      )}
-    </Modal>
+    <FadeModalHost visible={visible} onRequestClose={onClose}>
+      {visible ? (
+        mode === 'month' ? (
+          <MonthPickerContent
+            selectedDate={selectedDate}
+            onClose={onClose}
+            onSelectDate={onSelectDate}
+            themeColor={themeColor}
+            title={title}
+            subtitle={subtitle}
+            accentBg={accentBg}
+          />
+        ) : (
+          <DayPickerContent
+            selectedDate={selectedDate}
+            onClose={onClose}
+            onSelectDate={onSelectDate}
+            themeColor={themeColor}
+            title={title}
+            accentBg={accentBg}
+          />
+        )
+      ) : null}
+    </FadeModalHost>
   );
 }
 
@@ -426,7 +426,7 @@ export default SharedCalendarModal;
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 6, 9, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
     padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.16,
     shadowRadius: 24,
     elevation: 12,
   },
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   selectedDayText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
   todayText: {
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   monthCellTextSelected: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
   monthDot: {

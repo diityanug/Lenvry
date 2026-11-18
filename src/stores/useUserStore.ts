@@ -5,7 +5,7 @@ interface UserState {
   userName: string;
   isLoaded: boolean;
   loadUserName: (force?: boolean) => Promise<void>;
-  updateUserName: (name: string) => Promise<void>;
+  updateUserName: (name: string) => Promise<boolean>;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -21,11 +21,16 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
   updateUserName: async (name: string) => {
+    const previous = get().userName;
     set({ userName: name });
     try {
-      await writeStored('userName', name);
+      const persisted = await writeStored('userName', name);
+      set({ userName: persisted });
+      return true;
     } catch (e) {
       console.warn('Failed to persist user name', e);
+      set({ userName: previous });
+      return false;
     }
   },
 }));

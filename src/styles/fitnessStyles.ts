@@ -22,7 +22,7 @@ export const fitnessStyles = StyleSheet.create({
   },
   title: {
     fontSize: 26,
-    fontWeight: '800',
+    fontWeight: '700',
     color: COLORS.textPrimary,
     letterSpacing: -0.6,
   },
@@ -64,9 +64,9 @@ export const fitnessStyles = StyleSheet.create({
     gap: 5,
   },
   headerAddBtnText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 0.3,
   },
   sectionHeader: {
@@ -109,9 +109,9 @@ export const fitnessStyles = StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 16,
     borderRadius: RADIUS.lg,
-    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    backgroundColor: COLORS.bgCard,
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.25)',
+    borderColor: 'rgba(217, 163, 94, 0.30)',
     marginBottom: 12,
   },
   historyActionBarText: {
@@ -238,7 +238,7 @@ export const fitnessStyles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   dayTextShortActive: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
   dayTextNumber: {
@@ -247,7 +247,7 @@ export const fitnessStyles = StyleSheet.create({
     fontWeight: '800',
   },
   dayTextNumberActive: {
-    color: '#08090C',
+    color: COLORS.textInverse,
   },
   futureDot: {
     width: 4,
@@ -358,11 +358,11 @@ export const fitnessStyles = StyleSheet.create({
   filterText: {
     color: COLORS.textSecondary,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   filterTextActive: {
-    color: '#08090C',
-    fontWeight: '800',
+    color: COLORS.textInverse,
+    fontWeight: '700',
   },
 
   // WorkoutCard
@@ -583,7 +583,7 @@ export const fitnessStyles = StyleSheet.create({
     fontWeight: '600',
   },
   categorySelectionTextActive: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
   suggestionSelectionScroll: {
@@ -625,7 +625,7 @@ export const fitnessStyles = StyleSheet.create({
     marginBottom: 0, 
   },
   primaryActionButtonText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.4,
@@ -742,7 +742,7 @@ export const fitnessStyles = StyleSheet.create({
     color: COLORS.textMuted,
   },
   metricPresetChipTextActive: {
-    color: '#08090C',
+    color: COLORS.textInverse,
   },
 
   // Weight Card (Full Width)
@@ -821,7 +821,7 @@ export const fitnessStyles = StyleSheet.create({
     color: COLORS.textMuted,
   },
   weightPresetChipTextActive: {
-    color: '#08090C',
+    color: COLORS.textInverse,
   },
 
   // History Modal Styles
@@ -882,7 +882,7 @@ export const fitnessStyles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
   historyCatTextActive: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
   historyDateBadge: {
@@ -893,10 +893,10 @@ export const fitnessStyles = StyleSheet.create({
   historyActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     backgroundColor: COLORS.bgCardSub,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -998,7 +998,7 @@ export const fitnessStyles = StyleSheet.create({
     fontWeight: '500',
   },
   calendarDayTextSelected: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
   calendarDayTextToday: {

@@ -3,8 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  TouchableWithoutFeedback,
-  Modal,
   TextInput,
   ScrollView,
   Keyboard,
@@ -21,7 +19,8 @@ import {
 } from '../../../types/finance';
 import { MONTHS, SHORT_MONTHS } from '../../../constants/date';
 import { COLORS } from '../../../constants/theme';
-import { useKeyboardHeight } from '../../../hooks/useKeyboardHeight';
+import { BottomSheetModal } from '../../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../../hooks/useKeyboardHeight';
 import { CalculatorKeypad } from '../CalculatorKeypad';
 import {
   evaluateArithmetic,
@@ -68,7 +67,7 @@ export const AddRecurringBillModal = ({
   const [durationMonths, setDurationMonths] = useState<number>(0); // 0 = Ongoing
   const [isCustomDuration, setIsCustomDuration] = useState(false);
   const [customDurationInput, setCustomDurationInput] = useState('');
-  const keyboardHeight = useKeyboardHeight();
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(28);
 
   const evaluatedAmountStr = React.useMemo(() => evaluateArithmeticStr(amount, currency), [amount, currency]);
   const isAmountMath = React.useMemo(() => hasMathOperators(amount), [amount]);
@@ -189,20 +188,16 @@ export const AddRecurringBillModal = ({
   const stopYear = Math.floor(stopTotalMonths / 12);
 
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
+    <BottomSheetModal
       visible={visible}
       onRequestClose={handleRequestClose}
-      statusBarTranslucent={true}
+      onBackdropPress={handleDismiss}
+      overlayStyle={cardStyles.modalOverlay}
+      sheetStyle={cardStyles.modalContent}
+      keyboardOverlap={keyboardOverlap}
+      onOverlayLayout={onOverlayLayout}
     >
-      <View style={cardStyles.modalOverlay}>
-        <TouchableWithoutFeedback onPress={handleDismiss}>
-          <View style={cardStyles.modalDismissArea} />
-        </TouchableWithoutFeedback>
-
-        <View style={cardStyles.modalContent}>
-          <View style={cardStyles.modalHandle} />
+      <View style={cardStyles.modalHandle} />
 
           <View style={cardStyles.modalHeaderRow}>
             <View style={cardStyles.modalTitleWrap}>
@@ -230,12 +225,11 @@ export const AddRecurringBillModal = ({
 
           <ScrollView
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets={true}
+            {...KEEP_KEYBOARD_SCROLL_PROPS}
             onScrollBeginDrag={() => setIsKeypadOpen(false)}
             contentContainerStyle={[
               cardStyles.modalScrollContent,
-              { paddingBottom: Math.max(28, keyboardHeight + 28) },
+              { paddingBottom: scrollBottomPadding },
             ]}
           >
             {/* Quick Templates */}
@@ -678,8 +672,6 @@ export const AddRecurringBillModal = ({
               />
             </Animated.View>
           )}
-        </View>
-      </View>
-    </Modal>
+    </BottomSheetModal>
   );
 };

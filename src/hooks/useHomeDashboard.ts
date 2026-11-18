@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { useState, useMemo, useCallback } from 'react';
 import {
   formatDateKey,
   isHabitActiveForDate,
   isHabitCompletedForDate,
 } from '../constants/habits';
+import { useDayRollover } from './useDayRollover';
 import {
   useUserStore,
   useHabitsStore,
@@ -17,6 +17,7 @@ import {
 } from '../stores';
 import { StickyNote } from '../types/notes';
 import { LearningCourse, LearningStatus } from '../types/learning';
+import { buildAccountsById, computeTodayExpensesIDR } from '../utils/financeCalculations';
 
 export function useHomeDashboard() {
   const userName = useUserStore((s) => s.userName);
@@ -43,69 +44,20 @@ export function useHomeDashboard() {
 
   const [currentDate, setCurrentDate] = useState(() => new Date());
 
-  useEffect(() => {
-    const syncIfDayChanged = () => {
-      const now = new Date();
-      setCurrentDate((prev) => {
-        if (
-          prev.getDate() !== now.getDate() ||
-          prev.getMonth() !== now.getMonth() ||
-          prev.getFullYear() !== now.getFullYear()
-        ) {
-          return now;
-        }
-        return prev;
-      });
-    };
-
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active') {
-        syncIfDayChanged();
-      }
-    };
-
-    const sub = AppState.addEventListener('change', handleAppStateChange);
-
-    let timer: ReturnType<typeof setTimeout>;
-    const scheduleNextMidnight = () => {
-      const now = new Date();
-      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
-      const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
-
-      timer = setTimeout(() => {
-        syncIfDayChanged();
-        scheduleNextMidnight();
-      }, msToMidnight);
-    };
-
-    scheduleNextMidnight();
-
-    return () => {
-      sub.remove();
-      if (timer) clearTimeout(timer);
-    };
-  }, []);
+  useDayRollover((now) => {
+    setCurrentDate((prev) => (formatDateKey(prev) === formatDateKey(now) ? prev : now));
+  });
 
   const todayDateObj = currentDate;
   const habitKey = useMemo(() => formatDateKey(todayDateObj), [todayDateObj]);
   const localDateKey = useMemo(() => formatDateKey(todayDateObj), [todayDateObj]);
 
-  const todayExpenses = useMemo(() => {
-    return transactions
-      .filter((t) => {
-        const d = new Date(t.date);
-        const isToday =
-          d.getFullYear() === todayDateObj.getFullYear() &&
-          d.getMonth() === todayDateObj.getMonth() &&
-          d.getDate() === todayDateObj.getDate();
-        if (!isToday || t.type !== 'expense') return false;
+  const accountsById = useMemo(() => buildAccountsById(accounts), [accounts]);
 
-        // Isolate IDR transactions so USD accounts ($ amounts) aren't mixed with Rupiah
-        const acc = accounts.find((a) => a.id === t.accountId);
-        return acc ? acc.currency !== 'USD' : true;
-      })
-      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-  }, [transactions, accounts, todayDateObj]);
+  const todayExpenses = useMemo(
+    () => computeTodayExpensesIDR(transactions, accountsById, todayDateObj),
+    [transactions, accountsById, todayDateObj]
+  );
 
   const todayHabits = useMemo(() => {
     return habits.filter((h) => isHabitActiveForDate(h, todayDateObj));

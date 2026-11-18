@@ -1,18 +1,17 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
+  FlatList,
   Keyboard,
-  ScrollView,
   StatusBar,
   Text,
   TouchableOpacity,
   View,
-  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
 
 import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
+import { CardIconButton, HeaderActionButton } from '../components/Common/AppButtons';
 import AddCategoryModal from '../components/Habits/AddCategoryModal';
 import AddHabitModal from '../components/Habits/AddHabitModal';
 import { SharedCalendarModal } from '../components/Shared/CalendarModal';
@@ -28,16 +27,18 @@ import {
 } from '../services/habitNotificationService';
 import {
   HabitCategoryIconItem,
-  formatDateKey,
   isHabitActiveForDate,
   isHabitCompletedForDate,
 } from '../constants/habits';
+import { formatDateKey } from '../constants/date';
 import { TAB_BAR_HEIGHT } from '../constants/tabBar';
 import { COLORS } from '../constants/theme';
 import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 import { habitStyles as styles } from '../styles/habitStyles';
 import { FrequencyType, Habit, PriorityLevel, SubTask, TimeSlot } from '../types/habits';
 import { useHabitsStore } from '../stores';
+import { useActiveDate } from '../hooks/useDayRollover';
+import { generateId } from '../utils/id';
 
 export default function HabitTrackerScreen() {
   const habits = useHabitsStore((s) => s.habits);
@@ -48,15 +49,19 @@ export default function HabitTrackerScreen() {
   const setCategories = useHabitsStore((s) => s.setCategories);
   const customCategoryIcons = useHabitsStore((s) => s.categoryConfigs);
   const setCustomCategoryIcons = useHabitsStore((s) => s.setCategoryConfigs);
-  const [activeFilter, setActiveFilter] = useState<string>('All');
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [todayDate, setTodayDate] = useState<Date>(new Date());
 
+  const [activeFilter, setActiveFilter] = useState<string>('All');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [categoryInputVisible, setCategoryInputVisible] = useState(false);
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   const [soundSettingsVisible, setSoundSettingsVisible] = useState(false);
+
+  const loadData = useCallback(() => {
+    loadHabits();
+  }, [loadHabits]);
+
+  const { selectedDate, setSelectedDate, todayDate } = useActiveDate(loadData);
 
   useEffect(() => {
     initializeNotifications();
@@ -72,79 +77,17 @@ export default function HabitTrackerScreen() {
   const currentDateKey = formatDateKey(selectedDate);
   const isTodayActive = currentDateKey === todayDateKey;
 
-  // Filter habits active for selectedDate
   const currentDayHabits = habits.filter((h) => isHabitActiveForDate(h, selectedDate));
-
   const filteredHabits =
     activeFilter === 'All'
       ? currentDayHabits
       : currentDayHabits.filter((h) => h.category === activeFilter);
 
-  // Completed count for progress
   const completedCount = filteredHabits.filter((h) =>
     isHabitCompletedForDate(h, currentDateKey)
   ).length;
-
   const progressPercent =
     filteredHabits.length > 0 ? (completedCount / filteredHabits.length) * 100 : 0;
-
-  const loadData = useCallback(async () => {
-    await loadHabits();
-  }, [loadHabits]);
-
-  const lastTodayKeyRef = useRef(formatDateKey(new Date()));
-
-  const syncDateToTodayIfOnToday = useCallback(() => {
-    const now = new Date();
-    setTodayDate(now);
-    const newTodayKey = formatDateKey(now);
-    const oldTodayKey = lastTodayKeyRef.current;
-    lastTodayKeyRef.current = newTodayKey;
-
-    setSelectedDate((prevDate) => {
-      const prevKey = formatDateKey(prevDate);
-      if (prevKey === oldTodayKey) {
-        return now;
-      }
-      return prevDate;
-    });
-  }, []);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active') {
-        syncDateToTodayIfOnToday();
-        loadData();
-      }
-    });
-
-    let timer: ReturnType<typeof setTimeout>;
-    const scheduleNextMidnight = () => {
-      const now = new Date();
-      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
-      const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
-
-      timer = setTimeout(() => {
-        syncDateToTodayIfOnToday();
-        loadData();
-        scheduleNextMidnight();
-      }, msToMidnight);
-    };
-
-    scheduleNextMidnight();
-
-    return () => {
-      subscription.remove();
-      if (timer) clearTimeout(timer);
-    };
-  }, [syncDateToTodayIfOnToday, loadData]);
-
-  useFocusEffect(
-    useCallback(() => {
-      syncDateToTodayIfOnToday();
-      loadData();
-    }, [syncDateToTodayIfOnToday, loadData])
-  );
 
   const showAlert = (
     type: AppAlertConfig['type'],
@@ -216,10 +159,11 @@ export default function HabitTrackerScreen() {
     let updatedHabits: Habit[];
 
     if (habitData.id) {
-      // Edit existing habit
       const existing = habits.find((h) => h.id === habitData.id);
+      if (!existing) return;
+
       const targetHabit: Habit = {
-        ...existing!,
+        ...existing,
         title: habitData.title.trim(),
         category: habitData.category,
         description: habitData.description?.trim() || undefined,
@@ -234,16 +178,15 @@ export default function HabitTrackerScreen() {
 
       if (targetHabit.reminderTime) {
         targetHabit.notificationId = await scheduleHabitReminder(targetHabit);
-      } else if (existing?.notificationId) {
+      } else if (existing.notificationId) {
         await cancelHabitReminder(existing.notificationId);
         targetHabit.notificationId = undefined;
       }
 
       updatedHabits = habits.map((h) => (h.id === habitData.id ? targetHabit : h));
     } else {
-      // Create new habit
       const newHabit: Habit = {
-        id: new Date().getTime().toString(),
+        id: generateId('habit'),
         title: habitData.title.trim(),
         category: habitData.category,
         completed: false,
@@ -267,7 +210,6 @@ export default function HabitTrackerScreen() {
     }
 
     await setHabits(updatedHabits);
-
     Keyboard.dismiss();
     setModalVisible(false);
     setEditingHabit(null);
@@ -315,7 +257,7 @@ export default function HabitTrackerScreen() {
   const addCategory = async (newCategoryName: string, iconConfig?: HabitCategoryIconItem) => {
     const trimmed = newCategoryName.trim();
     if (!trimmed) return;
-    if (categories.includes(trimmed)) {
+    if (categories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
       showAlert(
         'warning',
         'Category Exists',
@@ -373,172 +315,148 @@ export default function HabitTrackerScreen() {
   return (
     <ErrorBoundary fallbackTitle="Habits Encountered an Issue">
       <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
+        <StatusBar barStyle="dark-content" />
 
-      {/* Header with Notification Settings and Add Button */}
-      <View style={styles.headerRow}>
-        <View style={{ flex: 1, marginRight: 12 }}>
-          <Text style={styles.headerTitleBold}>Daily Activities</Text>
-          <Text style={styles.headerSubtitleLight}>Build Consistency</Text>
-        </View>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={styles.headerTitleBold}>Daily Activities</Text>
+            <Text style={styles.headerSubtitleLight}>Build Consistency</Text>
+          </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: COLORS.bgCard,
-              borderWidth: 1,
-              borderColor: COLORS.border,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            onPress={() => setSoundSettingsVisible(true)}
-            activeOpacity={0.75}
-            accessibilityLabel="Notification Sound Settings"
-          >
-            <Ionicons name="notifications-outline" size={17} color={COLORS.textPrimary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.headerAddBtn}
-            onPress={handleOpenAdd}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={16} color="#08090C" />
-            <Text style={styles.headerAddBtnText}>Add</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 36 }}
-      >
-        {/* Date Navigator */}
-        <DateNavigator
-          selectedDate={selectedDate}
-          onPrevDay={handlePrevDay}
-          onNextDay={handleNextDay}
-          onOpenCalendar={() => setCalendarModalVisible(true)}
-        />
-
-        {/* Shortcut Back to Today */}
-        {!isTodayActive && (
-          <TouchableOpacity
-            style={styles.todayBanner}
-            onPress={handleGoToToday}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="return-up-back"
-              size={14}
-              color={COLORS.success}
-              style={{ marginRight: 6 }}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <CardIconButton
+              icon="notifications-outline"
+              iconColor={COLORS.textPrimary}
+              iconSize={17}
+              size={38}
+              rounded={true}
+              tone="surfaceCard"
+              onPress={() => setSoundSettingsVisible(true)}
+              accessibilityLabel="Notification Sound Settings"
             />
-            <Text style={styles.todayBannerText}>Tap to jump back to Today</Text>
-          </TouchableOpacity>
-        )}
 
-        {/* Category Filter */}
-        <CategoryFilter
-          categories={categories}
-          activeFilter={activeFilter}
-          onSelectFilter={setActiveFilter}
-        />
-
-        {/* Progress Card */}
-        <ProgressCard
-          completedCount={completedCount}
-          totalCount={filteredHabits.length}
-          progressPercent={progressPercent}
-        />
-
-        {/* Section List Header */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            DAILY TARGETS ({completedCount}/{filteredHabits.length})
-          </Text>
-          <Text style={styles.sectionHint}>Tap checkmark to complete</Text>
+            <HeaderActionButton
+              label="Add"
+              color={COLORS.success}
+              onPress={handleOpenAdd}
+              accessibilityLabel="Add Activity"
+            />
+          </View>
         </View>
 
-        {/* Habit Grid */}
-        {filteredHabits.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="leaf-outline" size={48} color={COLORS.borderLight} />
-            <Text style={styles.emptyText}>No habits scheduled for this date.</Text>
-            <Text style={styles.emptySubText}>Tap Add in the top right to start a habit.</Text>
-          </View>
-        ) : (
-          <View style={styles.habitGridWrap}>
-            {filteredHabits.map((item) => {
-              const isCompleted = isHabitCompletedForDate(item, currentDateKey);
-              return (
-                <HabitCard
-                  key={item.id}
-                  item={item}
-                  isCompleted={isCompleted}
-                  totalCompletedCount={getTotalCompletedCount(item.title)}
-                  onToggle={toggleHabitForDate}
-                  onDelete={deleteHabit}
-                  onEdit={handleOpenEdit}
-                  onToggleSubtask={toggleSubtask}
-                  onUpdateNotes={updateHabitNotes}
-                  customCategoryIcons={customCategoryIcons}
-                />
-              );
-            })}
-          </View>
-        )}
-      </ScrollView>
+        <FlatList
+          data={filteredHabits}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 36 }}
+          ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+          ListHeaderComponent={
+            <>
+              <DateNavigator
+                selectedDate={selectedDate}
+                onPrevDay={handlePrevDay}
+                onNextDay={handleNextDay}
+                onOpenCalendar={() => setCalendarModalVisible(true)}
+              />
 
-      {/* Calendar Modal */}
-      <SharedCalendarModal
-        visible={calendarModalVisible}
-        selectedDate={selectedDate}
-        themeColor={COLORS.habit}
-        title="Select Habit Date"
-        onClose={() => setCalendarModalVisible(false)}
-        onSelectDate={(d) => {
-          setSelectedDate(d);
-          setCalendarModalVisible(false);
-        }}
-      />
+              {!isTodayActive && (
+                <TouchableOpacity
+                  style={styles.todayBanner}
+                  onPress={handleGoToToday}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="return-up-back"
+                    size={14}
+                    color={COLORS.success}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={styles.todayBannerText}>Tap to jump back to Today</Text>
+                </TouchableOpacity>
+              )}
 
-      {/* Add / Edit Habit Modal */}
-      <AddHabitModal
-        visible={modalVisible}
-        selectedDate={selectedDate}
-        categories={categories}
-        customCategoryIcons={customCategoryIcons}
-        initialHabit={editingHabit}
-        onSave={saveHabit}
-        onClose={() => {
-          setModalVisible(false);
-          setEditingHabit(null);
-        }}
-        onOpenAddCategory={() => setCategoryInputVisible(true)}
-        onDeleteCategory={deleteCategory}
-      />
+              <CategoryFilter
+                categories={categories}
+                activeFilter={activeFilter}
+                onSelectFilter={setActiveFilter}
+              />
 
-      {/* Add Category Modal */}
-      <AddCategoryModal
-        visible={categoryInputVisible}
-        onSave={addCategory}
-        onClose={() => setCategoryInputVisible(false)}
-      />
+              <ProgressCard
+                completedCount={completedCount}
+                totalCount={filteredHabits.length}
+                progressPercent={progressPercent}
+              />
 
-      {/* Notification & Sound Settings Modal */}
-      <NotificationSoundModal
-        visible={soundSettingsVisible}
-        selectedSoundId="chime"
-        onSelectSound={() => {}}
-        onClose={() => setSoundSettingsVisible(false)}
-      />
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  DAILY TARGETS ({completedCount}/{filteredHabits.length})
+                </Text>
+                <Text style={styles.sectionHint}>Tap checkmark to complete</Text>
+              </View>
+            </>
+          }
+          renderItem={({ item }) => (
+            <HabitCard
+              item={item}
+              isCompleted={isHabitCompletedForDate(item, currentDateKey)}
+              totalCompletedCount={getTotalCompletedCount(item.title)}
+              onToggle={toggleHabitForDate}
+              onDelete={deleteHabit}
+              onEdit={handleOpenEdit}
+              onToggleSubtask={toggleSubtask}
+              onUpdateNotes={updateHabitNotes}
+              customCategoryIcons={customCategoryIcons}
+            />
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Ionicons name="leaf-outline" size={48} color={COLORS.borderLight} />
+              <Text style={styles.emptyText}>No habits scheduled for this date.</Text>
+              <Text style={styles.emptySubText}>Tap Add in the top right to start a habit.</Text>
+            </View>
+          }
+        />
 
-      <AppAlertModal config={alertConfig} onClose={closeAlert} />
-    </SafeAreaView>
-  </ErrorBoundary>
+        <SharedCalendarModal
+          visible={calendarModalVisible}
+          selectedDate={selectedDate}
+          themeColor={COLORS.habit}
+          title="Select Habit Date"
+          onClose={() => setCalendarModalVisible(false)}
+          onSelectDate={(d) => {
+            setSelectedDate(d);
+            setCalendarModalVisible(false);
+          }}
+        />
+
+        <AddHabitModal
+          visible={modalVisible}
+          selectedDate={selectedDate}
+          categories={categories}
+          customCategoryIcons={customCategoryIcons}
+          initialHabit={editingHabit}
+          onSave={saveHabit}
+          onClose={() => {
+            setModalVisible(false);
+            setEditingHabit(null);
+          }}
+          onOpenAddCategory={() => setCategoryInputVisible(true)}
+          onDeleteCategory={deleteCategory}
+        />
+
+        <AddCategoryModal
+          visible={categoryInputVisible}
+          onSave={addCategory}
+          onClose={() => setCategoryInputVisible(false)}
+        />
+
+        <NotificationSoundModal
+          visible={soundSettingsVisible}
+          onClose={() => setSoundSettingsVisible(false)}
+        />
+
+        <AppAlertModal config={alertConfig} onClose={closeAlert} />
+      </SafeAreaView>
+    </ErrorBoundary>
   );
 }

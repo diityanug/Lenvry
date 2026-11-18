@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Modal,
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   ScrollView,
   Keyboard,
 } from 'react-native';
@@ -13,7 +11,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { FoodCategory, FoodItem } from '../../types/nutrition';
 import { nutritionStyles as styles } from '../../styles/nutritionStyles';
 import { COLORS } from '../../constants/theme';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { BottomSheetModalHost, BottomSheetSurface } from '../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
+import { generateId } from '../../utils/id';
+import { parseNonNegativeDecimal, sanitizeDecimalInput } from '../../utils/math';
 
 interface CustomFoodModalProps {
   visible: boolean;
@@ -35,15 +36,9 @@ export const CustomFoodModal = ({
   ...props
 }: CustomFoodModalProps) => {
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={props.onClose}
-      statusBarTranslucent={true}
-    >
+    <BottomSheetModalHost visible={visible} onRequestClose={props.onClose}>
       {visible ? <CustomFoodContent {...props} /> : null}
-    </Modal>
+    </BottomSheetModalHost>
   );
 };
 
@@ -59,7 +54,8 @@ function CustomFoodContent({
   const [fat, setFat] = useState('');
   const [servingGrams, setServingGrams] = useState('100');
   const [servingText, setServingText] = useState('1 Serving');
-  const keyboardHeight = useKeyboardHeight();
+  const [nameError, setNameError] = useState('');
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(28);
 
   const handleDismiss = () => {
     Keyboard.dismiss();
@@ -68,17 +64,20 @@ function CustomFoodContent({
 
   const handleSave = () => {
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      setNameError('Please enter a food name.');
+      return;
+    }
 
     const newFood: FoodItem = {
-      id: `custom_${Date.now()}`,
+      id: generateId('custom'),
       name: trimmed,
       indonesianName: trimmed,
       category,
-      calories: Math.max(0, parseFloat(calories) || 0),
-      protein: Math.max(0, parseFloat(protein) || 0),
-      carbs: Math.max(0, parseFloat(carbs) || 0),
-      fat: Math.max(0, parseFloat(fat) || 0),
+      calories: parseNonNegativeDecimal(calories, 0),
+      protein: parseNonNegativeDecimal(protein, 0),
+      carbs: parseNonNegativeDecimal(carbs, 0),
+      fat: parseNonNegativeDecimal(fat, 0),
       defaultServingGrams: Math.max(1, parseInt(servingGrams, 10) || 100),
       defaultServingText: servingText.trim() || '1 Serving (100g)',
       isCustom: true,
@@ -86,6 +85,7 @@ function CustomFoodContent({
 
     onSaveCustomFood(newFood);
     setName('');
+    setNameError('');
     setCalories('');
     setProtein('');
     setCarbs('');
@@ -94,13 +94,14 @@ function CustomFoodContent({
   };
 
   return (
-    <View style={styles.modalOverlay}>
-      <TouchableWithoutFeedback onPress={handleDismiss}>
-        <View style={styles.dismissArea} />
-      </TouchableWithoutFeedback>
-
-      <View style={styles.modalContent}>
-        <View style={styles.modalHandle} />
+    <BottomSheetSurface
+      overlayStyle={styles.modalOverlay}
+      sheetStyle={styles.modalContent}
+      keyboardOverlap={keyboardOverlap}
+      onOverlayLayout={onOverlayLayout}
+      onBackdropPress={handleDismiss}
+    >
+      <View style={styles.modalHandle} />
 
           <View style={styles.modalHeaderRow}>
             <View>
@@ -112,22 +113,28 @@ function CustomFoodContent({
           </View>
 
           <ScrollView
-            keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets={true}
-            keyboardDismissMode="on-drag"
+            {...KEEP_KEYBOARD_SCROLL_PROPS}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
+            contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
           >
             {/* Food Name */}
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>FOOD NAME</Text>
               <TextInput
-                style={styles.formInput}
+                style={[styles.formInput, Boolean(nameError) && { borderColor: COLORS.danger }]}
                 placeholder="e.g. Betawi Nasi Uduk, Whey Isolate Gold..."
                 placeholderTextColor={COLORS.textMuted}
                 value={name}
-                onChangeText={setName}
+                onChangeText={(val) => {
+                  setName(val);
+                  if (nameError) setNameError('');
+                }}
               />
+              {Boolean(nameError) && (
+                <Text style={{ color: COLORS.danger, fontSize: 12, fontWeight: '600', marginTop: 6 }}>
+                  {nameError}
+                </Text>
+              )}
             </View>
 
             {/* Category Selector */}
@@ -161,7 +168,7 @@ function CustomFoodContent({
                 placeholderTextColor={COLORS.textMuted}
                 keyboardType="numeric"
                 value={calories}
-                onChangeText={setCalories}
+                onChangeText={(v) => setCalories(sanitizeDecimalInput(v))}
               />
             </View>
 
@@ -175,7 +182,7 @@ function CustomFoodContent({
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="numeric"
                   value={protein}
-                  onChangeText={setProtein}
+                  onChangeText={(v) => setProtein(sanitizeDecimalInput(v))}
                 />
               </View>
               <View style={[styles.formGroup, { flex: 1 }]}>
@@ -186,7 +193,7 @@ function CustomFoodContent({
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="numeric"
                   value={carbs}
-                  onChangeText={setCarbs}
+                  onChangeText={(v) => setCarbs(sanitizeDecimalInput(v))}
                 />
               </View>
               <View style={[styles.formGroup, { flex: 1 }]}>
@@ -197,7 +204,7 @@ function CustomFoodContent({
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="numeric"
                   value={fat}
-                  onChangeText={setFat}
+                  onChangeText={(v) => setFat(sanitizeDecimalInput(v))}
                 />
               </View>
             </View>
@@ -232,7 +239,6 @@ function CustomFoodContent({
               <Text style={styles.logSaveBtnText}>SAVE TO LIBRARY</Text>
             </TouchableOpacity>
           </ScrollView>
-        </View>
-      </View>
-    );
-  }
+    </BottomSheetSurface>
+  );
+}

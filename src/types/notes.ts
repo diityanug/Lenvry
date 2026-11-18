@@ -9,12 +9,12 @@ export interface NoteCategoryConfig {
 }
 
 export const NOTE_CATEGORIES: Record<NoteCategory, NoteCategoryConfig> = {
-  General: { id: 'General', label: 'General Note', icon: 'document-text-outline', color: '#F59E0B' },
-  Personal: { id: 'Personal', label: 'Personal', icon: 'shield-checkmark-outline', color: '#EC4899', isSensitive: true },
-  Finance: { id: 'Finance', label: 'Finance', icon: 'wallet-outline', color: '#10B981', isSensitive: true },
-  Work: { id: 'Work', label: 'Work', icon: 'briefcase-outline', color: '#38BDF8' },
-  Ideas: { id: 'Ideas', label: 'Ideas', icon: 'bulb-outline', color: '#A855F7' },
-  Lists: { id: 'Lists', label: 'Lists', icon: 'list-outline', color: '#F97316' },
+  General: { id: 'General', label: 'General Note', icon: 'document-text-outline', color: '#B45309' },
+  Personal: { id: 'Personal', label: 'Personal', icon: 'shield-checkmark-outline', color: '#C93B3B', isSensitive: true },
+  Finance: { id: 'Finance', label: 'Finance', icon: 'wallet-outline', color: '#16794B', isSensitive: true },
+  Work: { id: 'Work', label: 'Work', icon: 'briefcase-outline', color: '#2563EB' },
+  Ideas: { id: 'Ideas', label: 'Ideas', icon: 'bulb-outline', color: '#B85D43' },
+  Lists: { id: 'Lists', label: 'Lists', icon: 'list-outline', color: '#0D8A7E' },
 };
 
 export type StickyNoteColor = 'amber' | 'blue' | 'emerald' | 'rose' | 'purple';
@@ -55,38 +55,38 @@ export const STICKY_COLORS: Record<
   }
 > = {
   amber: {
-    bg: 'rgba(245, 158, 11, 0.09)',
-    border: 'rgba(245, 158, 11, 0.35)',
-    accent: '#F59E0B',
-    headerBg: 'rgba(245, 158, 11, 0.20)',
-    label: 'Yellow',
+    bg: '#FEF7EC',
+    border: 'rgba(180, 83, 9, 0.25)',
+    accent: '#B45309',
+    headerBg: '#FBEBD2',
+    label: 'Ochre',
   },
   blue: {
-    bg: 'rgba(56, 189, 248, 0.09)',
-    border: 'rgba(56, 189, 248, 0.35)',
-    accent: '#38BDF8',
-    headerBg: 'rgba(56, 189, 248, 0.20)',
-    label: 'Blue',
+    bg: '#EFF5FF',
+    border: 'rgba(37, 99, 235, 0.24)',
+    accent: '#2563EB',
+    headerBg: '#DFEBFB',
+    label: 'Steel',
   },
   emerald: {
-    bg: 'rgba(16, 185, 129, 0.09)',
-    border: 'rgba(16, 185, 129, 0.35)',
-    accent: '#10B981',
-    headerBg: 'rgba(16, 185, 129, 0.20)',
-    label: 'Green',
+    bg: '#EEF7F1',
+    border: 'rgba(22, 121, 75, 0.24)',
+    accent: '#16794B',
+    headerBg: '#DCEFE3',
+    label: 'Sage',
   },
   rose: {
-    bg: 'rgba(244, 63, 94, 0.09)',
-    border: 'rgba(244, 63, 94, 0.35)',
-    accent: '#F43F5E',
-    headerBg: 'rgba(244, 63, 94, 0.20)',
-    label: 'Pink',
+    bg: '#FDF0F0',
+    border: 'rgba(201, 59, 59, 0.24)',
+    accent: '#C93B3B',
+    headerBg: '#FADCDC',
+    label: 'Clay',
   },
   purple: {
-    bg: 'rgba(168, 85, 247, 0.09)',
-    border: 'rgba(168, 85, 247, 0.35)',
-    accent: '#A855F7',
-    headerBg: 'rgba(168, 85, 247, 0.20)',
-    label: 'Purple',
+    bg: '#FFF4EF',
+    border: 'rgba(184, 93, 67, 0.26)',
+    accent: '#B85D43',
+    headerBg: '#FCE6DC',
+    label: 'Terracotta',
   },
 };

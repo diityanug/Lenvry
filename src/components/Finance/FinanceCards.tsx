@@ -35,6 +35,10 @@ export const getCategoryIconInfo = (
         ? 'briefcase-outline'
         : category === 'Investments' || category === 'Investment'
         ? 'trending-up-outline'
+        : category === 'Debt & Loan'
+        ? 'swap-vertical-outline'
+        : category === 'Adjustment'
+        ? 'options-outline'
         : category === 'Bonus' || category === 'Gift'
         ? 'gift-outline'
         : 'arrow-down';
@@ -65,6 +69,8 @@ export const getCategoryIconInfo = (
     'Home Services': 'hammer-outline',
     Furnisings: 'bed-outline',
     Social: 'people-outline',
+    'Debt & Loan': 'swap-vertical-outline',
+    Adjustment: 'options-outline',
     Others: 'ellipsis-horizontal',
   };
 
@@ -106,258 +112,30 @@ interface CalmTxTheme {
   pillBorder: string;
 }
 
-const CATEGORY_CALM_THEMES: Record<string, CalmTxTheme> = {
-  // Food & Beverages - Calm Warm Amber
-  'Food & Beverages': {
-    accent: '#FBBF24',
-    cardBg: '#141622',
-    borderColor: 'rgba(251, 191, 36, 0.20)',
-    pillBg: 'rgba(251, 191, 36, 0.12)',
-    pillBorder: 'rgba(251, 191, 36, 0.28)',
-  },
-  Snacks: {
-    accent: '#FB923C',
-    cardBg: '#141622',
-    borderColor: 'rgba(251, 146, 60, 0.20)',
-    pillBg: 'rgba(251, 146, 60, 0.12)',
-    pillBorder: 'rgba(251, 146, 60, 0.28)',
-  },
-  // Transportation - Calm Mustard Gold
-  Transportation: {
-    accent: '#FACC15',
-    cardBg: '#141622',
-    borderColor: 'rgba(250, 204, 21, 0.18)',
-    pillBg: 'rgba(250, 204, 21, 0.12)',
-    pillBorder: 'rgba(250, 204, 21, 0.25)',
-  },
-  Fuel: {
-    accent: '#FB923C',
-    cardBg: '#141622',
-    borderColor: 'rgba(251, 146, 60, 0.18)',
-    pillBg: 'rgba(251, 146, 60, 0.12)',
-    pillBorder: 'rgba(251, 146, 60, 0.25)',
-  },
-  'Vehicle Services': {
-    accent: '#F97316',
-    cardBg: '#141622',
-    borderColor: 'rgba(249, 115, 22, 0.18)',
-    pillBg: 'rgba(249, 115, 22, 0.12)',
-    pillBorder: 'rgba(249, 115, 22, 0.25)',
-  },
-  Parking: {
-    accent: '#94A3B8',
-    cardBg: '#13151F',
-    borderColor: 'rgba(148, 163, 184, 0.18)',
-    pillBg: 'rgba(148, 163, 184, 0.10)',
-    pillBorder: 'rgba(148, 163, 184, 0.22)',
-  },
-  // Shopping & Lifestyle - Calm Dusty Rose
-  Shopping: {
-    accent: '#FB7185',
-    cardBg: '#141522',
-    borderColor: 'rgba(251, 113, 133, 0.20)',
-    pillBg: 'rgba(251, 113, 133, 0.12)',
-    pillBorder: 'rgba(251, 113, 133, 0.28)',
-  },
-  Personal: {
-    accent: '#F472B6',
-    cardBg: '#141522',
-    borderColor: 'rgba(244, 114, 182, 0.20)',
-    pillBg: 'rgba(244, 114, 182, 0.12)',
-    pillBorder: 'rgba(244, 114, 182, 0.26)',
-  },
-  Social: {
-    accent: '#FDA4AF',
-    cardBg: '#141522',
-    borderColor: 'rgba(253, 164, 175, 0.18)',
-    pillBg: 'rgba(253, 164, 175, 0.12)',
-    pillBorder: 'rgba(253, 164, 175, 0.26)',
-  },
-  // Bills & Utilities - Soft Lavender
-  'Bills & Utilities': {
-    accent: '#A78BFA',
-    cardBg: '#141424',
-    borderColor: 'rgba(167, 139, 250, 0.20)',
-    pillBg: 'rgba(167, 139, 250, 0.12)',
-    pillBorder: 'rgba(167, 139, 250, 0.28)',
-  },
-  'Housing / Rent': {
-    accent: '#C084FC',
-    cardBg: '#141424',
-    borderColor: 'rgba(192, 132, 252, 0.20)',
-    pillBg: 'rgba(192, 132, 252, 0.12)',
-    pillBorder: 'rgba(192, 132, 252, 0.28)',
-  },
-  'Internet & Phone': {
-    accent: '#38BDF8',
-    cardBg: '#121624',
-    borderColor: 'rgba(56, 189, 248, 0.20)',
-    pillBg: 'rgba(56, 189, 248, 0.12)',
-    pillBorder: 'rgba(56, 189, 248, 0.28)',
-  },
-  'Cloud & Storage': {
-    accent: '#818CF8',
-    cardBg: '#131524',
-    borderColor: 'rgba(129, 140, 248, 0.20)',
-    pillBg: 'rgba(129, 140, 248, 0.12)',
-    pillBorder: 'rgba(129, 140, 248, 0.28)',
-  },
-  Subscriptions: {
-    accent: '#A855F7',
-    cardBg: '#141424',
-    borderColor: 'rgba(168, 85, 247, 0.20)',
-    pillBg: 'rgba(168, 85, 247, 0.12)',
-    pillBorder: 'rgba(168, 85, 247, 0.28)',
-  },
-  // Entertainment - Calm Cyan
-  Entertainment: {
-    accent: '#22D3EE',
-    cardBg: '#121623',
-    borderColor: 'rgba(34, 211, 238, 0.20)',
-    pillBg: 'rgba(34, 211, 238, 0.12)',
-    pillBorder: 'rgba(34, 211, 238, 0.28)',
-  },
-  // Health & Gym - Mint & Coral
-  'Fitness & Gym': {
-    accent: '#34D399',
-    cardBg: '#121720',
-    borderColor: 'rgba(52, 211, 153, 0.20)',
-    pillBg: 'rgba(52, 211, 153, 0.12)',
-    pillBorder: 'rgba(52, 211, 153, 0.28)',
-  },
-  'Health & Medical': {
-    accent: '#FB7185',
-    cardBg: '#141522',
-    borderColor: 'rgba(251, 113, 133, 0.20)',
-    pillBg: 'rgba(251, 113, 133, 0.12)',
-    pillBorder: 'rgba(251, 113, 133, 0.28)',
-  },
-  Insurance: {
-    accent: '#2DD4BF',
-    cardBg: '#121722',
-    borderColor: 'rgba(45, 212, 191, 0.20)',
-    pillBg: 'rgba(45, 212, 191, 0.12)',
-    pillBorder: 'rgba(45, 212, 191, 0.28)',
-  },
-  // Education & Travel - Blue & Cyan
-  Education: {
-    accent: '#60A5FA',
-    cardBg: '#121624',
-    borderColor: 'rgba(96, 165, 250, 0.20)',
-    pillBg: 'rgba(96, 165, 250, 0.12)',
-    pillBorder: 'rgba(96, 165, 250, 0.28)',
-  },
-  Travel: {
-    accent: '#38BDF8',
-    cardBg: '#121624',
-    borderColor: 'rgba(56, 189, 248, 0.20)',
-    pillBg: 'rgba(56, 189, 248, 0.12)',
-    pillBorder: 'rgba(56, 189, 248, 0.28)',
-  },
-  // Income categories - Soothing Sage Mint
-  Salary: {
-    accent: '#34D399',
-    cardBg: '#121720',
-    borderColor: 'rgba(52, 211, 153, 0.22)',
-    pillBg: 'rgba(52, 211, 153, 0.12)',
-    pillBorder: 'rgba(52, 211, 153, 0.28)',
-  },
-  Allowance: {
-    accent: '#10B981',
-    cardBg: '#121720',
-    borderColor: 'rgba(16, 185, 129, 0.22)',
-    pillBg: 'rgba(16, 185, 129, 0.12)',
-    pillBorder: 'rgba(16, 185, 129, 0.28)',
-  },
-  Bonus: {
-    accent: '#FACC15',
-    cardBg: '#141620',
-    borderColor: 'rgba(250, 204, 21, 0.22)',
-    pillBg: 'rgba(250, 204, 21, 0.12)',
-    pillBorder: 'rgba(250, 204, 21, 0.28)',
-  },
-  Investments: {
-    accent: '#34D399',
-    cardBg: '#121720',
-    borderColor: 'rgba(52, 211, 153, 0.22)',
-    pillBg: 'rgba(52, 211, 153, 0.12)',
-    pillBorder: 'rgba(52, 211, 153, 0.28)',
-  },
-  Investment: {
-    accent: '#34D399',
-    cardBg: '#121720',
-    borderColor: 'rgba(52, 211, 153, 0.22)',
-    pillBg: 'rgba(52, 211, 153, 0.12)',
-    pillBorder: 'rgba(52, 211, 153, 0.28)',
-  },
-  Gift: {
-    accent: '#F472B6',
-    cardBg: '#141522',
-    borderColor: 'rgba(244, 114, 182, 0.20)',
-    pillBg: 'rgba(244, 114, 182, 0.12)',
-    pillBorder: 'rgba(244, 114, 182, 0.28)',
-  },
-  Interest: {
-    accent: '#2DD4BF',
-    cardBg: '#121722',
-    borderColor: 'rgba(45, 212, 191, 0.20)',
-    pillBg: 'rgba(45, 212, 191, 0.12)',
-    pillBorder: 'rgba(45, 212, 191, 0.28)',
-  },
-  // Transfers - Calm Periwinkle
-  Transfer: {
-    accent: '#818CF8',
-    cardBg: '#131524',
-    borderColor: 'rgba(129, 140, 248, 0.22)',
-    pillBg: 'rgba(129, 140, 248, 0.12)',
-    pillBorder: 'rgba(129, 140, 248, 0.28)',
-  },
-};
-
-const DEFAULT_CALM_FALLBACKS: Record<'expense' | 'income' | 'transfer', CalmTxTheme> = {
-  expense: {
-    accent: '#FB7185',
-    cardBg: '#141522',
-    borderColor: 'rgba(251, 113, 133, 0.20)',
-    pillBg: 'rgba(251, 113, 133, 0.12)',
-    pillBorder: 'rgba(251, 113, 133, 0.28)',
-  },
-  income: {
-    accent: '#34D399',
-    cardBg: '#121720',
-    borderColor: 'rgba(52, 211, 153, 0.22)',
-    pillBg: 'rgba(52, 211, 153, 0.12)',
-    pillBorder: 'rgba(52, 211, 153, 0.28)',
-  },
-  transfer: {
-    accent: '#818CF8',
-    cardBg: '#131524',
-    borderColor: 'rgba(129, 140, 248, 0.22)',
-    pillBg: 'rgba(129, 140, 248, 0.12)',
-    pillBorder: 'rgba(129, 140, 248, 0.28)',
-  },
-};
-
 function getCalmTxTheme(
   category: string,
   type: 'income' | 'expense' | 'transfer',
   customCategoryIcons?: CategoryCustomIcon[]
 ): CalmTxTheme {
-  if (type === 'transfer') return CATEGORY_CALM_THEMES.Transfer;
-  const custom = customCategoryIcons?.find(
-    (c) => c.category.toLowerCase() === category.toLowerCase()
-  );
-  if (custom?.color) {
+  if (type === 'transfer') {
+    const t = TX_TYPE_THEME.transfer;
     return {
-      accent: custom.color,
-      cardBg: '#141522',
-      borderColor: `${custom.color}33`,
-      pillBg: `${custom.color}1F`,
-      pillBorder: `${custom.color}47`,
+      accent: t.color,
+      cardBg: COLORS.bgCard,
+      borderColor: t.border,
+      pillBg: t.bg,
+      pillBorder: t.border,
     };
   }
-  if (CATEGORY_CALM_THEMES[category]) return CATEGORY_CALM_THEMES[category];
-  return DEFAULT_CALM_FALLBACKS[type];
+
+  const theme = getCategoryTheme(category, customCategoryIcons);
+  return {
+    accent: theme.color,
+    cardBg: COLORS.bgCard,
+    borderColor: theme.border,
+    pillBg: theme.bg,
+    pillBorder: theme.border,
+  };
 }
 
 // TRANSACTION CARD
@@ -402,10 +180,10 @@ export const TransactionCard = ({
 
   const amountColor =
     item.type === 'income'
-      ? '#34D399'
+      ? TX_TYPE_THEME.income.color
       : isTransfer
-      ? '#818CF8'
-      : '#FB7185';
+      ? TX_TYPE_THEME.transfer.color
+      : TX_TYPE_THEME.expense.color;
 
   const handleCardPress = () => {
     if (onPress) {
@@ -447,10 +225,10 @@ export const TransactionCard = ({
           <View style={styles.txAmountWrap}>
             {isCrossCurrencyTransfer && toAccount ? (
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={[styles.txAmountText, { color: '#FB7185' }]}>
+                <Text style={[styles.txAmountText, { color: COLORS.danger }]}>
                   - {formatMoney(item.amount, accCurrency)}
                 </Text>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#38BDF8' }}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: COLORS.finance }}>
                   + {formatMoney(item.toAmount!, toAccount.currency)}
                 </Text>
               </View>
@@ -549,6 +327,10 @@ export const AddAccountCard = ({ onPress }: { onPress: () => void }) => (
 interface HeroSummaryProps {
   totalIDR: number;
   totalUSD: number;
+  netWorthInclDebtsIDR?: number;
+  netWorthInclDebtsUSD?: number;
+  hasActiveDebtsIDR?: boolean;
+  hasActiveDebtsUSD?: boolean;
   month: Date;
   onPrevMonth: () => void;
   onNextMonth: () => void;
@@ -565,6 +347,10 @@ interface HeroSummaryProps {
 export const HeroSummaryCard = ({
   totalIDR,
   totalUSD,
+  netWorthInclDebtsIDR,
+  netWorthInclDebtsUSD,
+  hasActiveDebtsIDR = false,
+  hasActiveDebtsUSD = false,
   month,
   onPrevMonth,
   onNextMonth,
@@ -592,6 +378,9 @@ export const HeroSummaryCard = ({
 
   const isIDR = selectedCurrency === 'IDR';
   const currentTotal = isIDR ? totalIDR : totalUSD;
+  const currentNetWorthInclDebts = isIDR ? netWorthInclDebtsIDR : netWorthInclDebtsUSD;
+  const currentHasDebts = isIDR ? hasActiveDebtsIDR : hasActiveDebtsUSD;
+  const hasDebtSubSlot = hasActiveDebtsIDR || hasActiveDebtsUSD;
   const currentIncome = isIDR ? incIDR : incUSD;
   const currentExpense = isIDR ? expIDR : expUSD;
   const currentNet = currentIncome - currentExpense;
@@ -610,7 +399,7 @@ export const HeroSummaryCard = ({
         {/* Top Header Row: Contactless icon & Currency Toggle */}
         <View style={styles.heroTopRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="radio-outline" size={18} color="rgba(255, 255, 255, 0.9)" />
+            <Ionicons name="radio-outline" size={18} color={COLORS.textSecondary} />
           </View>
 
           <View style={styles.currencyToggle}>
@@ -644,23 +433,36 @@ export const HeroSummaryCard = ({
               <Ionicons
                 name={isNetWorthHidden ? 'eye-off-outline' : 'eye-outline'}
                 size={15}
-                color="rgba(255, 255, 255, 0.75)"
+                color={COLORS.textSecondary}
               />
             </TouchableOpacity>
           </View>
 
-          <Text
-            style={[styles.balanceAmount, isIDR ? styles.balanceAmountIDR : styles.balanceAmountUSD]}
-            numberOfLines={1}
-            adjustsFontSizeToFit={true}
-            minimumFontScale={0.7}
-          >
-            {isNetWorthHidden
-              ? isIDR
-                ? 'Rp ••••••••'
-                : '$ ••••••••'
-              : formatMoney(currentTotal, selectedCurrency)}
-          </Text>
+          <View style={styles.balanceAmountWrap}>
+            <Text
+              style={[styles.balanceAmount, isIDR ? styles.balanceAmountIDR : styles.balanceAmountUSD]}
+              numberOfLines={1}
+              adjustsFontSizeToFit={true}
+              minimumFontScale={0.7}
+            >
+              {isNetWorthHidden
+                ? isIDR
+                  ? 'Rp ••••••••'
+                  : '$ ••••••••'
+                : formatMoney(currentTotal, selectedCurrency)}
+            </Text>
+          </View>
+          {hasDebtSubSlot && (
+            <View style={styles.balanceSubSlot}>
+              {!isNetWorthHidden &&
+                currentHasDebts &&
+                currentNetWorthInclDebts !== undefined && (
+                  <Text style={styles.balanceSubText} numberOfLines={1}>
+                    Incl. Receivables/Debts: {formatMoney(currentNetWorthInclDebts, selectedCurrency)}
+                  </Text>
+                )}
+            </View>
+          )}
         </View>
 
         {/* Bottom Row: Cardholder Name & Mastercard/Debit style logo */}
@@ -675,10 +477,10 @@ export const HeroSummaryCard = ({
             </Text>
           </View>
 
-          {/* Dual overlapping circles logo (Debit style) */}
+          {/* Warm mineral overlapping card emblem */}
           <View style={styles.dualCircleLogo}>
-            <View style={[styles.dualCircle, { backgroundColor: 'rgba(255, 255, 255, 0.75)' }]} />
-            <View style={[styles.dualCircle, { backgroundColor: 'rgba(255, 255, 255, 0.45)', marginLeft: -10 }]} />
+            <View style={[styles.dualCircle, { backgroundColor: 'rgba(204, 120, 92, 0.78)' }]} />
+            <View style={[styles.dualCircle, { backgroundColor: 'rgba(217, 163, 94, 0.65)', marginLeft: -10 }]} />
           </View>
         </View>
       </View>
@@ -731,14 +533,16 @@ export const HeroSummaryCard = ({
               </View>
               <Text style={styles.cashflowLabel} numberOfLines={1}>Income ({selectedCurrency})</Text>
             </View>
-            <Text
-              style={[styles.cashflowValue, { color: COLORS.success }]}
-              numberOfLines={1}
-              adjustsFontSizeToFit={true}
-              minimumFontScale={0.75}
-            >
-              +{formatMoney(currentIncome, selectedCurrency)}
-            </Text>
+            <View style={styles.cashflowValueWrap}>
+              <Text
+                style={[styles.cashflowValue, { color: COLORS.success }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.75}
+              >
+                +{formatMoney(currentIncome, selectedCurrency)}
+              </Text>
+            </View>
           </View>
 
           {/* Expense Card */}
@@ -749,14 +553,16 @@ export const HeroSummaryCard = ({
               </View>
               <Text style={styles.cashflowLabel} numberOfLines={1}>Expense ({selectedCurrency})</Text>
             </View>
-            <Text
-              style={[styles.cashflowValue, { color: COLORS.danger }]}
-              numberOfLines={1}
-              adjustsFontSizeToFit={true}
-              minimumFontScale={0.75}
-            >
-              -{formatMoney(currentExpense, selectedCurrency)}
-            </Text>
+            <View style={styles.cashflowValueWrap}>
+              <Text
+                style={[styles.cashflowValue, { color: COLORS.danger }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.75}
+              >
+                -{formatMoney(currentExpense, selectedCurrency)}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -764,18 +570,20 @@ export const HeroSummaryCard = ({
         <View style={styles.netFlowCard}>
           <View style={styles.netFlowLeft}>
             <Text style={styles.netFlowLabel} numberOfLines={1}>Net Cash Flow ({selectedCurrency})</Text>
-            <Text
-              style={[
-                styles.netFlowValue,
-                { color: currentNet >= 0 ? COLORS.success : COLORS.danger },
-              ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit={true}
-              minimumFontScale={0.75}
-            >
-              {currentNet >= 0 ? '+' : '-'}
-              {formatMoney(Math.abs(currentNet), selectedCurrency)}
-            </Text>
+            <View style={styles.netFlowValueWrap}>
+              <Text
+                style={[
+                  styles.netFlowValue,
+                  { color: currentNet >= 0 ? COLORS.success : COLORS.danger },
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.75}
+              >
+                {currentNet >= 0 ? '+' : '-'}
+                {formatMoney(Math.abs(currentNet), selectedCurrency)}
+              </Text>
+            </View>
           </View>
 
           <View
@@ -783,7 +591,7 @@ export const HeroSummaryCard = ({
               styles.netFlowBadge,
               {
                 backgroundColor: currentNet >= 0 ? COLORS.successLight : COLORS.dangerLight,
-                borderColor: currentNet >= 0 ? 'rgba(52, 211, 153, 0.3)' : 'rgba(248, 113, 113, 0.3)',
+                borderColor: currentNet >= 0 ? 'rgba(110, 180, 126, 0.28)' : 'rgba(201, 91, 91, 0.28)',
               },
             ]}
           >

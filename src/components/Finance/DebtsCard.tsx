@@ -12,7 +12,8 @@ import {
   formatMoney,
 } from '../../types/finance';
 import AppAlertModal, { AppAlertConfig } from '../Common/AppAlertModal';
-import { AddDebtModal } from './debts/AddDebtModal';
+import { CardIconButton, SectionAddButton } from '../Common/AppButtons';
+import { AddDebtCashRecord, AddDebtModal } from './debts/AddDebtModal';
 import { SettleDebtModal } from './debts/SettleDebtModal';
 import {
   debtsStyles as styles,
@@ -25,7 +26,10 @@ interface DebtsCardProps {
   debts: DebtItem[];
   accounts: Account[];
   currency: 'IDR' | 'USD';
-  onAddDebt: (debt: Omit<DebtItem, 'id' | 'createdAt' | 'paidAmount' | 'remainingAmount' | 'status'>) => void;
+  onAddDebt: (
+    debt: Omit<DebtItem, 'id' | 'createdAt' | 'paidAmount' | 'remainingAmount' | 'status'>,
+    cashRecord?: AddDebtCashRecord
+  ) => void;
   onDeleteDebt: (id: string) => void;
   onSettlePayment: (params: {
     debtId: string;
@@ -176,16 +180,14 @@ export function DebtsCard({
       </View>
 
       {/* DEDICATED ADD ENTRY ACTION BAR */}
-      <TouchableOpacity
-        style={styles.btnAddEntryBar}
+      <SectionAddButton
+        label={activeTab === 'receivable' ? 'Record New Receivable' : 'Record New Debt'}
         onPress={() => setIsAddModalVisible(true)}
-        activeOpacity={0.75}
-      >
-        <Ionicons name="add-circle" size={18} color={ACCENT} />
-        <Text style={styles.btnAddEntryText}>
-          {activeTab === 'receivable' ? 'Record New Receivable' : 'Record New Debt'}
-        </Text>
-      </TouchableOpacity>
+        color={ACCENT}
+        borderColor="rgba(37, 99, 235, 0.35)"
+        surface="sub"
+        style={{ marginBottom: 16 }}
+      />
 
       {/* SEGMENTED TAB SWITCHER */}
       <View style={styles.tabBar}>
@@ -202,8 +204,9 @@ export function DebtsCard({
           <Text
             style={[
               styles.tabText,
-              activeTab === 'receivable' && { color: '#FFFFFF', fontWeight: '800' },
+              activeTab === 'receivable' && { color: RECEIVABLE_COLOR, fontWeight: '700' },
             ]}
+            numberOfLines={1}
           >
             Receivables ({activeReceivables.length})
           </Text>
@@ -222,8 +225,9 @@ export function DebtsCard({
           <Text
             style={[
               styles.tabText,
-              activeTab === 'debt' && { color: '#FFFFFF', fontWeight: '800' },
+              activeTab === 'debt' && { color: DEBT_COLOR, fontWeight: '700' },
             ]}
+            numberOfLines={1}
           >
             Debts ({activePayables.length})
           </Text>
@@ -237,7 +241,12 @@ export function DebtsCard({
           onPress={() => setStatusFilter('active')}
           activeOpacity={0.7}
         >
-          <Text style={[styles.statusPillText, statusFilter === 'active' && styles.statusPillTextActive]}>
+          <Text
+            style={[styles.statusPillText, statusFilter === 'active' && styles.statusPillTextActive]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+          >
             Active Balances
           </Text>
         </TouchableOpacity>
@@ -247,13 +256,19 @@ export function DebtsCard({
           onPress={() => setStatusFilter('settled')}
           activeOpacity={0.7}
         >
-          <Text style={[styles.statusPillText, statusFilter === 'settled' && styles.statusPillTextActive]}>
+          <Text
+            style={[styles.statusPillText, statusFilter === 'settled' && styles.statusPillTextActive]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+          >
             Settled History
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* ITEMS LIST */}
+      <View style={styles.listViewport}>
       {currentTabItems.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons
@@ -313,7 +328,10 @@ export function DebtsCard({
                     </View>
                   </View>
 
-                  <TouchableOpacity
+                  <CardIconButton
+                    icon="trash-outline"
+                    iconSize={16}
+                    tone="surfaceCard"
                     onPress={() => {
                       showAlert(
                         'danger',
@@ -324,12 +342,8 @@ export function DebtsCard({
                         () => onDeleteDebt(item.id)
                       );
                     }}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    style={styles.btnDelete}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="trash-outline" size={16} color={COLORS.textMuted} />
-                  </TouchableOpacity>
+                    accessibilityLabel="Delete debt record"
+                  />
                 </View>
 
                 {/* Layer 2: Financial Balance Box */}
@@ -384,6 +398,26 @@ export function DebtsCard({
                   </View>
                 </View>
 
+                {/* Layer 3.5: Due Date (if set) */}
+                {Boolean(item.dueDate) && (() => {
+                  const due = new Date(item.dueDate!);
+                  const nowDate = new Date();
+                  const isOverdue = item.status === 'active' && due.getTime() < nowDate.setHours(0, 0, 0, 0);
+                  const dueLabel = due.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+                  return (
+                    <View style={styles.notesBox}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={14}
+                        color={isOverdue ? DEBT_COLOR : COLORS.textMuted}
+                      />
+                      <Text style={[styles.notesText, isOverdue && { color: DEBT_COLOR, fontWeight: '700' }]}>
+                        {isOverdue ? `Overdue • Due ${dueLabel}` : `Due ${dueLabel}`}
+                      </Text>
+                    </View>
+                  );
+                })()}
+
                 {/* Layer 4: Notes (if any) */}
                 {Boolean(item.notes) && (
                   <View style={styles.notesBox}>
@@ -431,6 +465,7 @@ export function DebtsCard({
           })}
         </View>
       )}
+      </View>
 
       {/* SETTLE / RECORD PAYMENT MODAL */}
       <SettleDebtModal
@@ -447,6 +482,7 @@ export function DebtsCard({
       {/* ADD NEW DEBT / RECEIVABLE MODAL */}
       <AddDebtModal
         visible={isAddModalVisible}
+        accounts={accounts}
         currency={currency}
         defaultType={activeTab}
         onClose={() => setIsAddModalVisible(false)}

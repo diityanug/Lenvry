@@ -1,16 +1,31 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StatusBar, ScrollView, AppState } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StatusBar, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 
-import { Account, Transaction, CategoryBudget, CategoryCustomIcon, DebtItem, RecurringBill, DEFAULT_EXPENSE_CATEGORIES, MONTHS } from '../types/finance';
-import { TransactionCard, AccountCard, AddAccountCard, HeroSummaryCard } from '../components/Finance/FinanceCards';
+import {
+  Account,
+  Transaction,
+  CategoryBudget,
+  DebtItem,
+  RecurringBill,
+  DEFAULT_EXPENSE_CATEGORIES,
+  MONTHS,
+} from '../types/finance';
+import {
+  TransactionCard,
+  AccountCard,
+  AddAccountCard,
+  HeroSummaryCard,
+} from '../components/Finance/FinanceCards';
 import { TransactionModal } from '../components/Finance/TransactionModal';
 import { TransactionDetailModal } from '../components/Finance/TransactionDetailModal';
 import { AccountDetailModal } from '../components/Finance/AccountDetailModal';
 import { HistoryModal } from '../components/Finance/HistoryModal';
 import { AddAccountModal } from '../components/Finance/AddAccountModal';
 import { SharedCalendarModal } from '../components/Shared/CalendarModal';
+import { HeaderActionButton } from '../components/Common/AppButtons';
 import { EditBalanceModal, RenameModal, AddCategoryModal } from '../components/Finance/DialogModals';
 import { CashflowTrendCard } from '../components/Finance/CashflowTrendCard';
 import { CategoryBreakdownCard } from '../components/Finance/CategoryBreakdownCard';
@@ -24,11 +39,17 @@ import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 import { TAB_BAR_HEIGHT } from '../constants/tabBar';
 import { financeStyles as styles } from '../styles/financeStyles';
 import { COLORS } from '../constants/theme';
-
-import { useFocusEffect } from 'expo-router';
 import { useFinanceStore } from '../stores';
+import { useDayRollover } from '../hooks/useDayRollover';
+import { useFinanceMetrics } from '../hooks/useFinanceMetrics';
+import {
+  reconcileTransactionsOnAccountDelete,
+  resolveFormSubAccountIds,
+} from '../utils/financeCalculations';
+import { AddDebtCashRecord } from '../components/Finance/debts/AddDebtModal';
 import { hapticSuccess } from '../utils/haptics';
-import { evaluateArithmetic } from '../utils/math';
+import { evaluateArithmetic, roundCurrencyAmount } from '../utils/math';
+import { generateId } from '../utils/id';
 
 export default function FinanceTracker() {
   const transactions = useFinanceStore((s) => s.transactions);
@@ -69,10 +90,11 @@ export default function FinanceTracker() {
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [manageAccModalVisible, setManageAccModalVisible] = useState(false);
   const [manageCatModalVisible, setManageCatModalVisible] = useState(false);
+  const [budgetModalVisible, setBudgetModalVisible] = useState(false);
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
   const [isPayingBill, setIsPayingBill] = useState(false);
+  const [payingBillId, setPayingBillId] = useState<string | null>(null);
 
-  // Custom Alert State
   const [alertConfig, setAlertConfig] = useState<AppAlertConfig>({
     visible: false,
     title: '',
@@ -80,8 +102,10 @@ export default function FinanceTracker() {
   });
 
   const [selectedMonthFilter, setSelectedMonthFilter] = useState(new Date());
-  const [selectedAccountForDetail, setSelectedAccountForDetail] = useState<Account | null>(null);
-  const [selectedTxForDetail, setSelectedTxForDetail] = useState<Transaction | null>(null);
+  const [selectedAccountDetailId, setSelectedAccountDetailId] = useState<string | null>(null);
+  const [selectedTxDetailId, setSelectedTxDetailId] = useState<string | null>(null);
+  const selectedAccountForDetail = accounts.find((a) => a.id === selectedAccountDetailId) ?? null;
+  const selectedTxForDetail = transactions.find((t) => t.id === selectedTxDetailId) ?? null;
 
   // Transaction Form State
   const [type, setType] = useState<'income' | 'expense' | 'transfer'>('expense');
@@ -94,7 +118,6 @@ export default function FinanceTracker() {
   const [selectedToAccId, setSelectedToAccId] = useState('');
   const [selectedToSubAccId, setSelectedToSubAccId] = useState('');
   const [txDate, setTxDate] = useState(new Date());
-  const [budgetModalVisible, setBudgetModalVisible] = useState(false);
 
   // Account Form State
   const [accFormType, setAccFormType] = useState<'main' | 'sub'>('main');
@@ -107,47 +130,30 @@ export default function FinanceTracker() {
   // Helpers State
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryIcon, setNewCategoryIcon] = useState('pricetag-outline');
+  const [categoryModalType, setCategoryModalType] = useState<'expense' | 'income'>('expense');
   const [editAccId, setEditAccId] = useState('');
   const [editSubAccId, setEditSubAccId] = useState('');
   const [editBalanceValue, setEditBalanceValue] = useState('');
-  const [renameTarget, setRenameTarget] = useState<{ type: 'main' | 'sub'; accId: string; subId?: string } | null>(null);
+  const [renameTarget, setRenameTarget] = useState<{
+    type: 'main' | 'sub';
+    accId: string;
+    subId?: string;
+  } | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [renameDescValue, setRenameDescValue] = useState('');
 
   // History Filter
-  const [historyTypeFilter, setHistoryTypeFilter] = useState<'all' | 'income' | 'expense' | 'transfer'>('all');
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<
+    'all' | 'income' | 'expense' | 'transfer'
+  >('all');
   const [historyCatFilter, setHistoryCatFilter] = useState<string>('all');
+  const [historyIncludeInvestment, setHistoryIncludeInvestment] = useState(false);
 
   const loadData = useCallback(() => {
     loadFinance();
   }, [loadFinance]);
 
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active') {
-        loadData();
-      }
-    });
-
-    let timer: ReturnType<typeof setTimeout>;
-    const scheduleNextMidnight = () => {
-      const now = new Date();
-      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
-      const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
-
-      timer = setTimeout(() => {
-        loadData();
-        scheduleNextMidnight();
-      }, msToMidnight);
-    };
-
-    scheduleNextMidnight();
-
-    return () => {
-      subscription.remove();
-      if (timer) clearTimeout(timer);
-    };
-  }, [loadData]);
+  useDayRollover(loadData);
 
   useFocusEffect(
     useCallback(() => {
@@ -178,187 +184,55 @@ export default function FinanceTracker() {
     setAlertConfig((prev) => ({ ...prev, visible: false }));
   };
 
-  const accountsById = useMemo(() => {
-    const map: Record<string, Account> = {};
-    for (let i = 0; i < accounts.length; i++) {
-      map[accounts[i].id] = accounts[i];
-    }
-    return map;
-  }, [accounts]);
-
-  const balancesMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (let i = 0; i < transactions.length; i++) {
-      const t = transactions[i];
-      if (t.type === 'income') {
-        const key = `${t.accountId}:${t.subAccountId}`;
-        map[key] = (map[key] || 0) + t.amount;
-      } else if (t.type === 'expense') {
-        const key = `${t.accountId}:${t.subAccountId}`;
-        map[key] = (map[key] || 0) - t.amount;
-      } else if (t.type === 'transfer') {
-        const fromKey = `${t.accountId}:${t.subAccountId}`;
-        map[fromKey] = (map[fromKey] || 0) - t.amount;
-
-        if (t.toAccountId && t.toSubAccountId) {
-          const toKey = `${t.toAccountId}:${t.toSubAccountId}`;
-          const received =
-            typeof t.toAmount === 'number' && Number.isFinite(t.toAmount) && t.toAmount > 0
-              ? t.toAmount
-              : t.amount;
-          map[toKey] = (map[toKey] || 0) + received;
-        }
-      }
-    }
-    return map;
-  }, [transactions]);
-
-  const getSubBalance = useCallback(
-    (accId: string, subId: string) => {
-      return balancesMap[`${accId}:${subId}`] || 0;
-    },
-    [balancesMap]
-  );
-
-  const getAccBalance = useCallback(
-    (accId: string) => {
-      const acc = accountsById[accId];
-      if (!acc) return 0;
-      return acc.subAccounts.reduce(
-        (sum, sub) => sum + (balancesMap[`${accId}:${sub.id}`] || 0),
-        0
-      );
-    },
-    [accountsById, balancesMap]
-  );
-
-  const totalBalanceIDR = useMemo(() => {
-    return accounts
-      .filter((a) => a.currency === 'IDR')
-      .reduce((sum, acc) => sum + getAccBalance(acc.id), 0);
-  }, [accounts, getAccBalance]);
-
-  const totalBalanceUSD = useMemo(() => {
-    return accounts
-      .filter((a) => a.currency === 'USD')
-      .reduce((sum, acc) => sum + getAccBalance(acc.id), 0);
-  }, [accounts, getAccBalance]);
-
-  const isInvestmentTransaction = useCallback(
-    (t: Transaction): boolean => {
-      const acc = accountsById[t.accountId];
-      if (acc?.type === 'Investment') return true;
-      if (t.toAccountId) {
-        const toAcc = accountsById[t.toAccountId];
-        if (toAcc?.type === 'Investment') return true;
-      }
-      return false;
-    },
-    [accountsById]
-  );
-
-  const filteredMonthlyTransactions = useMemo(() => {
-    return transactions.filter((t) => {
-      const d = new Date(t.date);
-      return (
-        d.getMonth() === selectedMonthFilter.getMonth() &&
-        d.getFullYear() === selectedMonthFilter.getFullYear()
-      );
-    });
-  }, [transactions, selectedMonthFilter]);
-
-  // Operational transactions exclude all investment transactions (income, expense, and transfers)
-  const operationalMonthlyTransactions = useMemo(() => {
-    return filteredMonthlyTransactions.filter((t) => !isInvestmentTransaction(t));
-  }, [filteredMonthlyTransactions, isInvestmentTransaction]);
-
-  const { monthlyIncomeIDR, monthlyExpenseIDR, monthlyIncomeUSD, monthlyExpenseUSD } = useMemo(() => {
-    let incIDR = 0;
-    let expIDR = 0;
-    let incUSD = 0;
-    let expUSD = 0;
-
-    for (let i = 0; i < operationalMonthlyTransactions.length; i++) {
-      const t = operationalMonthlyTransactions[i];
-      const isUSD = accountsById[t.accountId]?.currency === 'USD';
-      if (t.type === 'income') {
-        if (isUSD) incUSD += t.amount;
-        else incIDR += t.amount;
-      } else if (t.type === 'expense') {
-        if (isUSD) expUSD += t.amount;
-        else expIDR += t.amount;
-      }
-    }
-
-    return {
-      monthlyIncomeIDR: incIDR,
-      monthlyExpenseIDR: expIDR,
-      monthlyIncomeUSD: incUSD,
-      monthlyExpenseUSD: expUSD,
-    };
-  }, [operationalMonthlyTransactions, accountsById]);
-
-  const monthlyTransactionsForActiveCurrency = useMemo(() => {
-    return operationalMonthlyTransactions.filter((t) => {
-      const accCurrency = accountsById[t.accountId]?.currency || 'IDR';
-      return accCurrency === activeCurrency;
-    });
-  }, [operationalMonthlyTransactions, accountsById, activeCurrency]);
-
-  const allTransactionsForActiveCurrency = useMemo(() => {
-    return transactions.filter((t) => {
-      if (isInvestmentTransaction(t)) return false;
-      const accCurrency = accountsById[t.accountId]?.currency || 'IDR';
-      return accCurrency === activeCurrency;
-    });
-  }, [transactions, isInvestmentTransaction, accountsById, activeCurrency]);
-
-  const activeCategoryBudgets = useMemo(() => {
-    return categoryBudgets.filter((b) => (b.currency || 'IDR') === activeCurrency);
-  }, [categoryBudgets, activeCurrency]);
-
-  const sortedTransactions = useMemo(() => {
-    return [...filteredMonthlyTransactions].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-  }, [filteredMonthlyTransactions]);
-
-  const homeNonInvestmentTransactions = useMemo(() => {
-    return sortedTransactions.filter((t) => !isInvestmentTransaction(t));
-  }, [sortedTransactions, isInvestmentTransaction]);
-
-  const displayedHomeTransactions = useMemo(() => {
-    if (homeTxFilter === 'all') return homeNonInvestmentTransactions;
-    return homeNonInvestmentTransactions.filter((t) => t.type === homeTxFilter);
-  }, [homeNonInvestmentTransactions, homeTxFilter]);
-
-  const historyTransactions = useMemo(() => {
-    return transactions
-      .filter((t) => {
-        if (isInvestmentTransaction(t)) return false;
-        if (historyTypeFilter !== 'all' && t.type !== historyTypeFilter) return false;
-        if (historyCatFilter !== 'all' && t.category !== historyCatFilter) return false;
-        return true;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, isInvestmentTransaction, historyTypeFilter, historyCatFilter]);
-
-  const historyAvailableCategories = useMemo(() => {
-    if (historyTypeFilter === 'expense') return expenseCategories;
-    if (historyTypeFilter === 'income') return incomeCategories;
-    if (historyTypeFilter === 'transfer') return ['Transfer'];
-    return Array.from(new Set([...expenseCategories, ...incomeCategories, 'Transfer']));
-  }, [historyTypeFilter, expenseCategories, incomeCategories]);
+  const {
+    getSubBalance,
+    getAccBalance,
+    totalBalanceIDR,
+    totalBalanceUSD,
+    netWorthSummaryIDR,
+    netWorthSummaryUSD,
+    monthlyIncomeIDR,
+    monthlyExpenseIDR,
+    monthlyIncomeUSD,
+    monthlyExpenseUSD,
+    monthlyTransactionsForActiveCurrency,
+    allTransactionsForActiveCurrency,
+    activeCategoryBudgets,
+    homeNonInvestmentTransactions,
+    displayedHomeTransactions,
+    historyTransactions,
+    historyAvailableCategories,
+  } = useFinanceMetrics({
+    transactions,
+    accounts,
+    debts,
+    expenseCategories,
+    incomeCategories,
+    categoryBudgets,
+    selectedMonthFilter,
+    activeCurrency,
+    homeTxFilter,
+    historyTypeFilter,
+    historyCatFilter,
+    historyIncludeInvestment,
+  });
 
   const openNewTransaction = (txType: 'income' | 'expense' | 'transfer' = 'expense') => {
     setEditingTxId(null);
     setIsPayingBill(false);
+    setPayingBillId(null);
     setType(txType);
     setAmount('');
     setToAmount('');
     setDescription('');
     setTxDate(new Date());
-    setSelectedCategory(txType === 'expense' ? expenseCategories[0] : txType === 'income' ? incomeCategories[0] : 'Transfer');
+    setSelectedCategory(
+      txType === 'expense'
+        ? expenseCategories[0]
+        : txType === 'income'
+          ? incomeCategories[0]
+          : 'Transfer'
+    );
     if (accounts.length > 0) {
       setSelectedAccId(accounts[0].id);
       if (accounts[0].subAccounts.length > 0) {
@@ -377,21 +251,11 @@ export default function FinanceTracker() {
     setTxModalVisible(true);
   };
 
-  const editTransaction = (tx: Transaction) => {
-    const srcAcc = accounts.find((a) => a.id === tx.accountId);
-    const validSrcSubId = srcAcc?.subAccounts.some((s) => s.id === tx.subAccountId)
-      ? tx.subAccountId
-      : (srcAcc?.subAccounts[0]?.id || tx.subAccountId);
-
-    const dstAcc = tx.toAccountId ? accounts.find((a) => a.id === tx.toAccountId) : undefined;
-    const validDstSubId = dstAcc
-      ? dstAcc.subAccounts.some((s) => s.id === tx.toSubAccountId)
-        ? (tx.toSubAccountId || '')
-        : (dstAcc.subAccounts[0]?.id || '')
-      : (tx.toSubAccountId || '');
-
-    setEditingTxId(tx.id);
+  const openTransactionFromExisting = (tx: Transaction, mode: 'edit' | 'clone') => {
+    const { validSrcSubId, validDstSubId } = resolveFormSubAccountIds(tx, accounts);
+    setEditingTxId(mode === 'edit' ? tx.id : null);
     setIsPayingBill(false);
+    setPayingBillId(null);
     setType(tx.type);
     setAmount(tx.amount.toString());
     setToAmount(tx.toAmount !== undefined && tx.toAmount !== null ? tx.toAmount.toString() : '');
@@ -401,41 +265,12 @@ export default function FinanceTracker() {
     setSelectedSubAccId(validSrcSubId);
     setSelectedToAccId(tx.toAccountId || '');
     setSelectedToSubAccId(validDstSubId);
-    const dateObj = new Date(tx.date);
-    setTxDate(dateObj);
+    setTxDate(mode === 'edit' ? new Date(tx.date) : new Date());
     setTxModalVisible(true);
-    setHistoryModalVisible(false);
   };
 
-  const cloneTransaction = (tx: Transaction) => {
-    const srcAcc = accounts.find((a) => a.id === tx.accountId);
-    const validSrcSubId = srcAcc?.subAccounts.some((s) => s.id === tx.subAccountId)
-      ? tx.subAccountId
-      : (srcAcc?.subAccounts[0]?.id || tx.subAccountId);
-
-    const dstAcc = tx.toAccountId ? accounts.find((a) => a.id === tx.toAccountId) : undefined;
-    const validDstSubId = dstAcc
-      ? dstAcc.subAccounts.some((s) => s.id === tx.toSubAccountId)
-        ? (tx.toSubAccountId || '')
-        : (dstAcc.subAccounts[0]?.id || '')
-      : (tx.toSubAccountId || '');
-
-    setEditingTxId(null);
-    setIsPayingBill(false);
-    setType(tx.type);
-    setAmount(tx.amount.toString());
-    setToAmount(tx.toAmount !== undefined && tx.toAmount !== null ? tx.toAmount.toString() : '');
-    setDescription(tx.description);
-    setSelectedCategory(tx.category);
-    setSelectedAccId(tx.accountId);
-    setSelectedSubAccId(validSrcSubId);
-    setSelectedToAccId(tx.toAccountId || '');
-    setSelectedToSubAccId(validDstSubId);
-    // When cloning, record with current date and time
-    setTxDate(new Date());
-    setTxModalVisible(true);
-    setHistoryModalVisible(false);
-  };
+  const editTransaction = (tx: Transaction) => openTransactionFromExisting(tx, 'edit');
+  const cloneTransaction = (tx: Transaction) => openTransactionFromExisting(tx, 'clone');
 
   const saveTransaction = async () => {
     const fromAcc = accounts.find((a) => a.id === selectedAccId);
@@ -445,7 +280,11 @@ export default function FinanceTracker() {
     const effectiveToSubAccId = selectedToSubAccId || toAcc?.subAccounts?.[0]?.id || 'main';
 
     if (!amount || !description.trim() || !selectedAccId) {
-      showAlert('warning', 'Incomplete Data', 'Please fill in the amount, description, and select the account.');
+      showAlert(
+        'warning',
+        'Incomplete Data',
+        'Please fill in the amount, description, and select the account.'
+      );
       return;
     }
 
@@ -455,14 +294,22 @@ export default function FinanceTracker() {
         return;
       }
       if (selectedAccId === selectedToAccId && effectiveSubAccId === effectiveToSubAccId) {
-        showAlert('warning', 'Invalid Transfer', 'Source and destination accounts/pockets cannot be the same.');
+        showAlert(
+          'warning',
+          'Invalid Transfer',
+          'Source and destination accounts/pockets cannot be the same.'
+        );
         return;
       }
     }
 
-    const isCrossCurrency = type === 'transfer' && Boolean(fromAcc && toAcc && fromAcc.currency !== toAcc.currency);
+    const isCrossCurrency =
+      type === 'transfer' && Boolean(fromAcc && toAcc && fromAcc.currency !== toAcc.currency);
 
-    const parsedAmount = evaluateArithmetic(amount, fromAcc?.currency || 'IDR');
+    const parsedAmount = roundCurrencyAmount(
+      evaluateArithmetic(amount, fromAcc?.currency || 'IDR'),
+      fromAcc?.currency || 'IDR'
+    );
     if (parsedAmount <= 0) {
       showAlert('warning', 'Invalid Amount', 'Please enter a valid amount.');
       return;
@@ -472,9 +319,16 @@ export default function FinanceTracker() {
     let exchangeRate: number | undefined;
 
     if (isCrossCurrency) {
-      parsedToAmount = evaluateArithmetic(toAmount, toAcc?.currency || 'USD');
+      parsedToAmount = roundCurrencyAmount(
+        evaluateArithmetic(toAmount, toAcc?.currency || 'USD'),
+        toAcc?.currency || 'USD'
+      );
       if (!parsedToAmount || parsedToAmount <= 0) {
-        showAlert('warning', 'Incomplete Transfer Data', 'Please fill in the received amount for the destination account.');
+        showAlert(
+          'warning',
+          'Incomplete Transfer Data',
+          'Please fill in the received amount for the destination account.'
+        );
         return;
       }
       if (fromAcc?.currency === 'IDR' && toAcc?.currency === 'USD') {
@@ -490,7 +344,30 @@ export default function FinanceTracker() {
     if (editingTxId) {
       const existing = transactions.find((t) => t.id === editingTxId);
       if (existing) {
-        const updated: Transaction = {
+        const wasDebtSettlement = Boolean(existing.debtId && existing.debtAction === 'settlement');
+        const keepsDebtSemantics = wasDebtSettlement && type === existing.type;
+
+        if (wasDebtSettlement && existing.debtId) {
+          const delta = keepsDebtSemantics ? parsedAmount - existing.amount : -existing.amount;
+          const updatedDebts = debts.map((d) => {
+            if (d.id !== existing.debtId) return d;
+            const newPaid = Math.min(
+              d.originalAmount,
+              Math.max(0, roundCurrencyAmount(d.paidAmount + delta, d.currency))
+            );
+            const rawRem = roundCurrencyAmount(d.originalAmount - newPaid, d.currency);
+            const newRemaining = rawRem <= 0 ? 0 : rawRem;
+            return {
+              ...d,
+              paidAmount: newPaid,
+              remainingAmount: newRemaining,
+              status: newRemaining === 0 ? ('settled' as const) : ('active' as const),
+            };
+          });
+          await setDebts(updatedDebts);
+        }
+
+        await updateTransaction({
           ...existing,
           type,
           amount: parsedAmount,
@@ -506,12 +383,14 @@ export default function FinanceTracker() {
             type === 'transfer' && !isDstSubActive ? existing.deletedToSubAccountName : undefined,
           toAmount: isCrossCurrency ? parsedToAmount : undefined,
           exchangeRate: isCrossCurrency ? exchangeRate : undefined,
-        };
-        await updateTransaction(updated);
+          debtId: wasDebtSettlement && !keepsDebtSemantics ? undefined : existing.debtId,
+          debtAction: wasDebtSettlement && !keepsDebtSemantics ? undefined : existing.debtAction,
+          billId: type === 'expense' ? existing.billId : undefined,
+        });
       }
     } else {
-      const newTx: Transaction = {
-        id: Date.now().toString(),
+      await addTransaction({
+        id: generateId('tx'),
         type,
         amount: parsedAmount,
         description: description.trim(),
@@ -523,8 +402,8 @@ export default function FinanceTracker() {
         toSubAccountId: type === 'transfer' ? effectiveToSubAccId : undefined,
         toAmount: isCrossCurrency ? parsedToAmount : undefined,
         exchangeRate: isCrossCurrency ? exchangeRate : undefined,
-      };
-      await addTransaction(newTx);
+        billId: payingBillId || undefined,
+      });
     }
 
     hapticSuccess();
@@ -533,40 +412,30 @@ export default function FinanceTracker() {
     setDescription('');
     setEditingTxId(null);
     setIsPayingBill(false);
+    setPayingBillId(null);
     setTxModalVisible(false);
   };
-
-  const saveCategoryBudgets = async (budgets: CategoryBudget[]) => {
-    await setCategoryBudgets(budgets);
-  };
-
-  const saveRecurringBills = async (bills: RecurringBill[]) => {
-    await setRecurringBills(bills);
-  };
-
 
   const handleQuickLogBill = (bill: RecurringBill, targetMonth?: Date) => {
     setEditingTxId(null);
     setIsPayingBill(true);
+    setPayingBillId(bill.id);
     setType('expense');
     setAmount(bill.amount.toString());
     setDescription(`Paid ${bill.name}`);
-    // Sync with transaction category: default to 'Bills & Utilities' if available, otherwise match or first category
-    const defaultCat = expenseCategories.includes('Bills & Utilities')
-      ? 'Bills & Utilities'
-      : expenseCategories.includes(bill.category)
+    const defaultCat = expenseCategories.includes(bill.category)
       ? bill.category
-      : expenseCategories[0] || 'Bills & Utilities';
+      : expenseCategories.includes('Bills & Utilities')
+        ? 'Bills & Utilities'
+        : expenseCategories[0] || 'Bills & Utilities';
     setSelectedCategory(defaultCat);
 
-    // Anchor payment date to targetMonth's due date
     const baseMonth = targetMonth || selectedMonthFilter || new Date();
     const targetYear = baseMonth.getFullYear();
     const targetMonthIdx = baseMonth.getMonth();
     const daysInTargetMonth = new Date(targetYear, targetMonthIdx + 1, 0).getDate();
     const clampedDay = Math.min(Math.max(1, bill.dueDateDay), daysInTargetMonth);
-    const computedDate = new Date(targetYear, targetMonthIdx, clampedDay, 12, 0, 0);
-    setTxDate(computedDate);
+    setTxDate(new Date(targetYear, targetMonthIdx, clampedDay, 12, 0, 0));
 
     if (accounts.length > 0) {
       const nonInvestmentAccounts = accounts.filter((a) => a.type !== 'Investment');
@@ -584,28 +453,44 @@ export default function FinanceTracker() {
     await deleteTransactionFromStore(txId);
   };
 
-  const saveDebts = async (newDebts: DebtItem[]) => {
-    await setDebts(newDebts);
-  };
-
   const handleAddDebt = async (
-    newDebtData: Omit<DebtItem, 'id' | 'createdAt' | 'paidAmount' | 'remainingAmount' | 'status'>
+    newDebtData: Omit<DebtItem, 'id' | 'createdAt' | 'paidAmount' | 'remainingAmount' | 'status'>,
+    cashRecord?: AddDebtCashRecord
   ) => {
+    const newId = generateId('debt');
+    const roundedOrig = roundCurrencyAmount(newDebtData.originalAmount, newDebtData.currency);
     const newItem: DebtItem = {
       ...newDebtData,
-      id: Date.now().toString(),
+      id: newId,
+      originalAmount: roundedOrig,
       paidAmount: 0,
-      remainingAmount: newDebtData.originalAmount,
+      remainingAmount: roundedOrig,
       createdAt: new Date().toISOString(),
       status: 'active',
     };
-    const updated = [newItem, ...debts];
-    await saveDebts(updated);
+    await setDebts([newItem, ...debts]);
+
+    if (cashRecord) {
+      const isReceivable = newDebtData.type === 'receivable';
+      await addTransaction({
+        id: generateId('tx'),
+        type: isReceivable ? 'expense' : 'income',
+        amount: roundedOrig,
+        description: isReceivable
+          ? `Lent to ${newDebtData.personName}: ${newDebtData.title}`
+          : `Borrowed from ${newDebtData.personName}: ${newDebtData.title}`,
+        category: 'Debt & Loan',
+        date: new Date().toISOString(),
+        accountId: cashRecord.accountId,
+        subAccountId: cashRecord.subAccountId,
+        debtId: newId,
+        debtAction: 'initial',
+      });
+    }
   };
 
   const handleDeleteDebt = async (id: string) => {
-    const updated = debts.filter((d) => d.id !== id);
-    await saveDebts(updated);
+    await setDebts(debts.filter((d) => d.id !== id));
   };
 
   const handleSettleDebtPayment = async ({
@@ -624,66 +509,74 @@ export default function FinanceTracker() {
     const target = debts.find((d) => d.id === debtId);
     if (!target) return;
 
-    const newPaid = target.paidAmount + amountPaid;
-    const newRemaining = Math.max(0, target.originalAmount - newPaid);
-    const newStatus = newRemaining === 0 ? 'settled' : 'active';
+    const cleanPaidNow = roundCurrencyAmount(amountPaid, target.currency);
+    const newPaid = Math.min(
+      target.originalAmount,
+      roundCurrencyAmount(target.paidAmount + cleanPaidNow, target.currency)
+    );
+    const rawRemaining = roundCurrencyAmount(target.originalAmount - newPaid, target.currency);
+    const newRemaining = rawRemaining <= 0 ? 0 : rawRemaining;
+    const newStatus: 'active' | 'settled' = newRemaining === 0 ? 'settled' : 'active';
 
     const updatedDebts = debts.map((d) =>
       d.id === debtId
-        ? {
-            ...d,
-            paidAmount: newPaid,
-            remainingAmount: newRemaining,
-            status: newStatus as 'active' | 'settled',
-          }
+        ? { ...d, paidAmount: newPaid, remainingAmount: newRemaining, status: newStatus }
         : d
     );
-    await saveDebts(updatedDebts);
+    await setDebts(updatedDebts);
 
-    // Record corresponding transaction in financeTransactions to immediately adjust account balance!
     const isReceivable = target.type === 'receivable';
     const txDescription = isReceivable
       ? `Received from ${target.personName}: ${target.title}${notes ? ` (${notes})` : ''}`
       : `Paid debt to ${target.personName}: ${target.title}${notes ? ` (${notes})` : ''}`;
 
-    const newTx: Transaction = {
-      id: Date.now().toString(),
+    await addTransaction({
+      id: generateId('tx'),
       type: isReceivable ? 'income' : 'expense',
-      amount: amountPaid,
+      amount: cleanPaidNow,
       description: txDescription,
-      category: isReceivable ? 'Others' : 'Bills & Utilities',
+      category: 'Debt & Loan',
       date: new Date().toISOString(),
       accountId,
       subAccountId,
-    };
-
-    const updatedTransactions = [newTx, ...transactions];
-    await setTransactions(updatedTransactions);
+      debtId: target.id,
+      debtAction: 'settlement',
+    });
   };
 
   const saveAccount = async () => {
-    if (!newAccName.trim()) return;
+    if (!newAccName.trim()) {
+      showAlert(
+        'warning',
+        'Name Required',
+        accFormType === 'main' ? 'Please enter an account name.' : 'Please enter a pocket name.'
+      );
+      return;
+    }
     let updatedAccounts = [...accounts];
     if (accFormType === 'main') {
       updatedAccounts.push({
-        id: Date.now().toString(),
+        id: generateId('acc'),
         name: newAccName.trim(),
         description: newAccDesc.trim() || undefined,
         type: newAccType,
         currency: newAccCurrency,
-        subAccounts: [{ id: Date.now().toString() + '_sub', name: 'Main' }],
+        subAccounts: [{ id: generateId('sub'), name: 'Main' }],
       });
     } else {
-      if (!parentAccId) return;
-      updatedAccounts = updatedAccounts.map((acc) => {
-        if (acc.id === parentAccId) {
-          return {
-            ...acc,
-            subAccounts: [...acc.subAccounts, { id: Date.now().toString(), name: newAccName.trim() }],
-          };
-        }
-        return acc;
-      });
+      const targetParentId = parentAccId || accounts[0]?.id;
+      if (!targetParentId) {
+        showAlert('warning', 'Account Required', 'Please select a parent account.');
+        return;
+      }
+      updatedAccounts = updatedAccounts.map((acc) =>
+        acc.id === targetParentId
+          ? {
+              ...acc,
+              subAccounts: [...acc.subAccounts, { id: generateId('sub'), name: newAccName.trim() }],
+            }
+          : acc
+      );
     }
     await setAccounts(updatedAccounts);
     setNewAccName('');
@@ -700,18 +593,31 @@ export default function FinanceTracker() {
   };
 
   const deleteAccount = (accId: string) => {
+    if (accounts.length <= 1) {
+      showAlert(
+        'warning',
+        'Cannot Delete Account',
+        'At least one account must remain. Create another account before deleting this one.'
+      );
+      return;
+    }
+    const targetAcc = accounts.find((acc) => acc.id === accId);
     showAlert(
       'danger',
       'Delete Main Account?',
-      'All pockets and associated transactions will be deleted permanently.',
+      'Account transactions will be removed while preserving transfer balances on remaining accounts.',
       'DELETE',
       'CANCEL',
       async () => {
-        const nextTx = transactions.filter((t) => t.accountId !== accId);
-        await setTransactions(nextTx);
-        const nextAccounts = accounts.filter((acc) => acc.id !== accId);
-        await setAccounts(nextAccounts);
+        const reconciledTx = reconcileTransactionsOnAccountDelete(
+          transactions,
+          accId,
+          targetAcc?.name || 'Account'
+        );
+        await setTransactions(reconciledTx);
+        await setAccounts(accounts.filter((acc) => acc.id !== accId));
         setAccDetailModalVisible(false);
+        setSelectedAccountDetailId(null);
       }
     );
   };
@@ -757,35 +663,39 @@ export default function FinanceTracker() {
 
         let nextTx = tagged;
         if (currentBalance > 0) {
-          const closingTransfer: Transaction = {
-            id: `${Date.now()}_close`,
-            type: 'transfer',
-            amount: currentBalance,
-            description: `Balance moved from deleted pocket (${subToDelete.name})`,
-            category: 'Transfer',
-            date: nowIso,
-            accountId: accId,
-            subAccountId: subId,
-            deletedSubAccountName: subToDelete.name,
-            toAccountId: accId,
-            toSubAccountId: fallbackSub.id,
-          };
-          nextTx = [closingTransfer, ...tagged];
+          nextTx = [
+            {
+              id: generateId('tx_close'),
+              type: 'transfer',
+              amount: currentBalance,
+              description: `Balance moved from deleted pocket (${subToDelete.name})`,
+              category: 'Transfer',
+              date: nowIso,
+              accountId: accId,
+              subAccountId: subId,
+              deletedSubAccountName: subToDelete.name,
+              toAccountId: accId,
+              toSubAccountId: fallbackSub.id,
+            },
+            ...tagged,
+          ];
         } else if (currentBalance < 0) {
-          const closingTransfer: Transaction = {
-            id: `${Date.now()}_close`,
-            type: 'transfer',
-            amount: Math.abs(currentBalance),
-            description: `Negative balance moved from deleted pocket (${subToDelete.name})`,
-            category: 'Transfer',
-            date: nowIso,
-            accountId: accId,
-            subAccountId: fallbackSub.id,
-            toAccountId: accId,
-            toSubAccountId: subId,
-            deletedToSubAccountName: subToDelete.name,
-          };
-          nextTx = [closingTransfer, ...tagged];
+          nextTx = [
+            {
+              id: generateId('tx_close'),
+              type: 'transfer',
+              amount: Math.abs(currentBalance),
+              description: `Negative balance moved from deleted pocket (${subToDelete.name})`,
+              category: 'Transfer',
+              date: nowIso,
+              accountId: accId,
+              subAccountId: fallbackSub.id,
+              toAccountId: accId,
+              toSubAccountId: subId,
+              deletedToSubAccountName: subToDelete.name,
+            },
+            ...tagged,
+          ];
         }
 
         await setTransactions(nextTx);
@@ -796,22 +706,37 @@ export default function FinanceTracker() {
             : a
         );
         await setAccounts(updatedAcc);
-        if (selectedAccountForDetail?.id === accId) {
-          const updatedSelected = updatedAcc.find((a) => a.id === accId);
-          if (updatedSelected) setSelectedAccountForDetail(updatedSelected);
-        }
       }
     );
   };
 
   const deleteTransaction = (id: string) => {
+    const targetTx = transactions.find((t) => t.id === id);
+    const hasLinkedSettlement = Boolean(targetTx?.debtId && targetTx.debtAction === 'settlement');
     showAlert(
       'danger',
       'Delete Transaction?',
-      'This record will be permanently deleted.',
+      hasLinkedSettlement
+        ? 'This record will be permanently deleted and its linked debt/receivable payment will be rolled back.'
+        : 'This record will be permanently deleted.',
       'DELETE',
       'CANCEL',
       async () => {
+        if (hasLinkedSettlement && targetTx?.debtId) {
+          const updatedDebts = debts.map((d) => {
+            if (d.id !== targetTx.debtId) return d;
+            const newPaid = Math.max(0, roundCurrencyAmount(d.paidAmount - targetTx.amount, d.currency));
+            const rawRem = roundCurrencyAmount(d.originalAmount - newPaid, d.currency);
+            const newRemaining = rawRem <= 0 ? 0 : rawRem;
+            return {
+              ...d,
+              paidAmount: newPaid,
+              remainingAmount: newRemaining,
+              status: newRemaining === 0 ? ('settled' as const) : ('active' as const),
+            };
+          });
+          await setDebts(updatedDebts);
+        }
         await deleteTransactionFromStore(id);
       }
     );
@@ -820,64 +745,87 @@ export default function FinanceTracker() {
   const saveRename = async () => {
     if (!renameValue.trim() || !renameTarget) return;
     const updated = accounts.map((acc) => {
-      if (acc.id === renameTarget.accId) {
-        if (renameTarget.type === 'main') {
-          return {
-            ...acc,
-            name: renameValue.trim(),
-            description: renameDescValue.trim() || undefined,
-          };
-        }
+      if (acc.id !== renameTarget.accId) return acc;
+      if (renameTarget.type === 'main') {
         return {
           ...acc,
-          subAccounts: acc.subAccounts.map((s) => (s.id === renameTarget.subId ? { ...s, name: renameValue.trim() } : s)),
+          name: renameValue.trim(),
+          description: renameDescValue.trim() || undefined,
         };
       }
-      return acc;
+      return {
+        ...acc,
+        subAccounts: acc.subAccounts.map((s) =>
+          s.id === renameTarget.subId ? { ...s, name: renameValue.trim() } : s
+        ),
+      };
     });
     await setAccounts(updated);
-    if (selectedAccountForDetail?.id === renameTarget.accId) {
-      const updatedAcc = updated.find((a) => a.id === renameTarget.accId);
-      if (updatedAcc) setSelectedAccountForDetail(updatedAcc);
-    }
     setRenameModalVisible(false);
   };
 
-  const saveCategory = async (name?: string, iconConfig?: { icon: string; color: string; bg: string }) => {
+  const closeCategoryModalAndRestore = () => {
+    setCatModalVisible(false);
+  };
+
+  const saveCategory = async (
+    name?: string,
+    iconConfig?: { icon: string; color: string; bg: string }
+  ) => {
     const catName = (name || newCategoryName).trim();
-    if (!catName) return;
+    if (!catName) {
+      showAlert('warning', 'Name Required', 'Please enter a category name.');
+      return;
+    }
+
+    const reserved = new Set(['adjustment', 'transfer', 'debt & loan']);
+    if (reserved.has(catName.toLowerCase())) {
+      showAlert(
+        'warning',
+        'Reserved Category Name',
+        `"${catName}" is a reserved system category. Please choose a different name.`
+      );
+      return;
+    }
+
+    const isExpenseCat = categoryModalType === 'expense';
+    const targetList = isExpenseCat ? expenseCategories : incomeCategories;
+    const existingDuplicate = targetList.find(
+      (c) => c.toLowerCase() === catName.toLowerCase()
+    );
+    const resolvedName = existingDuplicate || catName;
 
     if (iconConfig) {
-      const existingIdx = customCategoryIcons.findIndex((c) => c.category.toLowerCase() === catName.toLowerCase());
-      let updatedIcons: CategoryCustomIcon[];
+      const existingIdx = customCategoryIcons.findIndex(
+        (c) => c.category.toLowerCase() === resolvedName.toLowerCase()
+      );
+      const updatedIcons = [...customCategoryIcons];
       if (existingIdx >= 0) {
-        updatedIcons = [...customCategoryIcons];
-        updatedIcons[existingIdx] = { category: catName, ...iconConfig };
+        updatedIcons[existingIdx] = { category: resolvedName, ...iconConfig };
       } else {
-        updatedIcons = [...customCategoryIcons, { category: catName, ...iconConfig }];
+        updatedIcons.push({ category: resolvedName, ...iconConfig });
       }
       await setCustomCategoryIcons(updatedIcons);
     }
 
-    if (type === 'expense') {
-      if (!expenseCategories.includes(catName)) {
-        const updated = [...expenseCategories, catName];
-        await setExpenseCategories(updated);
+    if (isExpenseCat) {
+      if (!existingDuplicate) {
+        await setExpenseCategories([...expenseCategories, resolvedName]);
       }
-      setSelectedCategory(catName);
+      if (type === 'expense') setSelectedCategory(resolvedName);
     } else {
-      if (!incomeCategories.includes(catName)) {
-        const updated = [...incomeCategories, catName];
-        await setIncomeCategories(updated);
+      if (!existingDuplicate) {
+        await setIncomeCategories([...incomeCategories, resolvedName]);
       }
-      setSelectedCategory(catName);
+      if (type === 'income') setSelectedCategory(resolvedName);
     }
     setNewCategoryName('');
-    setCatModalVisible(false);
+    closeCategoryModalAndRestore();
   };
 
-  const deleteCategory = (catToDelete: string) => {
-    const isExpense = type === 'expense';
+  const deleteCategory = (catToDelete: string, explicitType?: 'expense' | 'income') => {
+    const targetType = explicitType ?? (type === 'income' ? 'income' : 'expense');
+    const isExpense = targetType === 'expense';
     const list = isExpense ? expenseCategories : incomeCategories;
     if (list.length <= 1) {
       showAlert('warning', 'Cannot Delete', 'At least one category must remain.');
@@ -890,10 +838,13 @@ export default function FinanceTracker() {
       return;
     }
 
-    const affectedTxCount = transactions.filter((t) => t.category === catToDelete && (t.type === (isExpense ? 'expense' : 'income'))).length;
-    const warningDetail = affectedTxCount > 0
-      ? `Remove category "${catToDelete}"?\n\n${affectedTxCount} transaction${affectedTxCount > 1 ? 's' : ''} using this category will be automatically moved to "${fallbackCategory}".`
-      : `Remove category "${catToDelete}"?`;
+    const affectedTxCount = transactions.filter(
+      (t) => t.category === catToDelete && t.type === targetType
+    ).length;
+    const warningDetail =
+      affectedTxCount > 0
+        ? `Remove category "${catToDelete}"?\n\n${affectedTxCount} transaction${affectedTxCount > 1 ? 's' : ''} using this category will be automatically moved to "${fallbackCategory}".`
+        : `Remove category "${catToDelete}"?`;
 
     showAlert(
       'danger',
@@ -902,8 +853,7 @@ export default function FinanceTracker() {
       'DELETE',
       'CANCEL',
       async () => {
-        let updated = list.filter((c) => c !== catToDelete);
-        // Ensure fallback category exists in list
+        const updated = list.filter((c) => c !== catToDelete);
         if (!updated.includes(fallbackCategory)) {
           updated.push(fallbackCategory);
         }
@@ -914,31 +864,29 @@ export default function FinanceTracker() {
           await setIncomeCategories(updated);
         }
 
-        // Option 1: Reassign transactions that used this deleted category to fallbackCategory
         if (affectedTxCount > 0) {
           const updatedTxList = transactions.map((t) =>
-            t.category === catToDelete && t.type === (isExpense ? 'expense' : 'income')
+            t.category === catToDelete && t.type === targetType
               ? { ...t, category: fallbackCategory }
               : t
           );
           await setTransactions(updatedTxList);
         }
 
-        // Also clean up any budgets tied to this category
-        if (categoryBudgets.some((b) => b.category === catToDelete)) {
-          const nextBudgets = categoryBudgets.filter((b) => b.category !== catToDelete);
-          await setCategoryBudgets(nextBudgets);
+        if (isExpense && categoryBudgets.some((b) => b.category === catToDelete)) {
+          await setCategoryBudgets(categoryBudgets.filter((b) => b.category !== catToDelete));
         }
 
         if (selectedCategory === catToDelete) {
           setSelectedCategory(fallbackCategory);
         }
 
-        // Remove custom icon only if the category no longer exists in either list
-        const stillUsed = expenseCategories.concat(incomeCategories).filter((c) => c === catToDelete).length > 1;
+        const otherList = isExpense ? incomeCategories : expenseCategories;
+        const stillUsed = otherList.includes(catToDelete);
         if (!stillUsed && customCategoryIcons.some((c) => c.category === catToDelete)) {
-          const nextIcons = customCategoryIcons.filter((c) => c.category !== catToDelete);
-          await setCustomCategoryIcons(nextIcons);
+          await setCustomCategoryIcons(
+            customCategoryIcons.filter((c) => c.category !== catToDelete)
+          );
         }
       }
     );
@@ -946,15 +894,15 @@ export default function FinanceTracker() {
 
   const saveBalanceCorrection = async () => {
     const accCurrency = accounts.find((a) => a.id === editAccId)?.currency || 'IDR';
-    const targetBal = evaluateArithmetic(editBalanceValue, accCurrency);
-    const currentBal = getSubBalance(editAccId, editSubAccId);
-    const diff = targetBal - currentBal;
+    const targetBal = roundCurrencyAmount(evaluateArithmetic(editBalanceValue, accCurrency), accCurrency);
+    const currentBal = roundCurrencyAmount(getSubBalance(editAccId, editSubAccId), accCurrency);
+    const diff = roundCurrencyAmount(targetBal - currentBal, accCurrency);
     if (diff === 0) {
       setBalanceModalVisible(false);
       return;
     }
-    const newTx: Transaction = {
-      id: Date.now().toString(),
+    await addTransaction({
+      id: generateId('tx'),
       type: diff > 0 ? 'income' : 'expense',
       amount: Math.abs(diff),
       description: 'Balance Adjustment',
@@ -962,236 +910,287 @@ export default function FinanceTracker() {
       date: new Date().toISOString(),
       accountId: editAccId,
       subAccountId: editSubAccId,
-    };
-    await addTransaction(newTx);
+    });
     setBalanceModalVisible(false);
-    if (accDetailModalVisible && selectedAccountForDetail) {
-      const updatedAcc = accounts.find((a) => a.id === selectedAccountForDetail.id);
-      if (updatedAcc) setSelectedAccountForDetail(updatedAcc);
-    }
   };
 
   return (
     <ErrorBoundary fallbackTitle="Finance Encountered an Issue">
       <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
+        <StatusBar barStyle="dark-content" />
 
-      {/* HEADER WITH CLEAN ACTIONS */}
-      <View style={styles.headerRow}>
-        <View style={{ flex: 1, marginRight: 10 }}>
-          <Text style={styles.title} numberOfLines={1}>Finance</Text>
-          <Text style={styles.slogan} numberOfLines={1}>Track net worth & cashflow</Text>
-        </View>
-
-        <View style={styles.headerRightActions}>
-          <TouchableOpacity
-            style={styles.headerAddBtn}
-            onPress={() => openNewTransaction('expense')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={16} color="#06131F" />
-            <Text style={styles.headerAddBtnText}>Add</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 36 }}
-      >
-        {/* EXECUTIVE NET WORTH & MONTHLY CASHFLOW CARDS */}
-        <HeroSummaryCard
-          totalIDR={totalBalanceIDR}
-          totalUSD={totalBalanceUSD}
-          month={selectedMonthFilter}
-          onPrevMonth={() =>
-            setSelectedMonthFilter(new Date(selectedMonthFilter.getFullYear(), selectedMonthFilter.getMonth() - 1, 1))
-          }
-          onNextMonth={() =>
-            setSelectedMonthFilter(new Date(selectedMonthFilter.getFullYear(), selectedMonthFilter.getMonth() + 1, 1))
-          }
-          onOpenCalendar={() => setFilterCalendarVisible(true)}
-          incIDR={monthlyIncomeIDR}
-          incUSD={monthlyIncomeUSD}
-          expIDR={monthlyExpenseIDR}
-          expUSD={monthlyExpenseUSD}
-          accountsCount={accounts.length}
-          activeCurrency={activeCurrency}
-          onCurrencyChange={setActiveCurrency}
-        />
-
-        {/* VIEW MODE SWITCHER TABS */}
-        <View style={styles.viewSwitchRow}>
-          <TouchableOpacity
-            style={[
-              styles.viewSwitchItem,
-              financeViewMode === 'overview' && styles.viewSwitchItemActive,
-            ]}
-            onPress={() => setFinanceViewMode('overview')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="wallet-outline"
-              size={18}
-              color={financeViewMode === 'overview' ? '#06131F' : COLORS.textMuted}
-            />
-            <Text
-              style={[
-                styles.viewSwitchText,
-                financeViewMode === 'overview' && styles.viewSwitchTextActive,
-              ]}
-              numberOfLines={1}
-            >
-              Accounts
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1, marginRight: 10 }}>
+            <Text style={styles.title} numberOfLines={1}>
+              Finance
             </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.viewSwitchItem,
-              financeViewMode === 'insights' && styles.viewSwitchItemActive,
-            ]}
-            onPress={() => setFinanceViewMode('insights')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="analytics-outline"
-              size={18}
-              color={financeViewMode === 'insights' ? '#06131F' : COLORS.textMuted}
-            />
-            <Text
-              style={[
-                styles.viewSwitchText,
-                financeViewMode === 'insights' && styles.viewSwitchTextActive,
-              ]}
-              numberOfLines={1}
-            >
-              Insights &amp; Bills
+            <Text style={styles.slogan} numberOfLines={1}>
+              Track net worth & cashflow
             </Text>
-          </TouchableOpacity>
+          </View>
+
+          <View style={styles.headerRightActions}>
+            <HeaderActionButton
+              label="Add"
+              color={COLORS.finance}
+              onPress={() => openNewTransaction('expense')}
+              accessibilityLabel="Add Transaction"
+            />
+          </View>
         </View>
 
-        <View style={{ display: financeViewMode === 'overview' ? 'flex' : 'none' }}>
-            {/* ACCOUNTS SECTION (Rule 3: Clean header) */}
-            <View style={styles.sectionHeaderBlock}>
-              <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionTitle} numberOfLines={1}>
-                  MY ACCOUNTS
-                </Text>
-                <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{accounts.length}</Text>
-                </View>
-              </View>
-            </View>
+        <FlatList
+          data={financeViewMode === 'overview' ? displayedHomeTransactions : []}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 36 }}
+          ListHeaderComponent={
+            <>
+              <HeroSummaryCard
+                totalIDR={totalBalanceIDR}
+                totalUSD={totalBalanceUSD}
+                netWorthInclDebtsIDR={netWorthSummaryIDR.netWorthInclDebts}
+                netWorthInclDebtsUSD={netWorthSummaryUSD.netWorthInclDebts}
+                hasActiveDebtsIDR={
+                  netWorthSummaryIDR.receivablesRemaining > 0 || netWorthSummaryIDR.debtsRemaining > 0
+                }
+                hasActiveDebtsUSD={
+                  netWorthSummaryUSD.receivablesRemaining > 0 || netWorthSummaryUSD.debtsRemaining > 0
+                }
+                month={selectedMonthFilter}
+                onPrevMonth={() =>
+                  setSelectedMonthFilter(
+                    new Date(
+                      selectedMonthFilter.getFullYear(),
+                      selectedMonthFilter.getMonth() - 1,
+                      1
+                    )
+                  )
+                }
+                onNextMonth={() =>
+                  setSelectedMonthFilter(
+                    new Date(
+                      selectedMonthFilter.getFullYear(),
+                      selectedMonthFilter.getMonth() + 1,
+                      1
+                    )
+                  )
+                }
+                onOpenCalendar={() => setFilterCalendarVisible(true)}
+                incIDR={monthlyIncomeIDR}
+                incUSD={monthlyIncomeUSD}
+                expIDR={monthlyExpenseIDR}
+                expUSD={monthlyExpenseUSD}
+                accountsCount={accounts.length}
+                activeCurrency={activeCurrency}
+                onCurrencyChange={setActiveCurrency}
+              />
 
-            {/* Natural vertical flow for accounts */}
-            <View style={{ gap: 14, marginBottom: 24 }}>
-              {accounts.map((item) => (
-                <AccountCard
-                  key={item.id}
-                  item={item}
-                  balance={getAccBalance(item.id)}
-                  onPress={(acc) => {
-                    setSelectedAccountForDetail(acc);
-                    setAccDetailModalVisible(true);
-                  }}
-                />
-              ))}
-              <AddAccountCard onPress={() => setAccModalVisible(true)} />
-              {accounts.length > 0 && (
+              <View style={styles.viewSwitchRow}>
                 <TouchableOpacity
-                  style={styles.manageAccountsBar}
-                  onPress={() => setManageAccModalVisible(true)}
+                  style={[
+                    styles.viewSwitchItem,
+                    financeViewMode === 'overview' && styles.viewSwitchItemActive,
+                  ]}
+                  onPress={() => setFinanceViewMode('overview')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="wallet-outline"
+                    size={18}
+                    color={financeViewMode === 'overview' ? COLORS.textInverse : COLORS.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.viewSwitchText,
+                      financeViewMode === 'overview' && styles.viewSwitchTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    Accounts
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.viewSwitchItem,
+                    financeViewMode === 'insights' && styles.viewSwitchItemActive,
+                  ]}
+                  onPress={() => setFinanceViewMode('insights')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="analytics-outline"
+                    size={18}
+                    color={financeViewMode === 'insights' ? COLORS.textInverse : COLORS.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.viewSwitchText,
+                      financeViewMode === 'insights' && styles.viewSwitchTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    Insights &amp; Bills
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ display: financeViewMode === 'overview' ? 'flex' : 'none' }}>
+                <View style={styles.sectionHeaderBlock}>
+                  <View style={styles.sectionTitleRow}>
+                    <Text style={styles.sectionTitle} numberOfLines={1}>
+                      MY ACCOUNTS
+                    </Text>
+                    <View style={styles.countBadge}>
+                      <Text style={styles.countBadgeText}>{accounts.length}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={{ gap: 14, marginBottom: 24 }}>
+                  {accounts.map((item) => (
+                    <AccountCard
+                      key={item.id}
+                      item={item}
+                      balance={getAccBalance(item.id)}
+                      onPress={(acc) => {
+                        setSelectedAccountDetailId(acc.id);
+                        setAccDetailModalVisible(true);
+                      }}
+                    />
+                  ))}
+                  <AddAccountCard
+                    onPress={() => {
+                      setAccFormType('main');
+                      setParentAccId(accounts[0]?.id || '');
+                      setNewAccName('');
+                      setNewAccDesc('');
+                      setAccModalVisible(true);
+                    }}
+                  />
+                  {accounts.length > 0 && (
+                    <TouchableOpacity
+                      style={styles.manageAccountsBar}
+                      onPress={() => setManageAccModalVisible(true)}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="swap-vertical" size={15} color={COLORS.finance} />
+                      <Text style={styles.manageAccountsBarText}>Manage Accounts & Order</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <View style={styles.sectionHeaderBlock}>
+                  <View style={styles.sectionTitleRow}>
+                    <Text style={styles.sectionTitle} numberOfLines={1}>
+                      TRANSACTIONS • {MONTHS[selectedMonthFilter.getMonth()].toUpperCase()}
+                    </Text>
+                    <View style={styles.countBadge}>
+                      <Text style={styles.countBadgeText}>{displayedHomeTransactions.length}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.historySearchBar}
+                  onPress={() => setHistoryModalVisible(true)}
                   activeOpacity={0.75}
                 >
-                  <Ionicons name="swap-vertical" size={15} color={COLORS.finance} />
-                  <Text style={styles.manageAccountsBarText}>Manage Accounts & Order</Text>
+                  <Ionicons name="search-outline" size={15} color={COLORS.finance} />
+                  <Text style={styles.historySearchBarText}>Search Transaction History</Text>
                 </TouchableOpacity>
-              )}
-            </View>
 
-            {/* TRANSACTIONS SECTION (Rule 3: Clean header) */}
-            <View style={styles.sectionHeaderBlock}>
-              <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionTitle} numberOfLines={1}>
-                  TRANSACTIONS • {MONTHS[selectedMonthFilter.getMonth()].toUpperCase()}
-                </Text>
-                <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{displayedHomeTransactions.length}</Text>
+                <View style={styles.filterTabRow}>
+                  <TouchableOpacity
+                    style={[styles.filterTabItem, homeTxFilter === 'all' && styles.filterTabItemActive]}
+                    onPress={() => setHomeTxFilter('all')}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.filterTabItemText,
+                        homeTxFilter === 'all' && styles.filterTabItemTextActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      All ({homeNonInvestmentTransactions.length})
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterTabItem,
+                      homeTxFilter === 'expense' && styles.filterTabItemActive,
+                    ]}
+                    onPress={() => setHomeTxFilter('expense')}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.filterTabItemText,
+                        homeTxFilter === 'expense' && { color: COLORS.danger, fontWeight: '700' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      Expense
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterTabItem,
+                      homeTxFilter === 'income' && styles.filterTabItemActive,
+                    ]}
+                    onPress={() => setHomeTxFilter('income')}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.filterTabItemText,
+                        homeTxFilter === 'income' && { color: COLORS.success, fontWeight: '700' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      Income
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterTabItem,
+                      homeTxFilter === 'transfer' && styles.filterTabItemActive,
+                    ]}
+                    onPress={() => setHomeTxFilter('transfer')}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.filterTabItemText,
+                        homeTxFilter === 'transfer' && { color: COLORS.finance, fontWeight: '700' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      Transfer
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-            </View>
-
-            {/* Dedicated Search & History Action Bar */}
-            <TouchableOpacity
-              style={styles.historySearchBar}
-              onPress={() => setHistoryModalVisible(true)}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="search-outline" size={15} color={COLORS.finance} />
-              <Text style={styles.historySearchBarText}>Search Transaction History</Text>
-            </TouchableOpacity>
-
-            {/* QUICK FILTER SEGMENTED TABS */}
-            <View style={styles.filterTabRow}>
-              <TouchableOpacity
-                style={[styles.filterTabItem, homeTxFilter === 'all' && styles.filterTabItemActive]}
-                onPress={() => setHomeTxFilter('all')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.filterTabItemText, homeTxFilter === 'all' && styles.filterTabItemTextActive]}>
-                  All ({homeNonInvestmentTransactions.length})
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.filterTabItem, homeTxFilter === 'expense' && styles.filterTabItemActive]}
-                onPress={() => setHomeTxFilter('expense')}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.filterTabItemText,
-                    homeTxFilter === 'expense' && { color: COLORS.danger, fontWeight: '700' },
-                  ]}
-                >
-                  Expense
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.filterTabItem, homeTxFilter === 'income' && styles.filterTabItemActive]}
-                onPress={() => setHomeTxFilter('income')}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.filterTabItemText,
-                    homeTxFilter === 'income' && { color: COLORS.success, fontWeight: '700' },
-                  ]}
-                >
-                  Income
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.filterTabItem, homeTxFilter === 'transfer' && styles.filterTabItemActive]}
-                onPress={() => setHomeTxFilter('transfer')}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.filterTabItemText,
-                    homeTxFilter === 'transfer' && { color: COLORS.finance, fontWeight: '700' },
-                  ]}
-                >
-                  Transfer
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* NATURAL SCROLLABLE TRANSACTIONS LIST */}
-            {displayedHomeTransactions.length === 0 ? (
+            </>
+          }
+          renderItem={({ item }) => (
+            <TransactionCard
+              item={item}
+              accounts={accounts}
+              customCategoryIcons={customCategoryIcons}
+              onClone={cloneTransaction}
+              onDelete={deleteTransaction}
+              onEdit={editTransaction}
+              onPress={(tx) => setSelectedTxDetailId(tx.id)}
+            />
+          )}
+          ListEmptyComponent={
+            financeViewMode === 'overview' ? (
               <View style={styles.emptyState}>
                 <View style={styles.emptyIconBox}>
                   <Ionicons name="receipt-outline" size={26} color={COLORS.finance} />
@@ -1203,351 +1202,358 @@ export default function FinanceTracker() {
                     : `No ${homeTxFilter} transactions for this period.`}
                 </Text>
                 <TouchableOpacity
-                  style={[styles.emptyActionBtn, { backgroundColor: COLORS.finance, borderColor: COLORS.finance, marginTop: 16 }]}
+                  style={[
+                    styles.emptyActionBtn,
+                    { backgroundColor: COLORS.finance, borderColor: COLORS.finance, marginTop: 16 },
+                  ]}
                   onPress={() => openNewTransaction('expense')}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="add" size={16} color="#08090C" />
-                  <Text style={[styles.emptyActionBtnText, { color: '#08090C' }]}>Add Transaction</Text>
+                  <Ionicons name="add" size={16} color={COLORS.textInverse} />
+                  <Text style={[styles.emptyActionBtnText, { color: COLORS.textInverse }]}>
+                    Add Transaction
+                  </Text>
                 </TouchableOpacity>
               </View>
-            ) : (
-              <View style={{ marginBottom: 14 }}>
-                {displayedHomeTransactions.map((item) => (
-                  <TransactionCard
-                    key={item.id}
-                    item={item}
-                    accounts={accounts}
-                    customCategoryIcons={customCategoryIcons}
-                    onClone={cloneTransaction}
-                    onDelete={deleteTransaction}
-                    onEdit={editTransaction}
-                    onPress={(tx) => setSelectedTxForDetail(tx)}
-                  />
-                ))}
+            ) : undefined
+          }
+          ListFooterComponent={
+            <>
+              {financeViewMode === 'overview' && displayedHomeTransactions.length > 0 && (
+                <View style={{ height: 14 }} />
+              )}
+              <View style={{ display: financeViewMode === 'insights' ? 'flex' : 'none' }}>
+                <CashflowTrendCard
+                  allTransactions={allTransactionsForActiveCurrency}
+                  monthlyTransactions={monthlyTransactionsForActiveCurrency}
+                  currency={activeCurrency}
+                  selectedMonth={selectedMonthFilter}
+                  onSelectMonth={setSelectedMonthFilter}
+                  onPrevMonth={() =>
+                    setSelectedMonthFilter(
+                      new Date(
+                        selectedMonthFilter.getFullYear(),
+                        selectedMonthFilter.getMonth() - 1,
+                        1
+                      )
+                    )
+                  }
+                  onNextMonth={() =>
+                    setSelectedMonthFilter(
+                      new Date(
+                        selectedMonthFilter.getFullYear(),
+                        selectedMonthFilter.getMonth() + 1,
+                        1
+                      )
+                    )
+                  }
+                />
+
+                <CategoryBreakdownCard
+                  transactions={monthlyTransactionsForActiveCurrency}
+                  accounts={accounts}
+                  budgets={activeCategoryBudgets}
+                  currency={activeCurrency}
+                  customCategoryIcons={customCategoryIcons}
+                  onOpenSetBudget={() => setBudgetModalVisible(true)}
+                  onOpenManageCategories={() => setManageCatModalVisible(true)}
+                />
+
+                <RecurringBillsCard
+                  bills={recurringBills}
+                  monthlyTransactions={monthlyTransactionsForActiveCurrency}
+                  categories={expenseCategories}
+                  currency={activeCurrency}
+                  selectedMonth={selectedMonthFilter}
+                  onAddBill={(bill) => {
+                    const newBill = { ...bill, id: generateId('bill') };
+                    setRecurringBills([...recurringBills, newBill]);
+                  }}
+                  onDeleteBill={(id) => {
+                    setRecurringBills(recurringBills.filter((b) => b.id !== id));
+                  }}
+                  onUpdateBill={(bill) => {
+                    setRecurringBills(recurringBills.map((b) => (b.id === bill.id ? bill : b)));
+                  }}
+                  onQuickLogBill={handleQuickLogBill}
+                  onUndoBillPayment={handleUndoBillPayment}
+                />
+
+                <DebtsCard
+                  debts={debts}
+                  accounts={accounts}
+                  currency={activeCurrency}
+                  onAddDebt={handleAddDebt}
+                  onDeleteDebt={handleDeleteDebt}
+                  onSettlePayment={handleSettleDebtPayment}
+                />
               </View>
-            )}
-        </View>
-
-        <View style={{ display: financeViewMode === 'insights' ? 'flex' : 'none' }}>
-            {/* CASHFLOW & EXPENSE TREND CHART */}
-            <CashflowTrendCard
-              allTransactions={allTransactionsForActiveCurrency}
-              monthlyTransactions={monthlyTransactionsForActiveCurrency}
-              currency={activeCurrency}
-              selectedMonth={selectedMonthFilter}
-              onSelectMonth={setSelectedMonthFilter}
-              onPrevMonth={() =>
-                setSelectedMonthFilter(
-                  new Date(selectedMonthFilter.getFullYear(), selectedMonthFilter.getMonth() - 1, 1)
-                )
-              }
-              onNextMonth={() =>
-                setSelectedMonthFilter(
-                  new Date(selectedMonthFilter.getFullYear(), selectedMonthFilter.getMonth() + 1, 1)
-                )
-              }
-            />
-
-            {/* CATEGORY EXPENSE BREAKDOWN & BUDGETS */}
-            <CategoryBreakdownCard
-              transactions={monthlyTransactionsForActiveCurrency}
-              accounts={accounts}
-              budgets={activeCategoryBudgets}
-              currency={activeCurrency}
-              customCategoryIcons={customCategoryIcons}
-              onOpenSetBudget={() => setBudgetModalVisible(true)}
-              onOpenManageCategories={() => setManageCatModalVisible(true)}
-            />
-
-            {/* RECURRING BILLS CARD */}
-            <RecurringBillsCard
-              bills={recurringBills}
-              monthlyTransactions={monthlyTransactionsForActiveCurrency}
-              categories={expenseCategories}
-              currency={activeCurrency}
-              selectedMonth={selectedMonthFilter}
-              onAddBill={(bill) => {
-                const newBill = { ...bill, id: Date.now().toString() };
-                saveRecurringBills([...recurringBills, newBill]);
-              }}
-              onDeleteBill={(id) => {
-                saveRecurringBills(recurringBills.filter((b) => b.id !== id));
-              }}
-              onUpdateBill={(bill) => {
-                saveRecurringBills(recurringBills.map((b) => (b.id === bill.id ? bill : b)));
-              }}
-              onQuickLogBill={handleQuickLogBill}
-              onUndoBillPayment={handleUndoBillPayment}
-            />
-
-            {/* RECEIVABLES & DEBTS CARD */}
-            <DebtsCard
-              debts={debts}
-              accounts={accounts}
-              currency={activeCurrency}
-              onAddDebt={handleAddDebt}
-              onDeleteDebt={handleDeleteDebt}
-              onSettlePayment={handleSettleDebtPayment}
-            />
-        </View>
-      </ScrollView>
-
-      {/* MODALS */}
-      <SharedCalendarModal
-        visible={filterCalendarVisible}
-        selectedDate={selectedMonthFilter}
-        mode="month"
-        themeColor={COLORS.finance}
-        title="Select Period"
-        onClose={() => setFilterCalendarVisible(false)}
-        onSelectDate={(d) => {
-          setSelectedMonthFilter(d);
-          setFilterCalendarVisible(false);
-        }}
-      />
-
-      <TransactionModal
-        visible={txModalVisible}
-        type={type}
-        amount={amount}
-        description={description}
-        txDate={txDate}
-        selectedCategory={selectedCategory}
-        selectedAccId={selectedAccId}
-        selectedSubAccId={selectedSubAccId}
-        selectedToAccId={selectedToAccId}
-        selectedToSubAccId={selectedToSubAccId}
-        accounts={accounts}
-        expenseCategories={expenseCategories}
-        incomeCategories={incomeCategories}
-        customCategoryIcons={customCategoryIcons}
-        transactions={transactions}
-        isEditing={Boolean(editingTxId)}
-        hideTypeSwitcher={isPayingBill}
-        onClose={() => {
-          setEditingTxId(null);
-          setIsPayingBill(false);
-          setTxModalVisible(false);
-        }}
-        onSave={saveTransaction}
-        setType={setType}
-        setAmount={setAmount}
-        toAmount={toAmount}
-        setToAmount={setToAmount}
-        setDescription={setDescription}
-        setSelectedCategory={setSelectedCategory}
-        setSelectedAccId={setSelectedAccId}
-        setSelectedSubAccId={setSelectedSubAccId}
-        setSelectedToAccId={setSelectedToAccId}
-        setSelectedToSubAccId={setSelectedToSubAccId}
-        onOpenDatePicker={() => setDatePickerVisible(true)}
-        onOpenAddCategory={() => setCatModalVisible(true)}
-        onDeleteCategory={deleteCategory}
-      />
-
-      <SharedCalendarModal
-        visible={datePickerVisible}
-        selectedDate={txDate}
-        mode="day"
-        themeColor={COLORS.finance}
-        title="Select Transaction Date"
-        onClose={() => setDatePickerVisible(false)}
-        onSelectDate={(d) => {
-          const now = new Date();
-          const targetHours = txDate ? txDate.getHours() : now.getHours();
-          const targetMinutes = txDate ? txDate.getMinutes() : now.getMinutes();
-          const targetSeconds = txDate ? txDate.getSeconds() : now.getSeconds();
-          const withTime = new Date(
-            d.getFullYear(),
-            d.getMonth(),
-            d.getDate(),
-            targetHours === 0 && targetMinutes === 0 ? now.getHours() : targetHours,
-            targetHours === 0 && targetMinutes === 0 ? now.getMinutes() : targetMinutes,
-            targetSeconds === 0 ? now.getSeconds() : targetSeconds
-          );
-          setTxDate(withTime);
-          setDatePickerVisible(false);
-        }}
-      />
-
-      <AccountDetailModal
-        visible={accDetailModalVisible}
-        account={selectedAccountForDetail}
-        totalBalance={selectedAccountForDetail ? getAccBalance(selectedAccountForDetail.id) : 0}
-        getSubBalance={getSubBalance}
-        transactions={transactions}
-        accounts={accounts}
-        onEditTransaction={editTransaction}
-        onDeleteTransaction={deleteTransaction}
-        onCloneTransaction={cloneTransaction}
-        onClose={() => setAccDetailModalVisible(false)}
-        onRenameAccount={(acc) => {
-          setRenameTarget({ type: 'main', accId: acc.id });
-          setRenameValue(acc.name);
-          setRenameDescValue(acc.description || '');
-          setRenameModalVisible(true);
-        }}
-        onDeleteAccount={deleteAccount}
-        onEditBalance={(accId, subId) => {
-          setEditAccId(accId);
-          setEditSubAccId(subId);
-          setEditBalanceValue(getSubBalance(accId, subId).toString());
-          setBalanceModalVisible(true);
-        }}
-        onRenameSubAccount={(accId, subId, name) => {
-          setRenameTarget({ type: 'sub', accId, subId });
-          setRenameValue(name);
-          setRenameDescValue('');
-          setRenameModalVisible(true);
-        }}
-        onDeleteSubAccount={deleteSubAccount}
-        onAddSubAccount={() => {
-          if (selectedAccountForDetail) {
-            setAccDetailModalVisible(false);
-            openAddSubAccount(selectedAccountForDetail.id);
+            </>
           }
-        }}
-      />
+        />
 
-      <TransactionDetailModal
-        visible={Boolean(selectedTxForDetail)}
-        transaction={selectedTxForDetail}
-        accounts={accounts}
-        customCategoryIcons={customCategoryIcons}
-        onClose={() => setSelectedTxForDetail(null)}
-        onEdit={(tx) => {
-          setSelectedTxForDetail(null);
-          editTransaction(tx);
-        }}
-        onClone={(tx) => {
-          setSelectedTxForDetail(null);
-          cloneTransaction(tx);
-        }}
-        onDelete={(id) => {
-          setSelectedTxForDetail(null);
-          deleteTransaction(id);
-        }}
-      />
+        <SharedCalendarModal
+          visible={filterCalendarVisible}
+          selectedDate={selectedMonthFilter}
+          mode="month"
+          themeColor={COLORS.finance}
+          title="Select Period"
+          onClose={() => setFilterCalendarVisible(false)}
+          onSelectDate={(d) => {
+            setSelectedMonthFilter(d);
+            setFilterCalendarVisible(false);
+          }}
+        />
 
-      <HistoryModal
-        visible={historyModalVisible}
-        historyTransactions={historyTransactions}
-        accounts={accounts}
-        customCategoryIcons={customCategoryIcons}
-        historyTypeFilter={historyTypeFilter}
-        historyCatFilter={historyCatFilter}
-        historyAvailableCategories={historyAvailableCategories}
-        onClose={() => setHistoryModalVisible(false)}
-        setTypeFilter={setHistoryTypeFilter}
-        setCatFilter={setHistoryCatFilter}
-        onClone={cloneTransaction}
-        onDelete={deleteTransaction}
-        onEdit={editTransaction}
-      />
+        <TransactionModal
+          visible={txModalVisible}
+          type={type}
+          amount={amount}
+          description={description}
+          txDate={txDate}
+          selectedCategory={selectedCategory}
+          selectedAccId={selectedAccId}
+          selectedSubAccId={selectedSubAccId}
+          selectedToAccId={selectedToAccId}
+          selectedToSubAccId={selectedToSubAccId}
+          accounts={accounts}
+          expenseCategories={expenseCategories}
+          incomeCategories={incomeCategories}
+          customCategoryIcons={customCategoryIcons}
+          transactions={transactions}
+          isEditing={Boolean(editingTxId)}
+          hideTypeSwitcher={isPayingBill}
+          onClose={() => {
+            setEditingTxId(null);
+            setIsPayingBill(false);
+            setPayingBillId(null);
+            setTxModalVisible(false);
+          }}
+          onSave={saveTransaction}
+          setType={setType}
+          setAmount={setAmount}
+          toAmount={toAmount}
+          setToAmount={setToAmount}
+          setDescription={setDescription}
+          setSelectedCategory={setSelectedCategory}
+          setSelectedAccId={setSelectedAccId}
+          setSelectedSubAccId={setSelectedSubAccId}
+          setSelectedToAccId={setSelectedToAccId}
+          setSelectedToSubAccId={setSelectedToSubAccId}
+          onOpenDatePicker={() => setDatePickerVisible(true)}
+          onOpenAddCategory={() => {
+            setCategoryModalType(type === 'income' ? 'income' : 'expense');
+            setCatModalVisible(true);
+          }}
+          onDeleteCategory={(cat) => deleteCategory(cat, type === 'income' ? 'income' : 'expense')}
+        />
 
-      <AddAccountModal
-        visible={accModalVisible}
-        accFormType={accFormType}
-        newAccName={newAccName}
-        newAccDesc={newAccDesc}
-        newAccType={newAccType}
-        newAccCurrency={newAccCurrency}
-        parentAccId={parentAccId}
-        accounts={accounts}
-        onClose={() => setAccModalVisible(false)}
-        onSave={saveAccount}
-        setAccFormType={setAccFormType}
-        setNewAccName={setNewAccName}
-        setNewAccDesc={setNewAccDesc}
-        setNewAccType={setNewAccType}
-        setNewAccCurrency={setNewAccCurrency}
-        setParentAccId={setParentAccId}
-      />
-
-      <EditBalanceModal
-        visible={balanceModalVisible}
-        value={editBalanceValue}
-        currency={accounts.find((a) => a.id === editAccId)?.currency || 'IDR'}
-        onClose={() => setBalanceModalVisible(false)}
-        onSave={saveBalanceCorrection}
-        onChangeValue={setEditBalanceValue}
-      />
-
-      <RenameModal
-        visible={renameModalVisible}
-        value={renameValue}
-        descValue={renameDescValue}
-        targetType={renameTarget?.type}
-        onClose={() => setRenameModalVisible(false)}
-        onSave={saveRename}
-        onChangeValue={setRenameValue}
-        onChangeDescValue={setRenameDescValue}
-      />
-
-      <AddCategoryModal
-        visible={catModalVisible}
-        value={newCategoryName}
-        selectedIcon={newCategoryIcon}
-        onClose={() => setCatModalVisible(false)}
-        onSave={saveCategory}
-        onChangeValue={setNewCategoryName}
-        onChangeIcon={setNewCategoryIcon}
-      />
-
-      <CategoryBudgetModal
-        visible={budgetModalVisible}
-        categories={expenseCategories}
-        budgets={categoryBudgets}
-        currency={activeCurrency}
-        customCategoryIcons={customCategoryIcons}
-        onClose={() => setBudgetModalVisible(false)}
-        onSaveBudget={(cat, limit) => {
-          const existingIndex = categoryBudgets.findIndex(
-            (b) => b.category === cat && (b.currency || 'IDR') === activeCurrency
-          );
-          let updated: CategoryBudget[];
-          if (existingIndex >= 0) {
-            updated = categoryBudgets.map((b, idx) =>
-              idx === existingIndex ? { ...b, limit, currency: activeCurrency } : b
+        <SharedCalendarModal
+          visible={datePickerVisible}
+          selectedDate={txDate}
+          mode="day"
+          themeColor={COLORS.finance}
+          title="Select Transaction Date"
+          onClose={() => setDatePickerVisible(false)}
+          onSelectDate={(d) => {
+            const now = new Date();
+            const targetHours = txDate ? txDate.getHours() : now.getHours();
+            const targetMinutes = txDate ? txDate.getMinutes() : now.getMinutes();
+            const targetSeconds = txDate ? txDate.getSeconds() : now.getSeconds();
+            const withTime = new Date(
+              d.getFullYear(),
+              d.getMonth(),
+              d.getDate(),
+              targetHours === 0 && targetMinutes === 0 ? now.getHours() : targetHours,
+              targetHours === 0 && targetMinutes === 0 ? now.getMinutes() : targetMinutes,
+              targetSeconds === 0 ? now.getSeconds() : targetSeconds
             );
-          } else {
-            updated = [...categoryBudgets, { category: cat, limit, currency: activeCurrency }];
+            setTxDate(withTime);
+            setDatePickerVisible(false);
+          }}
+        />
+
+        <AccountDetailModal
+          visible={accDetailModalVisible}
+          account={selectedAccountForDetail}
+          totalBalance={
+            selectedAccountForDetail ? getAccBalance(selectedAccountForDetail.id) : 0
           }
-          saveCategoryBudgets(updated);
-        }}
-        onOpenAddCategory={() => setCatModalVisible(true)}
-        onDeleteCategory={deleteCategory}
-      />
+          getSubBalance={getSubBalance}
+          transactions={transactions}
+          accounts={accounts}
+          onEditTransaction={editTransaction}
+          onDeleteTransaction={deleteTransaction}
+          onCloneTransaction={cloneTransaction}
+          onClose={() => {
+            setAccDetailModalVisible(false);
+            setSelectedAccountDetailId(null);
+          }}
+          onRenameAccount={(acc) => {
+            setRenameTarget({ type: 'main', accId: acc.id });
+            setRenameValue(acc.name);
+            setRenameDescValue(acc.description || '');
+            setRenameModalVisible(true);
+          }}
+          onDeleteAccount={deleteAccount}
+          onEditBalance={(accId, subId) => {
+            setEditAccId(accId);
+            setEditSubAccId(subId);
+            setEditBalanceValue(getSubBalance(accId, subId).toString());
+            setBalanceModalVisible(true);
+          }}
+          onRenameSubAccount={(accId, subId, name) => {
+            setRenameTarget({ type: 'sub', accId, subId });
+            setRenameValue(name);
+            setRenameDescValue('');
+            setRenameModalVisible(true);
+          }}
+          onDeleteSubAccount={deleteSubAccount}
+          onAddSubAccount={() => {
+            if (selectedAccountForDetail) {
+              openAddSubAccount(selectedAccountForDetail.id);
+            }
+          }}
+        />
 
-      <ManageCategoriesModal
-        visible={manageCatModalVisible}
-        expenseCategories={expenseCategories}
-        incomeCategories={incomeCategories}
-        customCategoryIcons={customCategoryIcons}
-        onClose={() => setManageCatModalVisible(false)}
-        onOpenAddCategory={(catType) => {
-          setType(catType);
-          setCatModalVisible(true);
-        }}
-        onDeleteCategory={(cat, catType) => {
-          setType(catType);
-          deleteCategory(cat);
-        }}
-      />
+        <TransactionDetailModal
+          visible={Boolean(selectedTxForDetail)}
+          transaction={selectedTxForDetail}
+          accounts={accounts}
+          customCategoryIcons={customCategoryIcons}
+          onClose={() => setSelectedTxDetailId(null)}
+          onEdit={(tx) => {
+            editTransaction(tx);
+          }}
+          onClone={(tx) => {
+            cloneTransaction(tx);
+          }}
+          onDelete={(id) => {
+            deleteTransaction(id);
+          }}
+        />
 
-      <ManageAccountsModal
-        visible={manageAccModalVisible}
-        accounts={accounts}
-        getAccBalance={getAccBalance}
-        onClose={() => setManageAccModalVisible(false)}
-        onReorderAccounts={async (newAccounts) => {
-          await setAccounts(newAccounts);
-        }}
-      />
+        <HistoryModal
+          visible={historyModalVisible}
+          historyTransactions={historyTransactions}
+          accounts={accounts}
+          customCategoryIcons={customCategoryIcons}
+          historyTypeFilter={historyTypeFilter}
+          historyCatFilter={historyCatFilter}
+          historyAvailableCategories={historyAvailableCategories}
+          includeInvestment={historyIncludeInvestment}
+          onToggleIncludeInvestment={() => setHistoryIncludeInvestment((v) => !v)}
+          onClose={() => setHistoryModalVisible(false)}
+          setTypeFilter={setHistoryTypeFilter}
+          setCatFilter={setHistoryCatFilter}
+          onClone={cloneTransaction}
+          onDelete={deleteTransaction}
+          onEdit={editTransaction}
+        />
 
-      <AppAlertModal config={alertConfig} onClose={closeAlert} />
-    </SafeAreaView>
-  </ErrorBoundary>
+        <AddAccountModal
+          visible={accModalVisible}
+          accFormType={accFormType}
+          newAccName={newAccName}
+          newAccDesc={newAccDesc}
+          newAccType={newAccType}
+          newAccCurrency={newAccCurrency}
+          parentAccId={parentAccId}
+          accounts={accounts}
+          onClose={() => setAccModalVisible(false)}
+          onSave={saveAccount}
+          setAccFormType={setAccFormType}
+          setNewAccName={setNewAccName}
+          setNewAccDesc={setNewAccDesc}
+          setNewAccType={setNewAccType}
+          setNewAccCurrency={setNewAccCurrency}
+          setParentAccId={setParentAccId}
+        />
+
+        <EditBalanceModal
+          visible={balanceModalVisible}
+          value={editBalanceValue}
+          currency={accounts.find((a) => a.id === editAccId)?.currency || 'IDR'}
+          accountType={accounts.find((a) => a.id === editAccId)?.type}
+          onClose={() => setBalanceModalVisible(false)}
+          onSave={saveBalanceCorrection}
+          onChangeValue={setEditBalanceValue}
+        />
+
+        <RenameModal
+          visible={renameModalVisible}
+          value={renameValue}
+          descValue={renameDescValue}
+          targetType={renameTarget?.type}
+          onClose={() => setRenameModalVisible(false)}
+          onSave={saveRename}
+          onChangeValue={setRenameValue}
+          onChangeDescValue={setRenameDescValue}
+        />
+
+        <CategoryBudgetModal
+          visible={budgetModalVisible}
+          categories={expenseCategories}
+          budgets={categoryBudgets}
+          currency={activeCurrency}
+          customCategoryIcons={customCategoryIcons}
+          onClose={() => setBudgetModalVisible(false)}
+          onSaveBudget={(cat, limit) => {
+            const existingIndex = categoryBudgets.findIndex(
+              (b) => b.category === cat && (b.currency || 'IDR') === activeCurrency
+            );
+            const updated: CategoryBudget[] =
+              existingIndex >= 0
+                ? categoryBudgets.map((b, idx) =>
+                    idx === existingIndex ? { ...b, limit, currency: activeCurrency } : b
+                  )
+                : [...categoryBudgets, { category: cat, limit, currency: activeCurrency }];
+            setCategoryBudgets(updated);
+          }}
+          onOpenAddCategory={() => {
+            setCategoryModalType('expense');
+            setCatModalVisible(true);
+          }}
+          onDeleteCategory={(cat) => deleteCategory(cat, 'expense')}
+        />
+
+        <ManageCategoriesModal
+          visible={manageCatModalVisible}
+          expenseCategories={expenseCategories}
+          incomeCategories={incomeCategories}
+          customCategoryIcons={customCategoryIcons}
+          onClose={() => setManageCatModalVisible(false)}
+          onOpenAddCategory={(catType) => {
+            setCategoryModalType(catType);
+            setCatModalVisible(true);
+          }}
+          onDeleteCategory={(cat, catType) => {
+            deleteCategory(cat, catType);
+          }}
+        />
+
+        <AddCategoryModal
+          visible={catModalVisible}
+          value={newCategoryName}
+          selectedIcon={newCategoryIcon}
+          onClose={closeCategoryModalAndRestore}
+          onSave={saveCategory}
+          onChangeValue={setNewCategoryName}
+          onChangeIcon={setNewCategoryIcon}
+        />
+
+        <ManageAccountsModal
+          visible={manageAccModalVisible}
+          accounts={accounts}
+          getAccBalance={getAccBalance}
+          onClose={() => setManageAccModalVisible(false)}
+          onReorderAccounts={async (newAccounts) => {
+            await setAccounts(newAccounts);
+          }}
+        />
+
+        <AppAlertModal config={alertConfig} onClose={closeAlert} />
+      </SafeAreaView>
+    </ErrorBoundary>
   );
 }

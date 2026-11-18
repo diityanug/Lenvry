@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Modal,
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   ScrollView,
   Platform,
   Keyboard,
@@ -14,7 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NutritionLog } from '../../types/nutrition';
 import { COLORS, RADIUS } from '../../constants/theme';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { BottomSheetModalHost, BottomSheetSurface } from '../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
 
 interface EditPortionModalProps {
   visible: boolean;
@@ -32,15 +31,9 @@ export const EditPortionModal = ({
   if (!logItem) return null;
 
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-      statusBarTranslucent={true}
-    >
+    <BottomSheetModalHost visible={visible} onRequestClose={onClose}>
       <EditPortionContent logItem={logItem} onClose={onClose} onSave={onSave} />
-    </Modal>
+    </BottomSheetModalHost>
   );
 };
 
@@ -60,7 +53,7 @@ function EditPortionContent({
   const fPerGram = logItem.fat / baseGrams;
 
   const [portionText, setPortionText] = useState(logItem.portionGrams.toString());
-  const keyboardHeight = useKeyboardHeight();
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(28);
 
   const currentGrams = Math.max(1, parseInt(portionText, 10) || 1);
   const liveCals = Math.round(currentGrams * calPerGram);
@@ -88,13 +81,14 @@ function EditPortionContent({
   };
 
   return (
-    <View style={styles.overlay}>
-      <TouchableWithoutFeedback onPress={handleDismiss}>
-        <View style={styles.dismissArea} />
-      </TouchableWithoutFeedback>
-
-      <View style={styles.content}>
-        <View style={styles.handle} />
+    <BottomSheetSurface
+      overlayStyle={styles.overlay}
+      sheetStyle={styles.content}
+      keyboardOverlap={keyboardOverlap}
+      onOverlayLayout={onOverlayLayout}
+      onBackdropPress={handleDismiss}
+    >
+      <View style={styles.handle} />
 
         <View style={styles.headerRow}>
           <View>
@@ -108,9 +102,8 @@ function EditPortionContent({
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          automaticallyAdjustKeyboardInsets={true}
-          contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
+          {...KEEP_KEYBOARD_SCROLL_PROPS}
+          contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
         >
           {/* Portion Input Card */}
           <View style={styles.sectionCard}>
@@ -154,8 +147,7 @@ function EditPortionContent({
             <Text style={styles.saveBtnText}>UPDATE PORTION</Text>
           </TouchableOpacity>
         </ScrollView>
-      </View>
-    </View>
+    </BottomSheetSurface>
   );
 }
 
@@ -273,7 +265,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   saveBtnText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.4,

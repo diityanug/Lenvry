@@ -5,8 +5,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS } from '../../constants/theme';
 
@@ -60,7 +60,7 @@ export class ErrorBoundary extends Component<Props, State> {
       const componentStack = this.state.errorInfo?.componentStack || '';
 
       return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
           <View style={styles.container}>
             <View style={styles.contentCard}>
               <View style={styles.iconWrap}>
@@ -96,8 +96,10 @@ export class ErrorBoundary extends Component<Props, State> {
                 style={styles.reloadBtn}
                 onPress={this.handleReload}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Reload Screen"
               >
-                <Ionicons name="refresh" size={16} color="#08090C" style={styles.btnIcon} />
+                <Ionicons name="refresh" size={16} color={COLORS.textInverse} style={styles.btnIcon} />
                 <Text style={styles.reloadBtnText}>Reload Screen</Text>
               </TouchableOpacity>
             </View>
@@ -133,7 +135,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 8,
   },
@@ -165,7 +167,7 @@ const styles = StyleSheet.create({
   },
   errorBox: {
     width: '100%',
-    backgroundColor: 'rgba(5, 6, 9, 0.6)',
+    backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.md,
     padding: 12,
     borderWidth: 1,
@@ -205,7 +207,7 @@ const styles = StyleSheet.create({
   reloadBtnText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#08090C',
+    color: COLORS.textInverse,
     letterSpacing: 0.2,
   },
 });

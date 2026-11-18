@@ -4,7 +4,7 @@ import { COLORS, RADIUS } from '../constants/theme';
 export const alertModalStyles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -21,7 +21,7 @@ export const alertModalStyles = StyleSheet.create({
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.14,
     shadowRadius: 16,
   },
   iconWrapper: {
@@ -75,7 +75,7 @@ export const alertModalStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   confirmBtnText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.3,

@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Modal,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
   Keyboard,
   BackHandler,
@@ -13,9 +11,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
-import { DebtItem } from '../../../types/finance';
+import { Account, DebtItem } from '../../../types/finance';
 import { COLORS } from '../../../constants/theme';
-import { useKeyboardHeight } from '../../../hooks/useKeyboardHeight';
+import { BottomSheetModalHost, BottomSheetSurface } from '../../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../../hooks/useKeyboardHeight';
 import { CalculatorKeypad } from '../CalculatorKeypad';
 import {
   evaluateArithmetic,
@@ -24,6 +23,7 @@ import {
   formatExpression,
   hasMathOperators,
   MAX_NOMINAL_VALUE,
+  roundCurrencyAmount,
 } from '../../../utils/math';
 import { hapticLight } from '../../../utils/haptics';
 import {
@@ -33,17 +33,27 @@ import {
   DEBT_COLOR,
 } from '../../../styles/debtsStyles';
 
+export interface AddDebtCashRecord {
+  accountId: string;
+  subAccountId: string;
+}
+
 interface AddDebtModalProps {
   visible: boolean;
+  accounts: Account[];
   currency: 'IDR' | 'USD';
   defaultType?: 'receivable' | 'debt';
   onClose: () => void;
-  onSave: (debt: Omit<DebtItem, 'id' | 'createdAt' | 'paidAmount' | 'remainingAmount' | 'status'>) => void;
+  onSave: (
+    debt: Omit<DebtItem, 'id' | 'createdAt' | 'paidAmount' | 'remainingAmount' | 'status'>,
+    cashRecord?: AddDebtCashRecord
+  ) => void;
   onShowAlert: (type: 'warning' | 'danger' | 'info' | 'success', title: string, message: string) => void;
 }
 
 export const AddDebtModal = ({
   visible,
+  accounts,
   currency,
   defaultType = 'receivable',
   onClose,
@@ -53,10 +63,8 @@ export const AddDebtModal = ({
   const requestCloseRef = React.useRef<() => void>(() => onClose());
 
   return (
-    <Modal
+    <BottomSheetModalHost
       visible={visible}
-      transparent={true}
-      animationType="slide"
       onRequestClose={() => {
         if (requestCloseRef.current) {
           requestCloseRef.current();
@@ -64,11 +72,11 @@ export const AddDebtModal = ({
           onClose();
         }
       }}
-      statusBarTranslucent={true}
     >
       {visible ? (
         <AddDebtModalContent
           key={`${currency}-${defaultType}`}
+          accounts={accounts}
           currency={currency}
           defaultType={defaultType}
           onClose={onClose}
@@ -79,20 +87,33 @@ export const AddDebtModal = ({
           }}
         />
       ) : null}
-    </Modal>
+    </BottomSheetModalHost>
   );
 };
 
 interface AddDebtModalContentProps {
+  accounts: Account[];
   currency: 'IDR' | 'USD';
   defaultType: 'receivable' | 'debt';
   onClose: () => void;
-  onSave: (debt: Omit<DebtItem, 'id' | 'createdAt' | 'paidAmount' | 'remainingAmount' | 'status'>) => void;
+  onSave: (
+    debt: Omit<DebtItem, 'id' | 'createdAt' | 'paidAmount' | 'remainingAmount' | 'status'>,
+    cashRecord?: AddDebtCashRecord
+  ) => void;
   onShowAlert: (type: 'warning' | 'danger' | 'info' | 'success', title: string, message: string) => void;
   registerRequestClose?: (fn: () => void) => void;
 }
 
+const DUE_PRESET_DAYS = [
+  { label: 'No Due Date', days: null },
+  { label: '+7 Days', days: 7 },
+  { label: '+14 Days', days: 14 },
+  { label: '+30 Days', days: 30 },
+  { label: '+90 Days', days: 90 },
+] as const;
+
 const AddDebtModalContent = ({
+  accounts,
   currency,
   defaultType,
   onClose,
@@ -106,9 +127,23 @@ const AddDebtModalContent = ({
   const [newAmount, setNewAmount] = useState('');
   const [isKeypadOpen, setIsKeypadOpen] = useState(false);
   const [newCurrency, setNewCurrency] = useState<'IDR' | 'USD'>(currency);
+  const [dueOffsetDays, setDueOffsetDays] = useState<number | null>(null);
+  const [recordCashFlow, setRecordCashFlow] = useState(false);
+  const eligibleAccounts = React.useMemo(
+    () => accounts.filter((a) => a.currency === newCurrency && a.type !== 'Investment'),
+    [accounts, newCurrency]
+  );
+  const [cashAccId, setCashAccId] = useState(() => {
+    const first = accounts.find((a) => a.currency === currency && a.type !== 'Investment');
+    return first?.id || '';
+  });
+  const [cashSubAccId, setCashSubAccId] = useState(() => {
+    const first = accounts.find((a) => a.currency === currency && a.type !== 'Investment');
+    return first?.subAccounts[0]?.id || '';
+  });
   const [newNotes, setNewNotes] = useState('');
 
-  const keyboardHeight = useKeyboardHeight();
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(28);
 
   const evaluatedAmountStr = React.useMemo(() => evaluateArithmeticStr(newAmount, newCurrency), [newAmount, newCurrency]);
   const isAmountMath = React.useMemo(() => hasMathOperators(newAmount), [newAmount]);
@@ -177,7 +212,7 @@ const AddDebtModalContent = ({
     setIsKeypadOpen(false);
     const person = newPersonName.trim();
     const title = newTitle.trim() || (newType === 'receivable' ? 'Loan / Receivable' : 'Debt / Borrowed');
-    const evaluated = evaluateArithmetic(newAmount, newCurrency);
+    const evaluated = roundCurrencyAmount(evaluateArithmetic(newAmount, newCurrency), newCurrency);
     const parsedAmount = Math.min(MAX_NOMINAL_VALUE, Math.max(0, evaluated));
 
     if (!person) {
@@ -189,25 +224,55 @@ const AddDebtModalContent = ({
       return;
     }
 
-    onSave({
-      type: newType,
-      personName: person,
-      title,
-      originalAmount: parsedAmount,
-      currency: newCurrency,
-      notes: newNotes.trim() || undefined,
-    });
+    let cashRecord: AddDebtCashRecord | undefined;
+    if (recordCashFlow) {
+      const selectedAcc = eligibleAccounts.find((a) => a.id === cashAccId);
+      if (!selectedAcc) {
+        onShowAlert(
+          'warning',
+          `No ${newCurrency} Account Selected`,
+          `Select a ${newCurrency} account or turn off balance recording.`
+        );
+        return;
+      }
+      cashRecord = {
+        accountId: selectedAcc.id,
+        subAccountId: cashSubAccId || selectedAcc.subAccounts[0]?.id || 'main',
+      };
+    }
+
+    let dueDateIso: string | undefined;
+    if (dueOffsetDays !== null) {
+      const due = new Date();
+      due.setDate(due.getDate() + dueOffsetDays);
+      dueDateIso = due.toISOString();
+    }
+
+    onSave(
+      {
+        type: newType,
+        personName: person,
+        title,
+        originalAmount: parsedAmount,
+        currency: newCurrency,
+        dueDate: dueDateIso,
+        notes: newNotes.trim() || undefined,
+      },
+      cashRecord
+    );
 
     onClose();
   };
 
   return (
-    <View style={styles.modalOverlay}>
-      <TouchableWithoutFeedback onPress={handleDismiss}>
-        <View style={styles.dismissArea} />
-      </TouchableWithoutFeedback>
-      <View style={styles.settleModalSheet}>
-        <View style={styles.modalHandle} />
+    <BottomSheetSurface
+      overlayStyle={styles.modalOverlay}
+      sheetStyle={styles.settleModalSheet}
+      keyboardOverlap={keyboardOverlap}
+      onOverlayLayout={onOverlayLayout}
+      onBackdropPress={handleDismiss}
+    >
+      <View style={styles.modalHandle} />
 
         <View style={styles.modalHeaderRow}>
           <View style={{ flex: 1, minWidth: 0, marginRight: 10 }}>
@@ -225,10 +290,9 @@ const AddDebtModalContent = ({
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          automaticallyAdjustKeyboardInsets={true}
+          {...KEEP_KEYBOARD_SCROLL_PROPS}
           onScrollBeginDrag={() => setIsKeypadOpen(false)}
-          contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
+          contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
         >
           {/* TYPE SWITCHER: RECEIVABLE VS DEBT */}
           <Text style={styles.inputLabel}>TYPE</Text>
@@ -385,6 +449,9 @@ const AddDebtModalContent = ({
                   onPress={() => {
                     setNewCurrency('IDR');
                     if (newAmount) setNewAmount(formatExpression(newAmount, 'IDR'));
+                    const match = accounts.find((a) => a.currency === 'IDR' && a.type !== 'Investment');
+                    setCashAccId(match?.id || '');
+                    setCashSubAccId(match?.subAccounts[0]?.id || '');
                   }}
                 >
                   <Text style={[styles.currencyBtnText, newCurrency === 'IDR' && styles.currencyBtnTextActive]}>
@@ -396,6 +463,9 @@ const AddDebtModalContent = ({
                   onPress={() => {
                     setNewCurrency('USD');
                     if (newAmount) setNewAmount(formatExpression(newAmount, 'USD'));
+                    const match = accounts.find((a) => a.currency === 'USD' && a.type !== 'Investment');
+                    setCashAccId(match?.id || '');
+                    setCashSubAccId(match?.subAccounts[0]?.id || '');
                   }}
                 >
                   <Text style={[styles.currencyBtnText, newCurrency === 'USD' && styles.currencyBtnTextActive]}>
@@ -405,6 +475,122 @@ const AddDebtModalContent = ({
               </View>
             </View>
           </View>
+
+          {/* OPTIONAL DUE DATE */}
+          <Text style={styles.inputLabel}>DUE DATE (OPTIONAL)</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.accPickerContent}
+            style={styles.accPickerScroll}
+          >
+            {DUE_PRESET_DAYS.map((opt) => {
+              const selected = dueOffsetDays === opt.days;
+              return (
+                <TouchableOpacity
+                  key={opt.label}
+                  style={[styles.subAccPill, selected && styles.subAccPillSelected]}
+                  onPress={() => setDueOffsetDays(opt.days)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.subAccPillText, selected && styles.subAccPillTextSelected]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {/* OPTIONAL ACCOUNT CASH MOVEMENT */}
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: recordCashFlow ? 'rgba(204, 120, 92, 0.12)' : COLORS.bgCardSub,
+              borderColor: recordCashFlow ? ACCENT : COLORS.borderSubtle,
+              borderWidth: 1,
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 14,
+            }}
+            onPress={() => setRecordCashFlow((prev) => !prev)}
+            activeOpacity={0.75}
+          >
+            <View style={{ flex: 1, marginRight: 10 }}>
+              <Text style={{ color: COLORS.textPrimary, fontSize: 13, fontWeight: '700' }}>
+                {newType === 'receivable'
+                  ? 'Deduct lent money from account?'
+                  : 'Add borrowed money to account?'}
+              </Text>
+              <Text style={{ color: COLORS.textMuted, fontSize: 11.5, marginTop: 2 }}>
+                Updates your account balance immediately without inflating income/expense.
+              </Text>
+            </View>
+            <Ionicons
+              name={recordCashFlow ? 'checkbox' : 'square-outline'}
+              size={22}
+              color={recordCashFlow ? ACCENT : COLORS.textMuted}
+            />
+          </TouchableOpacity>
+
+          {recordCashFlow && (
+            eligibleAccounts.length === 0 ? (
+              <Text style={{ color: COLORS.danger, fontSize: 12, marginBottom: 14 }}>
+                No {newCurrency} Cash/Bank account found.
+              </Text>
+            ) : (
+              <>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.accPickerContent}
+                  style={styles.accPickerScroll}
+                >
+                  {eligibleAccounts.map((acc) => {
+                    const isSelected = acc.id === cashAccId;
+                    return (
+                      <TouchableOpacity
+                        key={acc.id}
+                        style={[styles.accPill, isSelected && styles.accPillSelected]}
+                        onPress={() => {
+                          setCashAccId(acc.id);
+                          setCashSubAccId(acc.subAccounts[0]?.id || '');
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.accPillText, isSelected && styles.accPillTextSelected]}>
+                          {acc.name} ({acc.currency})
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                {(() => {
+                  const selectedAcc = eligibleAccounts.find((a) => a.id === cashAccId);
+                  if (!selectedAcc || selectedAcc.subAccounts.length <= 1) return null;
+                  return (
+                    <View style={[styles.subAccWrap, { marginBottom: 14 }]}>
+                      {selectedAcc.subAccounts.map((sub) => {
+                        const subSelected = sub.id === cashSubAccId;
+                        return (
+                          <TouchableOpacity
+                            key={sub.id}
+                            style={[styles.subAccPill, subSelected && styles.subAccPillSelected]}
+                            onPress={() => setCashSubAccId(sub.id)}
+                          >
+                            <Text style={[styles.subAccPillText, subSelected && styles.subAccPillTextSelected]}>
+                              {sub.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  );
+                })()}
+              </>
+            )
+          )}
 
           {/* OPTIONAL NOTES */}
           <Text style={styles.inputLabel}>NOTES (OPTIONAL)</Text>
@@ -423,7 +609,7 @@ const AddDebtModalContent = ({
             onPress={handleSave}
             activeOpacity={0.8}
           >
-            <Ionicons name="save-outline" size={18} color="#08090C" />
+            <Ionicons name="save-outline" size={18} color={COLORS.textInverse} />
             <Text style={styles.btnConfirmSettleText}>Save Record</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -445,7 +631,6 @@ const AddDebtModalContent = ({
             />
           </Animated.View>
         )}
-      </View>
-    </View>
+    </BottomSheetSurface>
   );
 };

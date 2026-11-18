@@ -1,125 +1,144 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Tabs } from 'expo-router';
-import { ensureSchema, updateStored } from '../storage';
-import { initializeAllStores } from '../stores';
+import * as SplashScreen from 'expo-splash-screen';
+import type * as NotificationsModule from 'expo-notifications';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ensureSchema } from '../storage';
+import { initializeAllStores, useHabitsStore } from '../stores';
 import CurvedTabBar from '../components/Navigation/CurvedTabBar';
+import { ModalPortalHost, ModalPortalProvider } from '../components/Common/BottomSheetModal';
 import HabitAlarmModal, { HabitAlarmData } from '../components/Habits/HabitAlarmModal';
 import {
   initializeNotifications,
   getNotificationSettings,
+  shouldSuppressNotificationForDate,
 } from '../services/habitNotificationService';
 import { isAndroidExpoGo } from '../utils/expoGoHelper';
+import { syncFoodSeedIfNeeded } from '../services/foodSeedSyncService';
 import { COLORS } from '../constants/theme';
 import { formatDateKey } from '../constants/date';
 import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 
-let Notifications: any = null;
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+export const unstable_settings = {
+  anchor: 'index',
+};
+
+type NotificationsApi = typeof NotificationsModule;
+type CurvedTabBarProps = Parameters<NonNullable<React.ComponentProps<typeof Tabs>['tabBar']>>[0];
+
+let Notifications: NotificationsApi | null = null;
 if (!isAndroidExpoGo) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Notifications = require('expo-notifications');
+    Notifications = require('expo-notifications') as NotificationsApi;
   } catch (err) {
     console.warn('Failed to load expo-notifications in _layout:', err);
   }
 }
 
+async function resolveAlarmPayload(
+  rawData: Record<string, unknown> | undefined,
+  requireFullScreenEnabled: boolean
+): Promise<HabitAlarmData | null> {
+  if (!rawData || typeof rawData.habitTitle !== 'string' || !rawData.habitTitle) {
+    return null;
+  }
+  if (shouldSuppressNotificationForDate(rawData)) {
+    return null;
+  }
+
+  const settings = await getNotificationSettings();
+  if (requireFullScreenEnabled && !settings.fullScreenAlarm) {
+    return null;
+  }
+
+  return {
+    habitId: typeof rawData.habitId === 'string' ? rawData.habitId : '',
+    habitTitle: rawData.habitTitle,
+    habitCategory: typeof rawData.habitCategory === 'string' ? rawData.habitCategory : undefined,
+    reminderTime: typeof rawData.reminderTime === 'string' ? rawData.reminderTime : undefined,
+    soundId:
+      typeof rawData.soundId === 'string' && rawData.soundId
+        ? rawData.soundId
+        : settings.defaultSound || 'chime',
+  };
+}
+
+const renderTabBar = (props: CurvedTabBarProps) => <CurvedTabBar {...props} />;
+
 export default function AppLayout() {
   const [alarmData, setAlarmData] = useState<HabitAlarmData | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // Validate storage schema once per launch.
-    ensureSchema().then(() => {
-      initializeAllStores();
-    });
+    let active = true;
 
-    // Init notifications.
-    initializeNotifications();
-
-    if (!Notifications || !Notifications.addNotificationReceivedListener) {
-      return;
+    async function bootstrap() {
+      try {
+        await ensureSchema();
+        await Promise.all([initializeAllStores(), initializeNotifications()]);
+      } catch (err) {
+        console.warn('Failed during app bootstrap:', err);
+      } finally {
+        if (active) setIsReady(true);
+        void syncFoodSeedIfNeeded();
+      }
     }
 
-    // Foreground notification listener.
-    const receivedSubscription = Notifications.addNotificationReceivedListener(async (notification: any) => {
-      const data = notification?.request?.content?.data as any;
-      if (data && data.habitTitle) {
-        if (data.targetDate) {
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const day = String(now.getDate()).padStart(2, '0');
-          const todayKey = `${year}-${month}-${day}`;
+    bootstrap();
 
-          if (data.frequency === 'once' && todayKey !== data.targetDate) return;
-          if (todayKey < data.targetDate) return;
-        }
+    if (!Notifications?.addNotificationReceivedListener) {
+      return () => {
+        active = false;
+      };
+    }
 
-        const settings = await getNotificationSettings();
-        if (settings.fullScreenAlarm) {
-          setAlarmData({
-            habitId: data.habitId || '',
-            habitTitle: data.habitTitle,
-            habitCategory: data.habitCategory,
-            reminderTime: data.reminderTime,
-            soundId: data.soundId || settings.defaultSound || 'chime',
-          });
-        }
-      }
+    const receivedSubscription = Notifications.addNotificationReceivedListener(async (notification) => {
+      const payload = await resolveAlarmPayload(
+        notification?.request?.content?.data as Record<string, unknown> | undefined,
+        true
+      );
+      if (payload) setAlarmData(payload);
     });
 
-    // Tapped notification listener.
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener?.(async (response: any) => {
-      const data = response?.notification?.request?.content?.data as any;
-      if (data && data.habitTitle) {
-        if (data.targetDate) {
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const day = String(now.getDate()).padStart(2, '0');
-          const todayKey = `${year}-${month}-${day}`;
-
-          if (data.frequency === 'once' && todayKey !== data.targetDate) return;
-          if (todayKey < data.targetDate) return;
-        }
-
-        const settings = await getNotificationSettings();
-        setAlarmData({
-          habitId: data.habitId || '',
-          habitTitle: data.habitTitle,
-          habitCategory: data.habitCategory,
-          reminderTime: data.reminderTime,
-          soundId: data.soundId || settings.defaultSound || 'chime',
-        });
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener?.(
+      async (response) => {
+        const payload = await resolveAlarmPayload(
+          response?.notification?.request?.content?.data as Record<string, unknown> | undefined,
+          false
+        );
+        if (payload) setAlarmData(payload);
       }
-    });
+    );
 
     return () => {
+      active = false;
       receivedSubscription?.remove?.();
       responseSubscription?.remove?.();
     };
   }, []);
 
+  useEffect(() => {
+    if (isReady) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [isReady]);
+
   const handleCompleteHabit = async (habitId: string) => {
     try {
       const today = formatDateKey(new Date());
-      await updateStored('habits', (current) =>
-        current.map((h) => {
-          if (h.id !== habitId) return h;
-          return {
-            ...h,
-            completed: true,
-            completedDates: Array.from(new Set([...(h.completedDates ?? []), today])),
-          };
-        })
-      );
+      await useHabitsStore.getState().completeHabitForDate(habitId, today);
     } catch (e) {
       console.warn('Failed to mark habit complete from alarm', e);
     }
     setAlarmData(null);
   };
 
-  const handleSnoozeHabit = async (habitId: string) => {
+  const handleSnoozeHabit = async () => {
     try {
       if (alarmData && Notifications?.scheduleNotificationAsync) {
         await Notifications.scheduleNotificationAsync({
@@ -130,7 +149,7 @@ export default function AppLayout() {
             data: alarmData,
           },
           trigger: {
-            type: Notifications.SchedulableTriggerInputTypes?.TIME_INTERVAL || 'timeInterval',
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
             seconds: 300,
           },
         });
@@ -145,36 +164,46 @@ export default function AppLayout() {
     setAlarmData(null);
   };
 
-  return (
-    <ErrorBoundary fallbackTitle="Lenvry Encountered an Issue">
-      <View style={{ flex: 1, backgroundColor: COLORS.bgCanvas }}>
-        <Tabs
-          initialRouteName="index"
-          backBehavior="initialRoute"
-          detachInactiveScreens={false}
-          tabBar={(props: any) => <CurvedTabBar {...props} />}
-          screenOptions={{
-            headerShown: false,
-            animation: 'none',
-            lazy: false,
-          }}
-        >
-          <Tabs.Screen name="fitness" options={{ title: 'Fitness' }} />
-          <Tabs.Screen name="habits" options={{ title: 'To-Do' }} />
-          <Tabs.Screen name="index" options={{ title: 'Home' }} />
-          <Tabs.Screen name="nutrition" options={{ title: 'Meal' }} />
-          <Tabs.Screen name="finance" options={{ title: 'Finance' }} />
-        </Tabs>
+  if (!isReady) {
+    return <View style={{ flex: 1, backgroundColor: COLORS.bgCanvas }} />;
+  }
 
-        {/* Global full-screen alarm */}
-        <HabitAlarmModal
-          visible={!!alarmData}
-          data={alarmData}
-          onComplete={handleCompleteHabit}
-          onSnooze={handleSnoozeHabit}
-          onDismiss={handleDismissAlarm}
-        />
-      </View>
-    </ErrorBoundary>
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ErrorBoundary fallbackTitle="Lenvry Encountered an Issue">
+          <ModalPortalProvider>
+            <View style={{ flex: 1, backgroundColor: COLORS.bgCanvas }}>
+              <Tabs
+                backBehavior="initialRoute"
+                detachInactiveScreens={false}
+                tabBar={renderTabBar}
+                screenOptions={{
+                  headerShown: false,
+                  animation: 'none',
+                  lazy: false,
+                }}
+              >
+                <Tabs.Screen name="fitness" options={{ title: 'Fitness' }} />
+                <Tabs.Screen name="habits" options={{ title: 'To-Do' }} />
+                <Tabs.Screen name="index" options={{ title: 'Home' }} />
+                <Tabs.Screen name="nutrition" options={{ title: 'Meal' }} />
+                <Tabs.Screen name="finance" options={{ title: 'Finance' }} />
+              </Tabs>
+
+              <ModalPortalHost />
+
+              <HabitAlarmModal
+                visible={!!alarmData}
+                data={alarmData}
+                onComplete={handleCompleteHabit}
+                onSnooze={handleSnoozeHabit}
+                onDismiss={handleDismissAlarm}
+              />
+            </View>
+          </ModalPortalProvider>
+        </ErrorBoundary>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

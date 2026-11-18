@@ -1,10 +1,10 @@
 import { StyleSheet, Platform } from 'react-native';
 import { COLORS, RADIUS } from '../constants/theme';
 
-export const ACCENT = '#38BDF8';
-export const RECEIVABLE_COLOR = '#10B981'; // Emerald for money owed to you
-export const DEBT_COLOR = '#F43F5E'; // Rose for money you owe
-export const INK = '#08090C';
+export const ACCENT = COLORS.finance;
+export const RECEIVABLE_COLOR = COLORS.success; // Soft sage-green for money owed to you
+export const DEBT_COLOR = COLORS.danger; // Clay crimson for money you owe
+export const INK = COLORS.textInverse;
 
 export const debtsStyles = StyleSheet.create({
   containerCard: {
@@ -62,9 +62,9 @@ export const debtsStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderColor: 'rgba(56, 189, 248, 0.35)',
     borderRadius: RADIUS.lg,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -94,12 +94,12 @@ export const debtsStyles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   summaryCardReceivable: {
-    backgroundColor: 'rgba(16, 185, 129, 0.05)',
-    borderColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: '#EAF6EF',
+    borderColor: 'rgba(16, 185, 129, 0.25)',
   },
   summaryCardDebt: {
-    backgroundColor: 'rgba(244, 63, 94, 0.05)',
-    borderColor: 'rgba(244, 63, 94, 0.2)',
+    backgroundColor: '#FCECEC',
+    borderColor: 'rgba(244, 63, 94, 0.25)',
   },
   summaryCardTop: {
     flexDirection: 'row',
@@ -120,6 +120,8 @@ export const debtsStyles = StyleSheet.create({
   },
   summaryCardAmount: {
     fontSize: 15,
+    lineHeight: 20,
+    minHeight: 20,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
@@ -186,7 +188,9 @@ export const debtsStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    minHeight: 44,
     paddingVertical: 11,
+    paddingHorizontal: 8,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.borderSubtle,
@@ -202,31 +206,41 @@ export const debtsStyles = StyleSheet.create({
   },
   tabText: {
     fontSize: 12.5,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.textMuted,
   },
 
   // Status Filter
   statusFilterRow: {
     flexDirection: 'row',
-    gap: 10,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.md,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    gap: 4,
     marginBottom: 16,
   },
   statusPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: RADIUS.md,
+    flex: 1,
+    minHeight: 38,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: 'transparent',
     backgroundColor: 'transparent',
   },
   statusPillActive: {
-    backgroundColor: COLORS.bgCardSub,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    backgroundColor: COLORS.bgCard,
+    borderColor: COLORS.borderLight,
   },
   statusPillText: {
     fontSize: 12,
     color: COLORS.textMuted,
-    fontWeight: '600',
+    fontWeight: '700',
+    textAlign: 'center',
   },
   statusPillTextActive: {
     color: COLORS.textPrimary,
@@ -234,10 +248,20 @@ export const debtsStyles = StyleSheet.create({
   },
 
   // Items
+  listViewport: {
+    minHeight: 280,
+  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 36,
+    minHeight: 280,
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    backgroundColor: COLORS.bgCardSub,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderStyle: 'dashed',
     gap: 10,
   },
   emptyTitle: {
@@ -301,17 +325,17 @@ export const debtsStyles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.bgCard,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   // Inner Balance Box
   balanceBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: COLORS.border,
     padding: 12,
     gap: 8,
   },
@@ -333,7 +357,7 @@ export const debtsStyles = StyleSheet.create({
   },
   balanceDivider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.bgCardSub,
   },
   balanceSubRow: {
     flexDirection: 'row',
@@ -362,7 +386,7 @@ export const debtsStyles = StyleSheet.create({
   progressTrack: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: COLORS.bgCard,
     overflow: 'hidden',
   },
   progressFill: {
@@ -389,7 +413,7 @@ export const debtsStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    backgroundColor: COLORS.bgCard,
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: RADIUS.md,
@@ -413,12 +437,12 @@ export const debtsStyles = StyleSheet.create({
     borderWidth: 1,
   },
   btnPrimaryActionReceivable: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    borderColor: 'rgba(16, 185, 129, 0.35)',
+    backgroundColor: '#EAF6EF',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
   },
   btnPrimaryActionDebt: {
-    backgroundColor: 'rgba(244, 63, 94, 0.12)',
-    borderColor: 'rgba(244, 63, 94, 0.35)',
+    backgroundColor: '#FCECEC',
+    borderColor: 'rgba(244, 63, 94, 0.4)',
   },
   btnPrimaryActionText: {
     fontSize: 13,
@@ -430,11 +454,11 @@ export const debtsStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    backgroundColor: '#EAF6EF',
     paddingVertical: 10,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.2)',
+    borderColor: 'rgba(16, 185, 129, 0.25)',
   },
   settledBadgeText: {
     fontSize: 12,
@@ -445,7 +469,7 @@ export const debtsStyles = StyleSheet.create({
   // Modal Sheet Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   dismissArea: {

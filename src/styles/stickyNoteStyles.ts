@@ -4,7 +4,7 @@ import { COLORS, RADIUS } from '../constants/theme';
 export const stickyNoteStyles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 6, 9, 0.78)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   modalOverlay: {
@@ -80,7 +80,7 @@ export const stickyNoteStyles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   iconBtn: {
     width: 34,
@@ -286,7 +286,7 @@ export const stickyNoteStyles = StyleSheet.create({
   },
   colorCircleSelected: {
     borderWidth: 2.5,
-    borderColor: '#FFFFFF',
+    borderColor: COLORS.textPrimary,
   },
   typeSwitcher: {
     flexDirection: 'row',
@@ -587,7 +587,7 @@ export const stickyNoteStyles = StyleSheet.create({
     borderRadius: RADIUS.lg,
   },
   btnPrimaryText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 14,
     fontWeight: '800',
   },

@@ -1,22 +1,22 @@
-import React, { useState, useRef } from 'react';
+import React, { ComponentRef, useState, useRef } from 'react';
 import {
-  Modal,
   View,
   Text,
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Platform,
   Keyboard,
   Linking,
-  StyleSheet,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { COLORS, RADIUS } from '../../constants/theme';
+import { COLORS } from '../../constants/theme';
+import { learningModalStyles as styles } from '../../styles/learningModalStyles';
+import { formatDateKey } from '../../constants/date';
+import { generateId } from '../../utils/id';
 import AppAlertModal, { AppAlertConfig } from '../Common/AppAlertModal';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { BottomSheetModalHost, BottomSheetSurface } from '../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
 import {
   LearningCourse,
   LearningStatus,
@@ -38,13 +38,7 @@ interface LearningCourseModalProps {
   onDelete?: (id: string) => void;
 }
 
-const getTodayFormattedDate = () => {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+const getTodayFormattedDate = () => formatDateKey(new Date());
 
 export default function LearningCourseModal({
   visible,
@@ -54,13 +48,7 @@ export default function LearningCourseModal({
   onDelete,
 }: LearningCourseModalProps) {
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-      statusBarTranslucent={true}
-    >
+    <BottomSheetModalHost visible={visible} onRequestClose={onClose}>
       {visible ? (
         <LearningCourseModalContent
           key={course ? course.id : 'new-course'}
@@ -70,7 +58,7 @@ export default function LearningCourseModal({
           onDelete={onDelete}
         />
       ) : null}
-    </Modal>
+    </BottomSheetModalHost>
   );
 }
 
@@ -106,7 +94,7 @@ function LearningCourseModalContent({
   );
   const [error, setError] = useState('');
   const [toastMessage, setToastMessage] = useState('');
-  const keyboardHeight = useKeyboardHeight();
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(28);
 
   const [alertConfig, setAlertConfig] = useState<AppAlertConfig>({
     visible: false,
@@ -114,7 +102,7 @@ function LearningCourseModalContent({
     message: '',
   });
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -215,7 +203,7 @@ function LearningCourseModalContent({
     }
 
     const courseToSave: LearningCourse = {
-      id: course?.id || `course_${Date.now()}`,
+      id: course?.id || generateId('course'),
       title: trimmedTitle,
       status,
       provider: finalProvider,
@@ -265,12 +253,14 @@ function LearningCourseModalContent({
   // Render Detail View if existing course and not in edit mode
   if (!isEditMode && course) {
     return (
-      <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={handleDismiss}>
-          <View style={styles.dismissArea} />
-        </TouchableWithoutFeedback>
-
-        <View style={styles.modalSheet}>
+      <>
+        <BottomSheetSurface
+          overlayStyle={styles.overlay}
+          sheetStyle={styles.modalSheet}
+          keyboardOverlap={keyboardOverlap}
+          onOverlayLayout={onOverlayLayout}
+          onBackdropPress={handleDismiss}
+        >
           <View style={styles.modalHandle} />
 
           {/* Header Bar */}
@@ -482,7 +472,7 @@ function LearningCourseModalContent({
                     onPress={handleTestLink}
                     activeOpacity={0.75}
                   >
-                    <Ionicons name="open-outline" size={15} color="#08090C" />
+                    <Ionicons name="open-outline" size={15} color={COLORS.textInverse} />
                     <Text style={styles.detailOpenLinkBtnText}>Open Course</Text>
                   </TouchableOpacity>
 
@@ -527,28 +517,30 @@ function LearningCourseModalContent({
                 onPress={onClose}
                 activeOpacity={0.85}
               >
-                <Ionicons name="checkmark-circle" size={16} color="#08090C" />
+                <Ionicons name="checkmark-circle" size={16} color={COLORS.textInverse} />
                 <Text style={styles.btnDetailDoneText}>Done</Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
+            </ScrollView>
+          </BottomSheetSurface>
 
           <AppAlertModal
             config={alertConfig}
             onClose={() => setAlertConfig((prev) => ({ ...prev, visible: false }))}
           />
-        </View>
-      </View>
-    );
-  }
+        </>
+      );
+    }
 
   return (
-    <View style={styles.overlay}>
-      <TouchableWithoutFeedback onPress={handleDismiss}>
-        <View style={styles.dismissArea} />
-      </TouchableWithoutFeedback>
-
-      <View style={styles.modalSheet}>
+    <>
+      <BottomSheetSurface
+        overlayStyle={styles.overlay}
+        sheetStyle={styles.modalSheet}
+        keyboardOverlap={keyboardOverlap}
+        onOverlayLayout={onOverlayLayout}
+        onBackdropPress={handleDismiss}
+      >
         {/* Sheet Handle */}
         <View style={styles.modalHandle} />
 
@@ -617,12 +609,10 @@ function LearningCourseModalContent({
           style={styles.formScrollArea}
           contentContainerStyle={[
             styles.formScrollContent,
-            { paddingBottom: Math.max(28, keyboardHeight + 28) },
+            { paddingBottom: scrollBottomPadding },
           ]}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          automaticallyAdjustKeyboardInsets={true}
-          nestedScrollEnabled={true}
+          {...KEEP_KEYBOARD_SCROLL_PROPS}
         >
             {/* 1. Course Name */}
             <Text style={styles.inputLabel}>COURSE NAME *</Text>
@@ -774,7 +764,7 @@ function LearningCourseModalContent({
                     onPress={() => setColor(c)}
                     activeOpacity={0.7}
                   >
-                    {isSelected && <Ionicons name="checkmark" size={16} color="#08090C" />}
+                    {isSelected && <Ionicons name="checkmark" size={16} color={COLORS.textInverse} />}
                   </TouchableOpacity>
                 );
               })}
@@ -852,12 +842,20 @@ function LearningCourseModalContent({
             <View style={{ marginTop: 14 }}>
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.inputLabel}>COURSE LINK (URL)</Text>
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <TouchableOpacity onPress={handlePasteLink} activeOpacity={0.7}>
+                <View style={{ flexDirection: 'row', gap: 14 }}>
+                  <TouchableOpacity
+                    onPress={handlePasteLink}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                  >
                     <Text style={styles.linkActionText}>Paste</Text>
                   </TouchableOpacity>
                   {Boolean(link.trim()) && (
-                    <TouchableOpacity onPress={handleTestLink} activeOpacity={0.7}>
+                    <TouchableOpacity
+                      onPress={handleTestLink}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                    >
                       <Text style={[styles.linkActionText, { color: COLORS.accent }]}>Open Link</Text>
                     </TouchableOpacity>
                   )}
@@ -912,7 +910,7 @@ function LearningCourseModalContent({
                 <Ionicons
                   name={isExisting ? 'checkmark-circle' : 'add-circle'}
                   size={18}
-                  color="#08090C"
+                  color={COLORS.textInverse}
                   style={{ marginRight: 6 }}
                 />
                 <Text style={styles.btnPrimaryText}>
@@ -920,661 +918,13 @@ function LearningCourseModalContent({
                 </Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
-        </View>
+            </ScrollView>
+      </BottomSheetSurface>
 
       <AppAlertModal
         config={alertConfig}
         onClose={() => setAlertConfig((prev) => ({ ...prev, visible: false }))}
       />
-    </View>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(5, 6, 9, 0.78)',
-    justifyContent: 'flex-end',
-  },
-  dismissArea: {
-    flex: 1,
-  },
-  modalSheet: {
-    width: '100%',
-    maxWidth: 520,
-    alignSelf: 'center',
-    height: '85%',
-    backgroundColor: COLORS.bgCard,
-    borderTopLeftRadius: RADIUS.modal,
-    borderTopRightRadius: RADIUS.modal,
-    borderTopWidth: 1.5,
-    borderLeftWidth: 1.5,
-    borderRightWidth: 1.5,
-    borderColor: COLORS.borderLight,
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 18,
-    elevation: 20,
-  },
-  modalHandle: {
-    width: 38,
-    height: 4,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.borderLight,
-    alignSelf: 'center',
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  headerBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderSubtle,
-    marginBottom: 12,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  badgeIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  headerSub: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: COLORS.bgCardSub,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  toastContainer: {
-    position: 'absolute',
-    top: 58,
-    left: 20,
-    right: 20,
-    alignItems: 'center',
-    zIndex: 999,
-  },
-  toastBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    backgroundColor: '#0F172A',
-    borderWidth: 1.5,
-    borderColor: COLORS.accent,
-    borderRadius: RADIUS.full,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 12,
-  },
-  toastText: {
-    color: '#F8FAFC',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  formScrollArea: {
-    flex: 1,
-  },
-  formScrollContent: {
-    paddingTop: 4,
-  },
-  inputLabel: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    marginBottom: 8,
-  },
-  inputField: {
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: COLORS.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  errorText: {
-    color: COLORS.danger,
-    fontSize: 11,
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  chipsScrollRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingVertical: 2,
-  },
-  chipPill: {
-    backgroundColor: COLORS.bgCardSub,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  chipPillActive: {
-    backgroundColor: COLORS.accentSoft,
-    borderColor: COLORS.accent,
-  },
-  chipPillText: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  chipPillTextActive: {
-    color: COLORS.accentHover,
-    fontWeight: '800',
-  },
-  statusGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  statusCard: {
-    flex: 1,
-    minWidth: '47%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-  },
-  statusCardText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  levelRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  levelPill: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 9,
-    paddingHorizontal: 6,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-  },
-  levelPillText: {
-    fontSize: 11,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  colorPickerRow: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 2,
-  },
-  colorCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  colorCircleSelected: {
-    borderWidth: 2.5,
-    borderColor: '#FFFFFF',
-  },
-  twoColumnRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 14,
-  },
-  hoursInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    gap: 8,
-  },
-  hoursTextInput: {
-    flex: 1,
-    color: COLORS.textPrimary,
-    fontSize: 15,
-    fontWeight: '700',
-    paddingVertical: 4,
-  },
-  hoursUnitText: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  quickHourRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 6,
-  },
-  quickHourBtn: {
-    flex: 1,
-    backgroundColor: COLORS.bgCardSub,
-    paddingVertical: 5,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-  },
-  quickHourBtnText: {
-    color: COLORS.textMuted,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  todayShortcutText: {
-    color: COLORS.accent,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  dateInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    gap: 8,
-  },
-  dateTextInput: {
-    flex: 1,
-    color: COLORS.textPrimary,
-    fontSize: 13,
-    fontWeight: '600',
-    paddingVertical: 4,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  linkActionText: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  linkInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  linkTextInput: {
-    flex: 1,
-    color: COLORS.textPrimary,
-    fontSize: 13,
-  },
-  notesInputField: {
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    lineHeight: 19,
-    minHeight: 88,
-  },
-  modalActionRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderSubtle,
-  },
-  btnSecondary: {
-    paddingHorizontal: 18,
-    paddingVertical: 13,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  btnSecondaryText: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  btnPrimary: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.accent,
-    paddingVertical: 13,
-    borderRadius: RADIUS.lg,
-  },
-  btnPrimaryText: {
-    color: '#08090C',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-
-  // Detail View Styles
-  detailScrollContent: {
-    paddingTop: 4,
-    paddingBottom: 24,
-    gap: 14,
-  },
-  detailCoverCard: {
-    borderRadius: RADIUS.xl,
-    borderWidth: 1.5,
-    padding: 16,
-    paddingTop: 18,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  cardAccentStripe: {
-    position: 'absolute',
-    top: 0,
-    left: 16,
-    right: 16,
-    height: 3,
-    borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
-  },
-  detailMetaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  badgeGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  providerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 3.5,
-    borderRadius: RADIUS.xs,
-    borderWidth: 1,
-  },
-  providerBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-  },
-  levelBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 3.5,
-    borderRadius: RADIUS.xs,
-    borderWidth: 1,
-  },
-  levelBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: RADIUS.xs,
-    borderWidth: 1,
-  },
-  statusBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-  },
-  detailCourseTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 18,
-    fontWeight: '800',
-    lineHeight: 25,
-    letterSpacing: -0.3,
-  },
-  detailMetricsGrid: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  detailMetricBox: {
-    flex: 1,
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 12,
-  },
-  detailMetricHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
-  },
-  detailMetricLabel: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    color: COLORS.textMuted,
-    letterSpacing: 0.6,
-  },
-  detailMetricValue: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-  },
-  detailMetricSub: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    marginTop: 4,
-  },
-  detailQuickHoursRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 8,
-  },
-  detailQuickHourBtn: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: RADIUS.sm,
-    paddingVertical: 4,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.borderSubtle,
-  },
-  detailQuickHourText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
-  },
-  detailStatusSection: {
-    marginBottom: 14,
-  },
-  detailSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  detailSectionLabel: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    color: COLORS.textMuted,
-    letterSpacing: 0.6,
-  },
-  detailLinkCard: {
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 14,
-  },
-  detailLinkHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
-  },
-  detailLinkLabel: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    color: COLORS.textMuted,
-    letterSpacing: 0.6,
-  },
-  detailLinkUrl: {
-    fontSize: 12.5,
-    color: COLORS.textSecondary,
-    marginBottom: 12,
-  },
-  detailLinkBtnRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  detailOpenLinkBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: COLORS.accent,
-    borderRadius: RADIUS.md,
-    paddingVertical: 10,
-  },
-  detailOpenLinkBtnText: {
-    color: '#08090C',
-    fontSize: 12.5,
-    fontWeight: '800',
-  },
-  detailCopyLinkBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: RADIUS.md,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  detailCopyLinkBtnText: {
-    color: COLORS.textPrimary,
-    fontSize: 12.5,
-    fontWeight: '700',
-  },
-  detailNotesCard: {
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderLeftWidth: 3.5,
-    borderLeftColor: COLORS.accent,
-    padding: 14,
-  },
-  detailNotesHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
-  },
-  detailNotesLabel: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  detailNotesText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    lineHeight: 19,
-  },
-  detailActionRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 6,
-  },
-  btnDetailEdit: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: RADIUS.lg,
-    paddingVertical: 13,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  btnDetailEditText: {
-    color: COLORS.textPrimary,
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
-  btnDetailDone: {
-    flex: 1.2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    backgroundColor: COLORS.accent,
-    borderRadius: RADIUS.lg,
-    paddingVertical: 13,
-  },
-  btnDetailDoneText: {
-    color: '#08090C',
-    fontSize: 13.5,
-    fontWeight: '800',
-  },
-  headerBackBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-});

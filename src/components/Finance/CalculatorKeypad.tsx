@@ -19,6 +19,7 @@ interface CalculatorKeypadProps {
   onDone?: () => void;
   accentColor?: string;
   currency?: 'IDR' | 'USD';
+  allowNegative?: boolean;
 }
 
 export const CalculatorKeypad: React.FC<CalculatorKeypadProps> = ({
@@ -27,6 +28,7 @@ export const CalculatorKeypad: React.FC<CalculatorKeypadProps> = ({
   onDone,
   accentColor = COLORS.finance,
   currency = 'IDR',
+  allowNegative = false,
 }) => {
   const specialDigit = currency === 'USD' ? '00' : '000';
 
@@ -48,8 +50,15 @@ export const CalculatorKeypad: React.FC<CalculatorKeypadProps> = ({
   };
 
   const handleOperator = (op: '+' | '-' | '×' | '÷') => {
-    if (!value || value === '0') return;
+    if (!value || value === '0') {
+      if (allowNegative && op === '-') {
+        hapticLight();
+        onChangeValue('-');
+      }
+      return;
+    }
     const trimmed = value.trimEnd();
+    if (trimmed === '-') return;
 
     // Max data input is 9.999.999.999.999: cannot add or multiply if already at limit
     if (op === '+' || op === '×') {
@@ -82,7 +91,7 @@ export const CalculatorKeypad: React.FC<CalculatorKeypadProps> = ({
     hapticLight();
     if (!value || !hasMathOperators(value)) return;
     const res = evaluateArithmeticStr(value, currency);
-    if (res && res !== '0') {
+    if (res) {
       onChangeValue(formatCalculatedDisplay(res, currency));
     }
   };
@@ -91,7 +100,7 @@ export const CalculatorKeypad: React.FC<CalculatorKeypadProps> = ({
     hapticSuccess();
     if (hasMathOperators(value)) {
       const res = evaluateArithmeticStr(value, currency);
-      if (res && res !== '0') {
+      if (res) {
         onChangeValue(formatCalculatedDisplay(res, currency));
       }
     }
@@ -318,7 +327,7 @@ export const CalculatorKeypad: React.FC<CalculatorKeypadProps> = ({
             accessibilityRole="button"
             accessibilityLabel="Confirm amount"
           >
-            <Ionicons name="checkmark" size={18} color="#08090C" />
+            <Ionicons name="checkmark" size={18} color={COLORS.textInverse} />
             <Text style={styles.confirmBtnText}>OK</Text>
           </Pressable>
         </View>
@@ -366,8 +375,8 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
   opBtn: {
-    backgroundColor: 'rgba(56, 189, 248, 0.08)',
-    borderColor: 'rgba(56, 189, 248, 0.22)',
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+    borderColor: 'rgba(37, 99, 235, 0.22)',
   },
   opBtnDisabled: {
     opacity: 0.35,
@@ -383,14 +392,14 @@ const styles = StyleSheet.create({
   clearBtnText: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#F43F5E',
+    color: COLORS.danger,
   },
   backspaceBtn: {
     backgroundColor: 'rgba(245, 158, 11, 0.08)',
     borderColor: 'rgba(245, 158, 11, 0.22)',
   },
   equalsBtn: {
-    backgroundColor: 'rgba(56, 189, 248, 0.14)',
+    backgroundColor: 'rgba(37, 99, 235, 0.14)',
   },
   confirmBtn: {
     flexDirection: 'row',
@@ -400,6 +409,6 @@ const styles = StyleSheet.create({
   confirmBtnText: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#08090C',
+    color: COLORS.textInverse,
   },
 });

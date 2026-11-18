@@ -1,14 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { useRef, useState } from 'react';
+import { ComponentRef, useEffect, useRef, useState } from 'react';
 import {
   Keyboard,
-  Modal,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { COLORS } from '../../constants/theme';
@@ -22,7 +20,9 @@ import {
   StickyNoteColor,
 } from '../../types/notes';
 import AppAlertModal, { AppAlertConfig } from '../Common/AppAlertModal';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { BottomSheetModalHost, BottomSheetSurface } from '../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
+import { generateId } from '../../utils/id';
 import { stickyNoteStyles as styles } from '../../styles/stickyNoteStyles';
 
 const CATEGORY_DEFAULT_COLORS: Record<NoteCategory, StickyNoteColor> = {
@@ -50,13 +50,7 @@ export default function StickyNoteModal({
   onDelete,
 }: StickyNoteModalProps) {
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-      statusBarTranslucent={true}
-    >
+    <BottomSheetModalHost visible={visible} onRequestClose={onClose}>
       {visible ? (
         <StickyNoteModalContent
           key={note ? note.id : 'new-sticky-note'}
@@ -66,7 +60,7 @@ export default function StickyNoteModal({
           onDelete={onDelete}
         />
       ) : null}
-    </Modal>
+    </BottomSheetModalHost>
   );
 }
 
@@ -110,8 +104,15 @@ function StickyNoteModalContent({
     message: '',
   });
 
-  const editScrollViewRef = useRef<ScrollView>(null);
-  const keyboardHeight = useKeyboardHeight();
+  const editScrollViewRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(28);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const isMultiEntryCategory = category === 'Personal' || category === 'Finance';
   const palette = STICKY_COLORS[color] || STICKY_COLORS.amber;
@@ -125,7 +126,7 @@ function StickyNoteModalContent({
 
   const handleAddEntry = () => {
     const newEntry: NoteEntry = {
-      id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+      id: generateId('entry'),
       title: '',
       content: '',
     };
@@ -151,7 +152,9 @@ function StickyNoteModalContent({
   const handleCopyText = async (textToCopy: string) => {
     if (!textToCopy) return;
     await Clipboard.setStringAsync(textToCopy);
-    setTimeout(() => setCopiedToast(''), 2000);
+    setCopiedToast('Copied to clipboard!');
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setCopiedToast(''), 2000);
   };
 
   // Toggle item in View mode or Edit mode
@@ -175,7 +178,7 @@ function StickyNoteModalContent({
     const trimmed = newItemText.trim();
     if (!trimmed) return;
     const newItem: ChecklistItem = {
-      id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+      id: generateId('chk'),
       text: trimmed,
       done: false,
     };
@@ -195,7 +198,7 @@ function StickyNoteModalContent({
     // Auto-append unsubmitted checklist input if present
     if (type === 'checklist' && newItemText.trim()) {
       const autoItem: ChecklistItem = {
-        id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+        id: generateId('chk'),
         text: newItemText.trim(),
         done: false,
       };
@@ -231,7 +234,7 @@ function StickyNoteModalContent({
     }
 
     const noteToSave: StickyNote = {
-      id: note?.id || Date.now().toString(),
+      id: note?.id || generateId('note'),
       title: trimmedTitle,
       type,
       category,
@@ -274,14 +277,10 @@ function StickyNoteModalContent({
   const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
   return (
-    <View style={styles.overlay}>
-      {/* Tap outside to dismiss modal */}
-      <TouchableWithoutFeedback onPress={handleDismiss}>
-        <View style={styles.dismissArea} />
-      </TouchableWithoutFeedback>
-
-      <View
-        style={[
+    <>
+      <BottomSheetSurface
+        overlayStyle={styles.overlay}
+        sheetStyle={[
           styles.modalSheet,
           {
             backgroundColor: COLORS.bgCard,
@@ -290,6 +289,9 @@ function StickyNoteModalContent({
             borderRightColor: palette.border,
           },
         ]}
+        keyboardOverlap={keyboardOverlap}
+        onOverlayLayout={onOverlayLayout}
+        onBackdropPress={handleDismiss}
       >
         {/* Top Sheet Drag Handle */}
         <View style={[styles.modalHandle, { backgroundColor: palette.accent + '44' }]} />
@@ -550,12 +552,10 @@ function StickyNoteModalContent({
                 style={styles.editScrollArea}
                 contentContainerStyle={[
                   styles.editScrollContent,
-                  { paddingBottom: Math.max(28, keyboardHeight + 28) },
+                  { paddingBottom: scrollBottomPadding },
                 ]}
                 showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                automaticallyAdjustKeyboardInsets={true}
-                nestedScrollEnabled={true}
+                {...KEEP_KEYBOARD_SCROLL_PROPS}
               >
                 {/* Category Picker Selector */}
                 <Text style={styles.inputLabel}>CATEGORY</Text>
@@ -621,7 +621,7 @@ function StickyNoteModalContent({
                           onPress={() => setColor(c)}
                           activeOpacity={0.7}
                         >
-                          {isSelected && <Ionicons name="checkmark" size={16} color="#08090C" />}
+                          {isSelected && <Ionicons name="checkmark" size={16} color={COLORS.textInverse} />}
                         </TouchableOpacity>
                       );
                     })}
@@ -725,8 +725,8 @@ function StickyNoteModalContent({
                         <Ionicons name="add-circle-outline" size={22} color={palette.accent} />
                         <Text style={[styles.emptyEntryText, { color: palette.accent }]}>
                           {category === 'Finance'
-                            ? 'Tap to add item'
-                            : 'Tap to add item'}
+                            ? 'Tap to add budget item'
+                            : 'Tap to add account or detail'}
                         </Text>
                       </TouchableOpacity>
                     ) : (
@@ -758,7 +758,7 @@ function StickyNoteModalContent({
                               style={styles.entryContentInput}
                               placeholder={
                                 category === 'Finance'
-                                  ? 'e.g. Target: Rp 500.000 / bln, Rekening: BCA...'
+                                  ? 'e.g. Target: Rp 500,000 / mo, Account: BCA...'
                                   : 'e.g. User: name@email.com\nPass: **********'
                               }
                               placeholderTextColor={COLORS.textMuted}
@@ -893,7 +893,7 @@ function StickyNoteModalContent({
                         onPress={handleAddChecklistItem}
                         activeOpacity={0.8}
                       >
-                        <Ionicons name="add" size={22} color="#08090C" />
+                        <Ionicons name="add" size={22} color={COLORS.textInverse} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -923,7 +923,7 @@ function StickyNoteModalContent({
                     <Ionicons
                       name={isExisting ? 'checkmark-circle' : 'pin'}
                       size={16}
-                      color="#08090C"
+                      color={COLORS.textInverse}
                       style={{ marginRight: 6 }}
                     />
                     <Text style={styles.btnPrimaryText}>
@@ -934,13 +934,13 @@ function StickyNoteModalContent({
               </ScrollView>
             </View>
           )}
-        </View>
+        </BottomSheetSurface>
 
       {/* Custom Alert Modal for Delete */}
       <AppAlertModal
         config={alertConfig}
         onClose={() => setAlertConfig((prev) => ({ ...prev, visible: false }))}
       />
-    </View>
+    </>
   );
 }

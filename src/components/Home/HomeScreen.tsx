@@ -87,14 +87,14 @@ export function HomeScreen() {
   return (
     <ErrorBoundary fallbackTitle="Home Encountered an Issue">
       <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
+        <StatusBar barStyle="dark-content" />
 
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <Svg width="100%" height="100%">
           <Defs>
-            <RadialGradient id="ambientGlow" cx="50%" cy="0%" r="75%">
-              <Stop offset="0%" stopColor={COLORS.accent} stopOpacity={0.12} />
-              <Stop offset="50%" stopColor={COLORS.accent} stopOpacity={0.04} />
+            <RadialGradient id="ambientGlow" cx="50%" cy="0%" r="72%">
+              <Stop offset="0%" stopColor={COLORS.accent} stopOpacity={0.07} />
+              <Stop offset="50%" stopColor={COLORS.accent} stopOpacity={0.02} />
               <Stop offset="100%" stopColor={COLORS.accent} stopOpacity={0} />
             </RadialGradient>
           </Defs>

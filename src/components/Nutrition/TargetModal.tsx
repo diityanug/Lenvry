@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Modal,
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   Keyboard,
   ScrollView,
 } from 'react-native';
@@ -13,7 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { NutritionTarget } from '../../types/nutrition';
 import { nutritionStyles as styles } from '../../styles/nutritionStyles';
 import { COLORS } from '../../constants/theme';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { BottomSheetModalHost, BottomSheetSurface } from '../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
 
 interface TargetModalProps {
   visible: boolean;
@@ -27,15 +26,9 @@ export const TargetModal = ({
   ...props
 }: TargetModalProps) => {
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={props.onClose}
-      statusBarTranslucent={true}
-    >
+    <BottomSheetModalHost visible={visible} onRequestClose={props.onClose}>
       {visible ? <TargetModalContent {...props} /> : null}
-    </Modal>
+    </BottomSheetModalHost>
   );
 };
 
@@ -48,7 +41,7 @@ function TargetModalContent({
   const [protein, setProtein] = useState(target.protein.toString());
   const [carbs, setCarbs] = useState(target.carbs.toString());
   const [fat, setFat] = useState(target.fat.toString());
-  const keyboardHeight = useKeyboardHeight();
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(28);
 
   const handleDismiss = () => {
     Keyboard.dismiss();
@@ -74,13 +67,14 @@ function TargetModalContent({
   };
 
   return (
-    <View style={styles.modalOverlay}>
-      <TouchableWithoutFeedback onPress={handleDismiss}>
-        <View style={styles.dismissArea} />
-      </TouchableWithoutFeedback>
-
-      <View style={styles.modalContent}>
-        <View style={styles.modalHandle} />
+    <BottomSheetSurface
+      overlayStyle={styles.modalOverlay}
+      sheetStyle={styles.modalContent}
+      keyboardOverlap={keyboardOverlap}
+      onOverlayLayout={onOverlayLayout}
+      onBackdropPress={handleDismiss}
+    >
+      <View style={styles.modalHandle} />
 
           <View style={styles.modalHeaderRow}>
             <View>
@@ -92,11 +86,9 @@ function TargetModalContent({
           </View>
 
           <ScrollView
-            keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets={true}
-            keyboardDismissMode="on-drag"
+            {...KEEP_KEYBOARD_SCROLL_PROPS}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
+            contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
           >
             {/* Quick Presets */}
             <Text style={styles.formLabel}>QUICK PRESETS</Text>
@@ -204,7 +196,6 @@ function TargetModalContent({
               <Text style={styles.logSaveBtnText}>SAVE DAILY GOALS</Text>
             </TouchableOpacity>
           </ScrollView>
-        </View>
-      </View>
-    );
-  }
+    </BottomSheetSurface>
+  );
+}

@@ -1,11 +1,20 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+  useWindowDimensions,
+} from 'react-native';
+import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { TAB_BAR_HEIGHT, CENTER_BUTTON_SIZE } from '../../constants/tabBar';
+import { CENTER_BUTTON_SIZE } from '../../constants/tabBar';
 import { COLORS } from '../../constants/theme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+type CurvedTabBarProps = Parameters<NonNullable<React.ComponentProps<typeof Tabs>['tabBar']>>[0];
 
 interface TabItemProps {
   label: string;
@@ -29,6 +38,9 @@ function TabItem({
       style={styles.tabItem}
       onPress={onPress}
       activeOpacity={0.7}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isFocused }}
+      accessibilityLabel={label}
     >
       <View style={styles.iconContainer}>
         <Ionicons
@@ -41,7 +53,7 @@ function TabItem({
             styles.tabLabel,
             {
               color: isFocused ? COLORS.textPrimary : COLORS.textMuted,
-              fontWeight: isFocused ? '700' : '500',
+              fontWeight: isFocused ? '600' : '500',
             },
           ]}
           numberOfLines={1}
@@ -53,15 +65,13 @@ function TabItem({
   );
 }
 
-interface CurvedTabBarProps {
-  state: any;
-  navigation: any;
-  descriptors?: any;
-  insets?: any;
-}
+export default function CurvedTabBar({ state, emitter, navigateToTab }: CurvedTabBarProps) {
+  const { width: screenWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const bottomInset = Platform.OS === 'ios' ? Math.max(insets.bottom, 20) : insets.bottom;
+  const barHeight = 68 + bottomInset;
 
-export default function CurvedTabBar({ state, navigation }: CurvedTabBarProps) {
-  const center = SCREEN_WIDTH / 2;
+  const center = screenWidth / 2;
   const notchRadius = 42;
   const notchDepth = 34;
 
@@ -70,29 +80,39 @@ export default function CurvedTabBar({ state, navigation }: CurvedTabBarProps) {
     L ${center - notchRadius - 10} 0
     C ${center - notchRadius + 8} 0, ${center - notchRadius + 12} ${notchDepth}, ${center} ${notchDepth}
     C ${center + notchRadius - 12} ${notchDepth}, ${center + notchRadius - 8} 0, ${center + notchRadius + 10} 0
-    L ${SCREEN_WIDTH} 0
-    L ${SCREEN_WIDTH} ${TAB_BAR_HEIGHT + 30}
-    L 0 ${TAB_BAR_HEIGHT + 30}
+    L ${screenWidth} 0
+    L ${screenWidth} ${barHeight + 30}
+    L 0 ${barHeight + 30}
     Z
   `;
 
+  const activeRouteName = state.routes[state.index]?.name;
+  const isCurrent = (name: string) => activeRouteName === name;
+
   const navigateTo = (name: string) => {
-    const isFocused = state.routes[state.index].name === name;
-    if (!isFocused) {
-      navigation.navigate(name);
+    const targetRoute = state.routes.find((route) => route.name === name);
+    if (!targetRoute || isCurrent(name)) {
+      return;
+    }
+
+    const event = emitter.emit({
+      type: 'tabPress',
+      target: targetRoute.key,
+      canPreventDefault: true,
+    });
+
+    if (!event.defaultPrevented) {
+      navigateToTab(targetRoute.key);
     }
   };
 
-  const isCurrent = (name: string) => state.routes[state.index].name === name;
-
   return (
-    <View style={[styles.container, { height: TAB_BAR_HEIGHT }]}>
-      <Svg width={SCREEN_WIDTH} height={TAB_BAR_HEIGHT + 30} style={styles.svgBg}>
-        <Path d={d} fill={COLORS.bgCard} stroke={COLORS.border} strokeWidth={1} />
+    <View style={[styles.container, { height: barHeight, paddingBottom: bottomInset }]}>
+      <Svg width={screenWidth} height={barHeight + 30} style={styles.svgBg}>
+        <Path d={d} fill={COLORS.bgCard} stroke={COLORS.borderLight} strokeWidth={1} />
       </Svg>
 
       <View style={styles.barContent}>
-        {/* Fitness */}
         <TabItem
           label="Fitness"
           iconName="barbell"
@@ -102,7 +122,6 @@ export default function CurvedTabBar({ state, navigation }: CurvedTabBarProps) {
           onPress={() => navigateTo('fitness')}
         />
 
-        {/* Habits */}
         <TabItem
           label="To-Do"
           iconName="checkbox"
@@ -112,10 +131,8 @@ export default function CurvedTabBar({ state, navigation }: CurvedTabBarProps) {
           onPress={() => navigateTo('habits')}
         />
 
-        {/* Fixed Center Space */}
         <View style={styles.centerSpace} pointerEvents="none" />
 
-        {/* Nutrition */}
         <TabItem
           label="Meal"
           iconName="restaurant"
@@ -125,7 +142,6 @@ export default function CurvedTabBar({ state, navigation }: CurvedTabBarProps) {
           onPress={() => navigateTo('nutrition')}
         />
 
-        {/* Finance */}
         <TabItem
           label="Finance"
           iconName="wallet"
@@ -136,23 +152,26 @@ export default function CurvedTabBar({ state, navigation }: CurvedTabBarProps) {
         />
       </View>
 
-      {/* Floating Center Button: Home */}
       <TouchableOpacity
         style={[
           styles.centerButton,
           {
-            borderColor: isCurrent('index') ? COLORS.accent : COLORS.border,
-            shadowColor: isCurrent('index') ? COLORS.accent : '#000',
-            shadowOpacity: isCurrent('index') ? 0.45 : 0.25,
+            backgroundColor: isCurrent('index') ? COLORS.accent : COLORS.bgCardSub,
+            borderColor: isCurrent('index') ? COLORS.accentHover : COLORS.borderLight,
+            shadowColor: '#000',
+            shadowOpacity: isCurrent('index') ? 0.25 : 0.18,
           },
         ]}
         onPress={() => navigateTo('index')}
         activeOpacity={0.85}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: isCurrent('index') }}
+        accessibilityLabel="Home"
       >
         <Ionicons
           name={isCurrent('index') ? 'home' : 'home-outline'}
-          size={25}
-          color={isCurrent('index') ? COLORS.accent : COLORS.textSecondary}
+          size={24}
+          color={isCurrent('index') ? COLORS.textInverse : COLORS.textSecondary}
         />
       </TouchableOpacity>
     </View>

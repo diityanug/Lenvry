@@ -172,6 +172,7 @@ export const CategoryBreakdownCard = ({
   const { expenseCatTotals, totalExpense, sortedExpenseCats, expenseTx } = useMemo(() => {
     const expenses = transactions.filter((t) => {
       if (t.type !== 'expense') return false;
+      if (t.category === 'Adjustment' || t.category === 'Debt & Loan' || t.debtId) return false;
       if (accounts) {
         const acc = accounts.find((a) => a.id === t.accountId);
         if (acc?.type === 'Investment') return false;
@@ -279,7 +280,7 @@ export const CategoryBreakdownCard = ({
                 cx={DONUT_SIZE / 2}
                 cy={DONUT_SIZE / 2}
                 r={DONUT_RADIUS}
-                stroke="rgba(255, 255, 255, 0.08)"
+                stroke="rgba(28, 25, 23, 0.08)"
                 strokeWidth={DONUT_STROKE}
                 fill="none"
               />
@@ -440,7 +441,7 @@ export const CategoryBreakdownCard = ({
                     { borderLeftColor: theme.color },
                     isSelected && {
                       borderColor: theme.color,
-                      backgroundColor: hexToRgba(theme.color, 0.08),
+                      borderWidth: 1.5,
                     },
                   ]}
                 >
@@ -662,7 +663,7 @@ const cardStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.28)',
+    borderColor: 'rgba(37, 99, 235, 0.28)',
     flexShrink: 0,
   },
   titleTextCol: {
@@ -790,7 +791,7 @@ const cardStyles = StyleSheet.create({
   },
   miniBarTrack: {
     height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.full,
     overflow: 'hidden',
   },
@@ -901,7 +902,7 @@ const cardStyles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.bgCard,
     borderWidth: 1,
     borderColor: COLORS.border,
     alignItems: 'center',
@@ -950,7 +951,7 @@ const cardStyles = StyleSheet.create({
   },
   categoryBarTrack: {
     height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.full,
     overflow: 'hidden',
     marginTop: 8,
@@ -966,7 +967,7 @@ const cardStyles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    borderTopColor: COLORS.border,
   },
   catBudgetText: {
     fontSize: 12,
@@ -981,7 +982,7 @@ const cardStyles = StyleSheet.create({
     marginTop: 14,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopColor: COLORS.border,
   },
   expandedEmptyText: {
     fontSize: 12,
@@ -998,10 +999,10 @@ const cardStyles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.035)',
+    backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: COLORS.border,
     gap: 12,
   },
   expandedTxItemLeft: {
@@ -1030,12 +1031,12 @@ const cardStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.bgCardSub,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: RADIUS.xs,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.border,
   },
   expandedAccChipText: {
     fontSize: 10,
@@ -1050,7 +1051,7 @@ const cardStyles = StyleSheet.create({
   expandedTxAmount: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#FB7185',
+    color: COLORS.danger,
     fontVariant: ['tabular-nums'],
     textAlign: 'right',
     maxWidth: '100%',
@@ -1074,7 +1075,7 @@ const cardStyles = StyleSheet.create({
     borderRadius: RADIUS.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.bgCard,
     marginBottom: 4,
   },
   emptyTitle: {

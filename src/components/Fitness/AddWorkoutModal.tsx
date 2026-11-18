@@ -1,19 +1,19 @@
-import React, { useRef, useState } from 'react';
+import React, { ComponentRef, useRef, useState } from 'react';
 import {
   Text,
   View,
-  Modal,
   TextInput,
   TouchableOpacity,
   Keyboard,
   ScrollView,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GYM_CATEGORIES, EXERCISE_SUGGESTIONS } from '../../constants/fitness';
 import { fitnessStyles as styles } from '../../styles/fitnessStyles';
 import { COLORS } from '../../constants/theme';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { BottomSheetModalHost, BottomSheetSurface } from '../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
+import { parseNonNegativeDecimal, sanitizeDecimalInput } from '../../utils/math';
 
 interface AddWorkoutModalProps {
   visible: boolean;
@@ -45,7 +45,7 @@ export default function AddWorkoutModal({
   onSave,
 }: AddWorkoutModalProps) {
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
+    <BottomSheetModalHost visible={visible} onRequestClose={onClose}>
       {visible ? (
         <AddWorkoutContent
           key={initialData?.id || 'new-workout'}
@@ -55,7 +55,7 @@ export default function AddWorkoutModal({
           onSave={onSave}
         />
       ) : null}
-    </Modal>
+    </BottomSheetModalHost>
   );
 }
 
@@ -84,7 +84,7 @@ function AddWorkoutContent({
     weight: string;
   }) => void;
 }) {
-  const suggestionScrollRef = useRef<ScrollView>(null);
+  const suggestionScrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
 
   const [exercise, setExercise] = useState(initialData?.exercise || '');
   const [selectedCategory, setSelectedCategory] = useState(
@@ -94,7 +94,7 @@ function AddWorkoutContent({
   const [reps, setReps] = useState(initialData?.reps || '10');
   const [weight, setWeight] = useState(initialData?.weight || '20');
   const [errorMessage, setErrorMessage] = useState('');
-  const keyboardHeight = useKeyboardHeight();
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(16);
 
   const handleSelectCategory = (cat: string) => {
     setSelectedCategory(cat);
@@ -129,7 +129,7 @@ function AddWorkoutContent({
   const adjustReps = (delta: number) => {
     if (isCardio) {
       // Distance adjustment
-      const current = parseFloat(reps) || 0;
+      const current = parseNonNegativeDecimal(reps, 0);
       const next = Math.max(0, current + delta * 0.5);
       setReps(String(next % 1 === 0 ? next : next.toFixed(1)));
     } else {
@@ -140,7 +140,7 @@ function AddWorkoutContent({
   };
 
   const adjustWeight = (delta: number) => {
-    const current = parseFloat(weight) || 0;
+    const current = parseNonNegativeDecimal(weight, 0);
     const next = Math.max(0, current + delta);
     setWeight(String(next % 1 === 0 ? next : next.toFixed(1)));
   };
@@ -165,7 +165,7 @@ function AddWorkoutContent({
         exercise: trimmed,
         category: selectedCategory,
         sets: String(durationMins), // stores duration in minutes
-        reps: String(parseFloat(reps) || 0), // stores distance in km
+        reps: String(parseNonNegativeDecimal(reps, 0)), // stores distance in km
         weight: '0',
       });
       return;
@@ -183,7 +183,7 @@ function AddWorkoutContent({
       return;
     }
 
-    const numWeight = parseFloat(weight);
+    const numWeight = parseFloat((weight || '0').replace(',', '.'));
     if (isNaN(numWeight) || numWeight < 0) {
       setErrorMessage('Please enter valid weight (kg).');
       return;
@@ -196,18 +196,19 @@ function AddWorkoutContent({
       category: selectedCategory,
       sets: String(numSets),
       reps: String(numReps),
-      weight: String(parseFloat(weight) || 0),
+      weight: String(parseNonNegativeDecimal(weight, 0)),
     });
   };
 
   return (
-    <View style={styles.modalOverlay}>
-      <TouchableWithoutFeedback onPress={handleDismissOverlay}>
-        <View style={styles.modalDismissArea} />
-      </TouchableWithoutFeedback>
-
-      <View style={styles.modalContent}>
-        <View style={styles.modalHandle} />
+    <BottomSheetSurface
+      overlayStyle={styles.modalOverlay}
+      sheetStyle={styles.modalContent}
+      keyboardOverlap={keyboardOverlap}
+      onOverlayLayout={onOverlayLayout}
+      onBackdropPress={handleDismissOverlay}
+    >
+      <View style={styles.modalHandle} />
           
           {/* Header */}
           <View style={styles.modalHeader}>
@@ -227,12 +228,9 @@ function AddWorkoutContent({
           </View>
 
           <ScrollView
-            keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets={true}
-            keyboardDismissMode="on-drag"
+            {...KEEP_KEYBOARD_SCROLL_PROPS}
             showsVerticalScrollIndicator={false}
-            nestedScrollEnabled={true}
-            contentContainerStyle={{ paddingBottom: Math.max(16, keyboardHeight + 16) }}
+            contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
           >
           {/* Category selector */}
           <Text style={styles.formLabel}>Focus Area</Text>
@@ -295,7 +293,7 @@ function AddWorkoutContent({
           {EXERCISE_SUGGESTIONS[selectedCategory] &&
             EXERCISE_SUGGESTIONS[selectedCategory].length > 0 && (
               <View style={{ marginBottom: 18 }}>
-                <Text style={styles.formMiniLabel}>{selectedCategory.toUpperCase()} Suggestion </Text>
+                <Text style={styles.formMiniLabel}>{selectedCategory.toUpperCase()} SUGGESTIONS</Text>
                 <ScrollView
                   ref={suggestionScrollRef}
                   horizontal
@@ -411,7 +409,7 @@ function AddWorkoutContent({
                     style={styles.metricNumberInput}
                     keyboardType="numeric"
                     value={reps}
-                    onChangeText={(v) => setReps(v.replace(/[^0-9.]/g, ''))}
+                    onChangeText={(v) => setReps(isCardio ? sanitizeDecimalInput(v) : v.replace(/[^0-9]/g, ''))}
                     maxLength={4}
                     selectTextOnFocus
                   />
@@ -484,7 +482,7 @@ function AddWorkoutContent({
                       style={styles.weightInput}
                       keyboardType="numeric"
                       value={weight}
-                      onChangeText={(v) => setWeight(v.replace(/[^0-9.]/g, ''))}
+                      onChangeText={(v) => setWeight(sanitizeDecimalInput(v))}
                       maxLength={6}
                       selectTextOnFocus
                     />
@@ -552,11 +550,10 @@ function AddWorkoutContent({
               onPress={handleSave}
               activeOpacity={0.8}
             >
-              <Ionicons name="checkmark-circle" size={18} color="#08090C" />
+              <Ionicons name="checkmark-circle" size={18} color={COLORS.textInverse} />
               <Text style={styles.primaryActionButtonText}>SAVE TO SESSION</Text>
             </TouchableOpacity>
           </ScrollView>
-        </View>
-      </View>
-    );
-  }
+    </BottomSheetSurface>
+  );
+}

@@ -1,10 +1,10 @@
 import { StyleSheet, Platform } from 'react-native';
 import { COLORS, RADIUS } from '../constants/theme';
 
-export const ACCENT = '#38BDF8';
-export const INCOME = '#10B981';
-export const EXPENSE = '#F43F5E';
-export const INK = '#08090C';
+export const ACCENT = COLORS.finance;
+export const INCOME = COLORS.success;
+export const EXPENSE = COLORS.danger;
+export const INK = COLORS.textInverse;
 
 export const BILL_CATEGORIES = [
   'Bills & Utilities',
@@ -18,28 +18,28 @@ export const BILL_CATEGORIES = [
 ];
 
 export const BILL_CATEGORY_THEMES: Record<string, { icon: any; color: string }> = {
-  'Bills & Utilities': { icon: 'flash-outline', color: '#F59E0B' },
-  'Subscriptions': { icon: 'apps-outline', color: '#A855F7' },
-  'Housing / Rent': { icon: 'home-outline', color: '#EAB308' },
-  'Internet & Phone': { icon: 'wifi-outline', color: '#38BDF8' },
-  'Insurance': { icon: 'shield-checkmark-outline', color: '#10B981' },
-  'Fitness & Gym': { icon: 'barbell-outline', color: '#EC4899' },
-  'Cloud & Storage': { icon: 'cloud-outline', color: '#6366F1' },
+  'Bills & Utilities': { icon: 'flash-outline', color: '#C96D12' },
+  'Subscriptions': { icon: 'apps-outline', color: '#7E22CE' },
+  'Housing / Rent': { icon: 'home-outline', color: '#B45309' },
+  'Internet & Phone': { icon: 'wifi-outline', color: '#2563EB' },
+  'Insurance': { icon: 'shield-checkmark-outline', color: '#16794B' },
+  'Fitness & Gym': { icon: 'barbell-outline', color: '#DB2777' },
+  'Cloud & Storage': { icon: 'cloud-outline', color: '#4F46E5' },
   'Other': { icon: 'receipt-outline', color: ACCENT },
 };
 
 export const PRESET_BILLS = [
-  { name: 'Netflix', category: 'Subscriptions', defaultAmount: '186000', defaultAmountUSD: '15', icon: 'tv-outline', color: '#EF4444' },
-  { name: 'Spotify', category: 'Subscriptions', defaultAmount: '55000', defaultAmountUSD: '11', icon: 'musical-notes-outline', color: '#10B981' },
-  { name: 'YouTube Premium', category: 'Subscriptions', defaultAmount: '59000', defaultAmountUSD: '14', icon: 'logo-youtube', color: '#EF4444' },
-  { name: 'Wi-Fi / Internet', category: 'Internet & Phone', defaultAmount: '350000', defaultAmountUSD: '50', icon: 'wifi-outline', color: '#38BDF8' },
-  { name: 'Electricity / Power', category: 'Bills & Utilities', defaultAmount: '250000', defaultAmountUSD: '60', icon: 'flash-outline', color: '#F59E0B' },
-  { name: 'Water & Utilities', category: 'Bills & Utilities', defaultAmount: '80000', defaultAmountUSD: '30', icon: 'water-outline', color: '#06B6D4' },
-  { name: 'House / Room Rent', category: 'Housing / Rent', defaultAmount: '1500000', defaultAmountUSD: '500', icon: 'home-outline', color: '#EAB308' },
-  { name: 'Gym Membership', category: 'Fitness & Gym', defaultAmount: '350000', defaultAmountUSD: '45', icon: 'barbell-outline', color: '#EC4899' },
-  { name: 'iCloud / Google One', category: 'Cloud & Storage', defaultAmount: '45000', defaultAmountUSD: '3', icon: 'cloud-outline', color: '#6366F1' },
-  { name: 'Pulsa / Paket Data', category: 'Internet & Phone', defaultAmount: '100000', defaultAmountUSD: '15', icon: 'phone-portrait-outline', color: '#EC4899' },
-  { name: 'BPJS / Insurance', category: 'Insurance', defaultAmount: '150000', defaultAmountUSD: '25', icon: 'shield-checkmark-outline', color: '#10B981' },
+  { name: 'Netflix', category: 'Subscriptions', defaultAmount: '186000', defaultAmountUSD: '15', icon: 'tv-outline', color: '#C93B3B' },
+  { name: 'Spotify', category: 'Subscriptions', defaultAmount: '55000', defaultAmountUSD: '11', icon: 'musical-notes-outline', color: '#16794B' },
+  { name: 'YouTube Premium', category: 'Subscriptions', defaultAmount: '59000', defaultAmountUSD: '14', icon: 'logo-youtube', color: '#C93B3B' },
+  { name: 'Wi-Fi / Internet', category: 'Internet & Phone', defaultAmount: '350000', defaultAmountUSD: '50', icon: 'wifi-outline', color: '#2563EB' },
+  { name: 'Electricity / Power', category: 'Bills & Utilities', defaultAmount: '250000', defaultAmountUSD: '60', icon: 'flash-outline', color: '#C96D12' },
+  { name: 'Water & Utilities', category: 'Bills & Utilities', defaultAmount: '80000', defaultAmountUSD: '30', icon: 'water-outline', color: '#0D8A7E' },
+  { name: 'House / Room Rent', category: 'Housing / Rent', defaultAmount: '1500000', defaultAmountUSD: '500', icon: 'home-outline', color: '#B45309' },
+  { name: 'Gym Membership', category: 'Fitness & Gym', defaultAmount: '350000', defaultAmountUSD: '45', icon: 'barbell-outline', color: '#DB2777' },
+  { name: 'iCloud / Google One', category: 'Cloud & Storage', defaultAmount: '45000', defaultAmountUSD: '3', icon: 'cloud-outline', color: '#4F46E5' },
+  { name: 'Pulsa / Paket Data', category: 'Internet & Phone', defaultAmount: '100000', defaultAmountUSD: '15', icon: 'phone-portrait-outline', color: '#DB2777' },
+  { name: 'BPJS / Insurance', category: 'Insurance', defaultAmount: '150000', defaultAmountUSD: '25', icon: 'shield-checkmark-outline', color: '#16794B' },
 ];
 
 export const getOrdinal = (day: number): string => {
@@ -54,60 +54,60 @@ export const getOrdinal = (day: number): string => {
 export const getBillTheme = (category: string, name: string): { icon: any; color: string; bg: string } => {
   const lower = name.toLowerCase();
   if (lower.includes('netflix') || lower.includes('disney') || lower.includes('tv') || lower.includes('prime') || lower.includes('vidio')) {
-    return { icon: 'tv-outline', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.16)' };
+    return { icon: 'tv-outline', color: '#C93B3B', bg: 'rgba(201, 59, 59, 0.12)' };
   }
   if (lower.includes('spotify') || lower.includes('music') || lower.includes('apple music')) {
-    return { icon: 'musical-notes-outline', color: '#10B981', bg: 'rgba(16, 185, 129, 0.16)' };
+    return { icon: 'musical-notes-outline', color: '#16794B', bg: 'rgba(22, 121, 75, 0.12)' };
   }
   if (lower.includes('youtube')) {
-    return { icon: 'logo-youtube', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.16)' };
+    return { icon: 'logo-youtube', color: '#C93B3B', bg: 'rgba(201, 59, 59, 0.12)' };
   }
   if (lower.includes('wifi') || lower.includes('internet') || lower.includes('indihome') || lower.includes('biznet') || lower.includes('myrepublic')) {
-    return { icon: 'wifi-outline', color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.16)' };
+    return { icon: 'wifi-outline', color: '#2563EB', bg: 'rgba(37, 99, 235, 0.12)' };
   }
   if (lower.includes('pln') || lower.includes('listrik') || lower.includes('electric') || lower.includes('token')) {
-    return { icon: 'flash-outline', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.16)' };
+    return { icon: 'flash-outline', color: '#C96D12', bg: 'rgba(201, 109, 18, 0.12)' };
   }
   if (lower.includes('air') || lower.includes('pdam') || lower.includes('water')) {
-    return { icon: 'water-outline', color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.16)' };
+    return { icon: 'water-outline', color: '#0D8A7E', bg: 'rgba(13, 138, 126, 0.12)' };
   }
   if (lower.includes('kost') || lower.includes('rent') || lower.includes('rumah') || lower.includes('sewa') || lower.includes('apartment')) {
-    return { icon: 'home-outline', color: '#EAB308', bg: 'rgba(234, 179, 8, 0.16)' };
+    return { icon: 'home-outline', color: '#B45309', bg: 'rgba(180, 83, 9, 0.12)' };
   }
   if (lower.includes('gym') || lower.includes('fitness') || lower.includes('workout')) {
-    return { icon: 'barbell-outline', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.16)' };
+    return { icon: 'barbell-outline', color: '#6D28D9', bg: 'rgba(109, 40, 217, 0.12)' };
   }
   if (lower.includes('cloud') || lower.includes('icloud') || lower.includes('google') || lower.includes('drive')) {
-    return { icon: 'cloud-outline', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.16)' };
+    return { icon: 'cloud-outline', color: '#4F46E5', bg: 'rgba(79, 70, 229, 0.12)' };
   }
   if (lower.includes('pulsa') || lower.includes('kuota') || lower.includes('telkomsel') || lower.includes('indosat') || lower.includes('xl')) {
-    return { icon: 'phone-portrait-outline', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.16)' };
+    return { icon: 'phone-portrait-outline', color: '#DB2777', bg: 'rgba(219, 39, 119, 0.12)' };
   }
 
   switch (category) {
     case 'Subscriptions':
-      return { icon: 'apps-outline', color: '#A855F7', bg: 'rgba(168, 85, 247, 0.16)' };
+      return { icon: 'apps-outline', color: '#7E22CE', bg: 'rgba(126, 34, 206, 0.12)' };
     case 'Internet & Phone':
-      return { icon: 'phone-portrait-outline', color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.16)' };
+      return { icon: 'phone-portrait-outline', color: '#2563EB', bg: 'rgba(37, 99, 235, 0.12)' };
     case 'Housing / Rent':
-      return { icon: 'home-outline', color: '#EAB308', bg: 'rgba(234, 179, 8, 0.16)' };
+      return { icon: 'home-outline', color: '#B45309', bg: 'rgba(180, 83, 9, 0.12)' };
     case 'Insurance':
-      return { icon: 'shield-checkmark-outline', color: '#10B981', bg: 'rgba(16, 185, 129, 0.16)' };
+      return { icon: 'shield-checkmark-outline', color: '#16794B', bg: 'rgba(22, 121, 75, 0.12)' };
     case 'Fitness & Gym':
-      return { icon: 'barbell-outline', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.16)' };
+      return { icon: 'barbell-outline', color: '#DB2777', bg: 'rgba(219, 39, 119, 0.12)' };
     case 'Cloud & Storage':
-      return { icon: 'cloud-outline', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.16)' };
+      return { icon: 'cloud-outline', color: '#4F46E5', bg: 'rgba(79, 70, 229, 0.12)' };
     default:
-      return { icon: 'receipt-outline', color: ACCENT, bg: 'rgba(56, 189, 248, 0.16)' };
+      return { icon: 'receipt-outline', color: ACCENT, bg: 'rgba(37, 99, 235, 0.12)' };
   }
 };
 
 export const STATUS_THEME: Record<string, { color: string; bg: string; border: string }> = {
-  paid: { color: INCOME, bg: 'rgba(16, 185, 129, 0.14)', border: 'rgba(16, 185, 129, 0.34)' },
-  today: { color: EXPENSE, bg: 'rgba(244, 63, 94, 0.16)', border: 'rgba(244, 63, 94, 0.4)' },
-  soon: { color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.14)', border: 'rgba(245, 158, 11, 0.34)' },
-  overdue: { color: EXPENSE, bg: 'rgba(244, 63, 94, 0.12)', border: 'rgba(244, 63, 94, 0.3)' },
-  normal: { color: COLORS.textSecondary, bg: 'rgba(255, 255, 255, 0.05)', border: COLORS.border },
+  paid: { color: INCOME, bg: 'rgba(22, 121, 75, 0.12)', border: 'rgba(22, 121, 75, 0.30)' },
+  today: { color: EXPENSE, bg: 'rgba(201, 59, 59, 0.12)', border: 'rgba(201, 59, 59, 0.35)' },
+  soon: { color: '#C96D12', bg: 'rgba(201, 109, 18, 0.12)', border: 'rgba(201, 109, 18, 0.32)' },
+  overdue: { color: EXPENSE, bg: 'rgba(201, 59, 59, 0.10)', border: 'rgba(201, 59, 59, 0.28)' },
+  normal: { color: COLORS.textSecondary, bg: COLORS.bgCardSub, border: COLORS.border },
 };
 
 export const cardStyles = StyleSheet.create({
@@ -144,11 +144,11 @@ export const cardStyles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    backgroundColor: 'rgba(37, 99, 235, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderColor: 'rgba(37, 99, 235, 0.25)',
     flexShrink: 0,
   },
   title: {
@@ -168,9 +168,9 @@ export const cardStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderColor: 'rgba(37, 99, 235, 0.3)',
     borderRadius: RADIUS.lg,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -283,23 +283,25 @@ export const cardStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   tabBtnActive: {
-    backgroundColor: COLORS.bgCardHover,
-    borderWidth: 1,
+    backgroundColor: COLORS.bgCard,
     borderColor: COLORS.borderLight,
   },
   tabBtnText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.textMuted,
     textAlign: 'center',
   },
   tabBtnTextActive: {
     color: COLORS.textPrimary,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   emptyBox: {
+    minHeight: 210,
     paddingVertical: 28,
     paddingHorizontal: 20,
     alignItems: 'center',
@@ -314,7 +316,7 @@ export const cardStyles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: RADIUS.full,
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    backgroundColor: 'rgba(37, 99, 235, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
@@ -459,7 +461,7 @@ export const cardStyles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     color: COLORS.textSecondary,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: COLORS.bgCard,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: RADIUS.sm,
@@ -493,8 +495,8 @@ export const cardStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-    borderColor: 'rgba(16, 185, 129, 0.25)',
+    backgroundColor: '#EAF6EF',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
     borderWidth: 1,
     borderRadius: RADIUS.md,
     paddingHorizontal: 14,
@@ -531,16 +533,16 @@ export const cardStyles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(244, 63, 94, 0.08)',
+    backgroundColor: '#FCECEC',
     borderWidth: 1,
-    borderColor: 'rgba(244, 63, 94, 0.25)',
+    borderColor: 'rgba(244, 63, 94, 0.35)',
     minHeight: 34,
     justifyContent: 'center',
     gap: 6,
     flexShrink: 0,
   },
   undoActionText: {
-    color: '#FB7185',
+    color: EXPENSE,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -565,7 +567,7 @@ export const cardStyles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.bgCard,
     borderWidth: 1,
     borderColor: COLORS.border,
     flexShrink: 0,
@@ -623,9 +625,9 @@ export const cardStyles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    backgroundColor: 'rgba(37, 99, 235, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderColor: 'rgba(37, 99, 235, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -710,7 +712,7 @@ export const cardStyles = StyleSheet.create({
     flexShrink: 0,
   },
   presetIconWrapActive: {
-    backgroundColor: 'rgba(8, 9, 12, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
   presetTextWrap: {
     flexShrink: 1,
@@ -732,7 +734,7 @@ export const cardStyles = StyleSheet.create({
     marginTop: 2,
   },
   presetSubTextActive: {
-    color: 'rgba(8, 9, 12, 0.75)',
+    color: 'rgba(255, 255, 255, 0.88)',
     fontWeight: '700',
   },
   formGroup: {
@@ -826,7 +828,7 @@ export const cardStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   quickDayPillActive: {
-    backgroundColor: 'rgba(56, 189, 248, 0.16)',
+    backgroundColor: 'rgba(37, 99, 235, 0.16)',
     borderColor: ACCENT,
     borderWidth: 1.5,
   },
@@ -924,7 +926,7 @@ export const cardStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   durationPillActive: {
-    backgroundColor: 'rgba(56, 189, 248, 0.16)',
+    backgroundColor: 'rgba(37, 99, 235, 0.16)',
     borderColor: ACCENT,
     borderWidth: 1.5,
   },
@@ -964,10 +966,10 @@ export const cardStyles = StyleSheet.create({
   durationPreviewBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.22)',
+    borderColor: 'rgba(37, 99, 235, 0.22)',
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginTop: 12,
@@ -982,8 +984,8 @@ export const cardStyles = StyleSheet.create({
   durationChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+    borderColor: 'rgba(37, 99, 235, 0.25)',
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -997,7 +999,7 @@ export const cardStyles = StyleSheet.create({
   durationChipOngoing: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.bgCardSub,
     borderColor: COLORS.border,
     borderWidth: 1,
     paddingHorizontal: 10,
@@ -1024,13 +1026,13 @@ export const cardStyles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: RADIUS.full,
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    backgroundColor: 'rgba(37, 99, 235, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderColor: 'rgba(37, 99, 235, 0.25)',
   },
   choiceModalTitle: {
     fontSize: 17,
@@ -1056,7 +1058,7 @@ export const cardStyles = StyleSheet.create({
   choiceOptionEndBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(56, 189, 248, 0.14)',
+    backgroundColor: 'rgba(37, 99, 235, 0.14)',
     borderWidth: 1,
     borderColor: ACCENT,
     borderRadius: RADIUS.md,
@@ -1110,7 +1112,7 @@ export const cardStyles = StyleSheet.create({
   choiceOptionTitleDelete: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#FB7185',
+    color: EXPENSE,
     marginBottom: 2,
   },
   choiceOptionSubDelete: {
@@ -1140,7 +1142,7 @@ export const cardStyles = StyleSheet.create({
   },
   amountCardActive: {
     borderColor: ACCENT,
-    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
   },
   amountCardRow: {
     flexDirection: 'row',

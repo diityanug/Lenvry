@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Transaction, formatMoney, MONTHS } from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
 import { formatDateKey } from '../../constants/date';
+import { useDayRollover } from '../../hooks/useDayRollover';
 import { SharedCalendarModal } from '../Shared/CalendarModal';
 
 interface CashflowTrendCardProps {
@@ -68,15 +69,33 @@ export const CashflowTrendCard = ({
 }: CashflowTrendCardProps) => {
   const [period, setPeriod] = useState<TrendPeriod>('7d');
   const [selectedBarId, setSelectedBarId] = useState<string | null>(null);
-  const [dayOffset, setDayOffset] = useState<number>(0); // 0 = latest 7 days
+  const [dayOffset, setDayOffset] = useState<number>(0); // 0 = end of baseEndDate window
   const [calendarVisible, setCalendarVisible] = useState<boolean>(false);
+  const [calendarSyncedMonth, setCalendarSyncedMonth] = useState<string | null>(null);
+  const [prevMonthKey, setPrevMonthKey] = useState(
+    `${selectedMonth.getFullYear()}-${selectedMonth.getMonth()}`
+  );
+
+  const currentMonthKey = `${selectedMonth.getFullYear()}-${selectedMonth.getMonth()}`;
+  if (currentMonthKey !== prevMonthKey) {
+    setPrevMonthKey(currentMonthKey);
+    if (calendarSyncedMonth === currentMonthKey) {
+      setCalendarSyncedMonth(null);
+    } else {
+      setDayOffset(0);
+      setSelectedBarId(null);
+    }
+  }
 
   // Full transaction source for accurate historical dates
   const txSource = useMemo(() => {
     return allTransactions && allTransactions.length > 0 ? allTransactions : monthlyTransactions;
   }, [allTransactions, monthlyTransactions]);
 
-  const now = useMemo(() => new Date(), []);
+  const [now, setNow] = useState<Date>(() => new Date());
+  useDayRollover((tick) => {
+    setNow((prev) => (formatDateKey(prev) === formatDateKey(tick) ? prev : tick));
+  });
   const isCurrentMonth = useMemo(() => {
     return (
       selectedMonth.getFullYear() === now.getFullYear() &&
@@ -98,29 +117,38 @@ export const CashflowTrendCard = ({
     return d;
   }, [baseEndDate, dayOffset]);
 
-  const isAtToday = useMemo(() => {
-    const todayStr = formatDateKey(now);
-    const targetStr = formatDateKey(targetEndDate);
-    return targetStr >= todayStr;
-  }, [now, targetEndDate]);
-
   // Calendar modal selection handler
   const handleCalendarDateSelect = (date: Date) => {
     setCalendarVisible(false);
     setSelectedBarId(null);
 
     if (period === '7d') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const picked = new Date(date);
-      picked.setHours(0, 0, 0, 0);
-      const capped = picked > today ? today : picked;
-      const diffMs = today.getTime() - capped.getTime();
-      const diffDays = Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24)));
-      setDayOffset(diffDays);
+      const todayDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const pickedDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const pickedIsCurrentMonth =
+        pickedDay.getFullYear() === todayDay.getFullYear() &&
+        pickedDay.getMonth() === todayDay.getMonth();
+      const baseForPickedMonth = pickedIsCurrentMonth
+        ? todayDay
+        : new Date(pickedDay.getFullYear(), pickedDay.getMonth() + 1, 0);
+
+      const diffUtcDays = Math.round(
+        (Date.UTC(
+          baseForPickedMonth.getFullYear(),
+          baseForPickedMonth.getMonth(),
+          baseForPickedMonth.getDate()
+        ) -
+          Date.UTC(pickedDay.getFullYear(), pickedDay.getMonth(), pickedDay.getDate())) /
+          86_400_000
+      );
+      setDayOffset(diffUtcDays);
 
       if (onSelectMonth) {
-        onSelectMonth(new Date(capped.getFullYear(), capped.getMonth(), 1));
+        const pickedMonthKey = `${pickedDay.getFullYear()}-${pickedDay.getMonth()}`;
+        if (pickedMonthKey !== currentMonthKey) {
+          setCalendarSyncedMonth(pickedMonthKey);
+          onSelectMonth(new Date(pickedDay.getFullYear(), pickedDay.getMonth(), 1));
+        }
       }
     } else {
       if (onSelectMonth) {
@@ -307,7 +335,7 @@ export const CashflowTrendCard = ({
           <Ionicons
             name="calendar-outline"
             size={14}
-            color={period === '7d' ? COLORS.finance : '#64748B'}
+            color={period === '7d' ? COLORS.finance : COLORS.textMuted}
           />
           <Text style={[styles.periodTabText, period === '7d' && styles.periodTabTextActive]}>
             7 Days
@@ -325,7 +353,7 @@ export const CashflowTrendCard = ({
           <Ionicons
             name="stats-chart-outline"
             size={14}
-            color={period === 'weeks' ? COLORS.finance : '#64748B'}
+            color={period === 'weeks' ? COLORS.finance : COLORS.textMuted}
           />
           <Text style={[styles.periodTabText, period === 'weeks' && styles.periodTabTextActive]}>
             Weekly
@@ -355,7 +383,7 @@ export const CashflowTrendCard = ({
           </View>
         </View>
 
-        <Ionicons name="chevron-forward" size={16} color="#64748B" />
+        <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
       </TouchableOpacity>
 
       {/* 4. Earlier / Later Navigation (BELOW the calendar, spacious 50/50 split) */}
@@ -379,34 +407,21 @@ export const CashflowTrendCard = ({
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[
-            styles.navBtn,
-            (period === '7d' ? isAtToday : isCurrentMonth) && styles.navBtnDisabled,
-          ]}
+          style={styles.navBtn}
           onPress={() => {
             if (period === '7d') {
-              setDayOffset((prev) => Math.max(0, prev - 7));
+              setDayOffset((prev) => prev - 7);
             } else {
               onNextMonth?.();
             }
             setSelectedBarId(null);
           }}
-          disabled={period === '7d' ? isAtToday : isCurrentMonth}
           activeOpacity={0.7}
         >
-          <Text
-            style={[
-              styles.navBtnText,
-              (period === '7d' ? isAtToday : isCurrentMonth) && { color: '#64748B' },
-            ]}
-          >
+          <Text style={styles.navBtnText}>
             {period === '7d' ? 'Later' : 'Next Month'}
           </Text>
-          <Ionicons
-            name="chevron-forward"
-            size={16}
-            color={(period === '7d' ? isAtToday : isCurrentMonth) ? '#64748B' : COLORS.finance}
-          />
+          <Ionicons name="chevron-forward" size={16} color={COLORS.finance} />
         </TouchableOpacity>
       </View>
 
@@ -426,10 +441,10 @@ export const CashflowTrendCard = ({
             {/* Inflow Row */}
             <View style={styles.inspectorRow}>
               <View style={styles.inspectorRowLeft}>
-                <Ionicons name="arrow-down-circle" size={15} color="#34D399" />
+                <Ionicons name="arrow-down-circle" size={15} color="#16794B" />
                 <Text style={styles.inspectorRowLabel}>Inflow</Text>
               </View>
-              <Text style={[styles.inspectorRowValue, { color: '#34D399' }]}>
+              <Text style={[styles.inspectorRowValue, { color: '#16794B' }]}>
                 +{formatMoney(activeDetail.income, currency)}
               </Text>
             </View>
@@ -437,10 +452,10 @@ export const CashflowTrendCard = ({
             {/* Outflow Row */}
             <View style={styles.inspectorRow}>
               <View style={styles.inspectorRowLeft}>
-                <Ionicons name="arrow-up-circle" size={15} color="#FB7185" />
+                <Ionicons name="arrow-up-circle" size={15} color="#C93B3B" />
                 <Text style={styles.inspectorRowLabel}>Outflow</Text>
               </View>
-              <Text style={[styles.inspectorRowValue, { color: '#FB7185' }]}>
+              <Text style={[styles.inspectorRowValue, { color: '#C93B3B' }]}>
                 -{formatMoney(activeDetail.expense, currency)}
               </Text>
             </View>
@@ -457,7 +472,7 @@ export const CashflowTrendCard = ({
                       : 'trending-down'
                   }
                   size={15}
-                  color={activeDetail.income >= activeDetail.expense ? '#34D399' : '#FB7185'}
+                  color={activeDetail.income >= activeDetail.expense ? '#16794B' : '#C93B3B'}
                 />
                 <Text style={styles.inspectorRowLabel}>Daily Net</Text>
               </View>
@@ -467,7 +482,7 @@ export const CashflowTrendCard = ({
                     styles.inspectorRowValue,
                     {
                       color:
-                        activeDetail.income >= activeDetail.expense ? '#34D399' : '#FB7185',
+                        activeDetail.income >= activeDetail.expense ? '#16794B' : '#C93B3B',
                     },
                   ]}
                 >
@@ -479,7 +494,7 @@ export const CashflowTrendCard = ({
                     styles.inspectorSurplusBadge,
                     {
                       color:
-                        activeDetail.income >= activeDetail.expense ? '#34D399' : '#FB7185',
+                        activeDetail.income >= activeDetail.expense ? '#16794B' : '#C93B3B',
                     },
                   ]}
                 >
@@ -530,7 +545,7 @@ export const CashflowTrendCard = ({
                         {
                           height: incHeight,
                           backgroundColor:
-                            bar.income > 0 ? '#34D399' : 'rgba(255, 255, 255, 0.04)',
+                            bar.income > 0 ? '#16794B' : 'rgba(28, 25, 23, 0.08)',
                         },
                       ]}
                     />
@@ -544,7 +559,7 @@ export const CashflowTrendCard = ({
                         {
                           height: expHeight,
                           backgroundColor:
-                            bar.expense > 0 ? '#FB7185' : 'rgba(255, 255, 255, 0.04)',
+                            bar.expense > 0 ? '#C93B3B' : 'rgba(28, 25, 23, 0.08)',
                         },
                       ]}
                     />
@@ -580,11 +595,11 @@ export const CashflowTrendCard = ({
       <View style={styles.summaryGrid}>
         <View style={styles.summaryCard}>
           <View style={styles.summaryTopRow}>
-            <View style={[styles.summaryDot, { backgroundColor: '#34D399' }]} />
+            <View style={[styles.summaryDot, { backgroundColor: '#16794B' }]} />
             <Text style={styles.summaryLabel}>TOTAL INFLOW</Text>
           </View>
           <Text
-            style={[styles.summaryAmount, { color: '#34D399' }]}
+            style={[styles.summaryAmount, { color: '#16794B' }]}
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.75}
@@ -598,11 +613,11 @@ export const CashflowTrendCard = ({
 
         <View style={styles.summaryCard}>
           <View style={styles.summaryTopRow}>
-            <View style={[styles.summaryDot, { backgroundColor: '#FB7185' }]} />
+            <View style={[styles.summaryDot, { backgroundColor: '#C93B3B' }]} />
             <Text style={styles.summaryLabel}>TOTAL OUTFLOW</Text>
           </View>
           <Text
-            style={[styles.summaryAmount, { color: '#FB7185' }]}
+            style={[styles.summaryAmount, { color: '#C93B3B' }]}
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.75}
@@ -633,7 +648,7 @@ export const CashflowTrendCard = ({
           <Ionicons
             name={isNetPositive ? 'shield-checkmark-outline' : 'warning-outline'}
             size={18}
-            color={isNetPositive ? '#34D399' : '#FB7185'}
+            color={isNetPositive ? '#16794B' : '#C93B3B'}
           />
           <View style={styles.netStatusTextCol}>
             <Text style={styles.netStatusTitle}>
@@ -643,7 +658,7 @@ export const CashflowTrendCard = ({
           </View>
         </View>
         <Text
-          style={[styles.netStatusAmount, { color: isNetPositive ? '#34D399' : '#FB7185' }]}
+          style={[styles.netStatusAmount, { color: isNetPositive ? '#16794B' : '#C93B3B' }]}
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.8}
@@ -674,12 +689,12 @@ export const CashflowTrendCard = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#0B1521',
+    backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.xxl,
     padding: 20,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.border,
     gap: 16,
   },
 
@@ -712,12 +727,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: COLORS.textPrimary,
     letterSpacing: -0.2,
   },
   subtitle: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: COLORS.textSecondary,
     marginTop: 3,
     fontWeight: '600',
     lineHeight: 16,
@@ -726,11 +741,11 @@ const styles = StyleSheet.create({
   // 2. Dedicated Period Switcher Bar (Full Width Segmented Control)
   periodSwitchBar: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
     padding: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.border,
     gap: 4,
   },
   periodTab: {
@@ -739,22 +754,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    minHeight: 40,
     paddingVertical: 9,
     borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   periodTabActive: {
-    backgroundColor: 'rgba(56, 189, 248, 0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.35)',
+    backgroundColor: COLORS.bgCard,
+    borderColor: 'rgba(107, 147, 214, 0.45)',
   },
   periodTabText: {
     fontSize: 12.5,
-    fontWeight: '600',
-    color: '#94A3B8',
+    fontWeight: '700',
+    color: COLORS.textSecondary,
   },
   periodTabTextActive: {
-    color: '#38BDF8',
-    fontWeight: '800',
+    color: '#2563EB',
+    fontWeight: '700',
   },
 
   // 3. Calendar Full Card (Dedicated, Full-Width)
@@ -762,12 +779,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.22)',
+    borderColor: 'rgba(107, 147, 214, 0.25)',
     gap: 12,
   },
   calendarCardLeft: {
@@ -795,13 +812,13 @@ const styles = StyleSheet.create({
   calendarCardLabel: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#94A3B8',
+    color: COLORS.textSecondary,
     letterSpacing: 0.8,
   },
   calendarCardValue: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: COLORS.textPrimary,
     marginTop: 2,
     letterSpacing: -0.2,
   },
@@ -820,14 +837,9 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 11,
     borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  navBtnDisabled: {
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    borderColor: 'rgba(255, 255, 255, 0.04)',
-    opacity: 0.35,
+    borderColor: COLORS.border,
   },
   navBtnText: {
     fontSize: 12.5,
@@ -855,16 +867,16 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 11.5,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: COLORS.textSecondary,
   },
 
   // 5. Inspector Card
   inspectorCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.border,
     gap: 10,
   },
   inspectorHeader: {
@@ -881,7 +893,7 @@ const styles = StyleSheet.create({
   inspectorDateText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: COLORS.textPrimary,
   },
   inspectorList: {
     gap: 7,
@@ -899,7 +911,7 @@ const styles = StyleSheet.create({
   inspectorRowLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: COLORS.textSecondary,
   },
   inspectorRowValue: {
     fontSize: 13.5,
@@ -909,7 +921,7 @@ const styles = StyleSheet.create({
   },
   inspectorDivider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: COLORS.border,
     marginVertical: 2,
   },
   inspectorSurplusBadge: {
@@ -934,7 +946,7 @@ const styles = StyleSheet.create({
   },
   gridLine: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(28, 25, 23, 0.06)',
   },
   barsContainer: {
     flexDirection: 'row',
@@ -982,24 +994,24 @@ const styles = StyleSheet.create({
   barLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
+    color: COLORS.textMuted,
   },
   barLabelSelected: {
-    color: '#38BDF8',
+    color: '#2563EB',
     fontWeight: '800',
   },
   barSubLabel: {
     fontSize: 10.5,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: COLORS.textSecondary,
     fontVariant: ['tabular-nums'],
   },
   barSubLabelSelected: {
-    color: '#F8FAFC',
+    color: COLORS.textPrimary,
     fontWeight: '800',
   },
   barTodayLabel: {
-    color: '#34D399',
+    color: '#16794B',
     fontWeight: '800',
   },
 
@@ -1010,11 +1022,11 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.lg,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: COLORS.border,
     gap: 4,
   },
   summaryTopRow: {
@@ -1031,7 +1043,7 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#94A3B8',
+    color: COLORS.textSecondary,
     letterSpacing: 0.8,
   },
   summaryAmount: {
@@ -1042,7 +1054,7 @@ const styles = StyleSheet.create({
   },
   summarySub: {
     fontSize: 11,
-    color: '#64748B',
+    color: COLORS.textMuted,
     fontWeight: '600',
   },
 
@@ -1070,11 +1082,11 @@ const styles = StyleSheet.create({
   netStatusTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: COLORS.textPrimary,
   },
   netStatusDesc: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: COLORS.textSecondary,
     marginTop: 2,
     fontWeight: '500',
   },

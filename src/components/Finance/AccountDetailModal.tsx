@@ -2,14 +2,14 @@ import React, { useMemo, useState } from 'react';
 import {
   Text,
   View,
-  Modal,
   TouchableOpacity,
   ScrollView,
-  Pressable,
   StyleSheet,
   Platform,
 } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { BottomSheetModal } from '../Common/BottomSheetModal';
+import { CardIconButton } from '../Common/AppButtons';
 import {
   Account,
   Transaction,
@@ -18,9 +18,9 @@ import {
   ACCOUNT_TYPE_THEME,
   TX_TYPE_THEME,
   getCategoryTheme,
-  hexToRgba,
   resolveSubAccountDisplay,
 } from '../../types/finance';
+import { computeAccountDetailSummary } from '../../utils/financeCalculations';
 import { COLORS, RADIUS } from '../../constants/theme';
 
 const formatTxShortDate = (iso: string) =>
@@ -78,35 +78,10 @@ export const AccountDetailModal = ({
 
   const isInvestment = account?.type === 'Investment';
 
-  // Total income & expense across all transactions for this account
-  const { totalIncome, totalExpense } = useMemo(() => {
-    if (!account) return { totalIncome: 0, totalExpense: 0 };
-    let inc = 0;
-    let exp = 0;
-    for (const tx of transactions) {
-      const isSource = tx.accountId === account.id;
-      const isDest = tx.type === 'transfer' && tx.toAccountId === account.id;
-      if (!isSource && !isDest) continue;
-
-      const srcMatches = isSource && (subFilter === 'all' || tx.subAccountId === subFilter);
-      const dstMatches = isDest && (subFilter === 'all' || tx.toSubAccountId === subFilter);
-      if (!srcMatches && !dstMatches) continue;
-
-      if (tx.type === 'income') {
-        inc += tx.amount;
-      } else if (tx.type === 'expense') {
-        exp += tx.amount;
-      } else if (tx.type === 'transfer') {
-        const received = typeof tx.toAmount === 'number' && tx.toAmount > 0 ? tx.toAmount : tx.amount;
-        if (dstMatches && !srcMatches) {
-          inc += received;
-        } else if (srcMatches && !dstMatches) {
-          exp += tx.amount;
-        }
-      }
-    }
-    return { totalIncome: inc, totalExpense: exp };
-  }, [account, transactions, subFilter]);
+  const detailSummary = useMemo(
+    () => computeAccountDetailSummary(account ?? undefined, transactions, subFilter),
+    [account, transactions, subFilter]
+  );
 
   const history = useMemo(() => {
     if (!account) return [];
@@ -147,12 +122,14 @@ export const AccountDetailModal = ({
   const theme = accountTheme;
 
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <View style={modalStyles.overlay}>
-        <Pressable style={modalStyles.dismissArea} onPress={onClose} />
-
-        <View style={modalStyles.content}>
-          <View style={modalStyles.handle} />
+    <BottomSheetModal
+      visible={visible}
+      onRequestClose={onClose}
+      onBackdropPress={onClose}
+      overlayStyle={modalStyles.overlay}
+      sheetStyle={modalStyles.content}
+    >
+      <View style={modalStyles.handle} />
 
           {/* Header Modal */}
           <View style={modalStyles.headerRow}>
@@ -219,7 +196,9 @@ export const AccountDetailModal = ({
 
                   {/* Primary Balance Display (Clean, cohesive text) */}
                   <View style={modalStyles.accountHeroBalanceSection}>
-                    <Text style={modalStyles.accountHeroBalanceLabel}>TOTAL BALANCE</Text>
+                    <Text style={modalStyles.accountHeroBalanceLabel}>
+                      {account.type === 'Credit Card' ? 'CARD BALANCE (CREDIT)' : 'TOTAL BALANCE'}
+                    </Text>
                     <Text style={modalStyles.accountHeroBalanceVal} numberOfLines={1}>
                       {formatMoney(totalBalance, account.currency)}
                     </Text>
@@ -275,7 +254,7 @@ export const AccountDetailModal = ({
                       activeOpacity={0.8}
                       delayPressIn={60}
                     >
-                      <Ionicons name="add" size={15} color="#08090C" />
+                      <Ionicons name="add" size={15} color={COLORS.textInverse} />
                       <Text style={modalStyles.addPocketHeaderBtnText} numberOfLines={1} ellipsizeMode="tail">
                         Add Pocket
                       </Text>
@@ -306,30 +285,31 @@ export const AccountDetailModal = ({
 
                       {/* Clean Action Icons */}
                       <View style={modalStyles.subActionButtonsRow}>
-                        <TouchableOpacity
-                          style={modalStyles.subActionBtn}
+                        <CardIconButton
+                          icon="calculator-outline"
+                          iconColor={COLORS.finance}
+                          iconSize={15}
+                          tone="surfaceCard"
                           onPress={() => onEditBalance(account.id, sub.id)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="calculator-outline" size={15} color={COLORS.finance} />
-                        </TouchableOpacity>
+                          accessibilityLabel="Adjust pocket balance"
+                        />
 
-                        <TouchableOpacity
-                          style={modalStyles.subActionBtn}
+                        <CardIconButton
+                          icon="pencil-outline"
+                          iconSize={14}
+                          tone="surfaceCard"
                           onPress={() => onRenameSubAccount(account.id, sub.id, sub.name)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="pencil-outline" size={14} color={COLORS.textSecondary} />
-                        </TouchableOpacity>
+                          accessibilityLabel="Rename pocket"
+                        />
 
                         {account.subAccounts.length > 1 && (
-                          <TouchableOpacity
-                            style={[modalStyles.subActionBtn, modalStyles.subActionBtnDelete]}
+                          <CardIconButton
+                            icon="trash-outline"
+                            iconSize={14}
+                            tone="danger"
                             onPress={() => onDeleteSubAccount(account.id, sub.id)}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons name="trash-outline" size={14} color={COLORS.danger} />
-                          </TouchableOpacity>
+                            accessibilityLabel="Delete pocket"
+                          />
                         )}
                       </View>
                     </View>
@@ -345,66 +325,141 @@ export const AccountDetailModal = ({
                   </View>
                 </View>
 
-                <View style={modalStyles.historySummaryRow}>
-                  <TouchableOpacity
-                    style={[
-                      modalStyles.historySummaryBox,
-                      { borderColor: TX_TYPE_THEME.income.border, backgroundColor: TX_TYPE_THEME.income.bg },
-                      historyTypeFilter === 'income' && { borderWidth: 2, borderColor: TX_TYPE_THEME.income.color },
-                    ]}
-                    onPress={() => setHistoryTypeFilter((prev) => (prev === 'income' ? 'all' : 'income'))}
-                    activeOpacity={0.7}
-                  >
-                    <View style={modalStyles.summaryLabelRow}>
-                      <Ionicons name="arrow-down" size={12} color={TX_TYPE_THEME.income.color} />
+                {isInvestment ? (
+                  <View style={modalStyles.historySummaryRow}>
+                    <View
+                      style={[
+                        modalStyles.historySummaryBox,
+                        { borderColor: 'rgba(140, 154, 201, 0.35)', backgroundColor: 'rgba(140, 154, 201, 0.12)' },
+                      ]}
+                    >
+                      <View style={modalStyles.summaryLabelRow}>
+                        <Ionicons name="wallet-outline" size={12} color="#8C9AC9" />
+                        <Text
+                          style={[modalStyles.historySummaryLabel, { color: '#8C9AC9' }]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          NET INVESTED
+                        </Text>
+                      </View>
                       <Text
-                        style={[modalStyles.historySummaryLabel, { color: TX_TYPE_THEME.income.color }]}
+                        style={[modalStyles.historySummaryValue, { color: COLORS.textPrimary }]}
                         numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
                         ellipsizeMode="tail"
                       >
-                        {isInvestment ? 'GAIN' : 'INCOME'}
+                        {formatMoney(detailSummary.netInvested, account.currency)}
                       </Text>
                     </View>
-                    <Text
-                      style={[modalStyles.historySummaryValue, { color: TX_TYPE_THEME.income.color }]}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.7}
-                      ellipsizeMode="tail"
+
+                    {(() => {
+                      const pnl = detailSummary.returnPnL;
+                      const isPos = pnl >= 0;
+                      const pnlTheme = isPos ? TX_TYPE_THEME.income : TX_TYPE_THEME.expense;
+                      const roiText =
+                        detailSummary.returnPct !== null
+                          ? ` (${isPos ? '+' : ''}${detailSummary.returnPct}%)`
+                          : '';
+                      return (
+                        <View
+                          style={[
+                            modalStyles.historySummaryBox,
+                            { borderColor: pnlTheme.border, backgroundColor: pnlTheme.bg },
+                          ]}
+                        >
+                          <View style={modalStyles.summaryLabelRow}>
+                            <Ionicons
+                              name={isPos ? 'trending-up' : 'trending-down'}
+                              size={12}
+                              color={pnlTheme.color}
+                            />
+                            <Text
+                              style={[modalStyles.historySummaryLabel, { color: pnlTheme.color }]}
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                            >
+                              RETURN (P&amp;L)
+                            </Text>
+                          </View>
+                          <Text
+                            style={[modalStyles.historySummaryValue, { color: pnlTheme.color }]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.7}
+                            ellipsizeMode="tail"
+                          >
+                            {isPos ? '+' : '-'}
+                            {formatMoney(Math.abs(pnl), account.currency)}
+                            {roiText}
+                          </Text>
+                        </View>
+                      );
+                    })()}
+                  </View>
+                ) : (
+                  <View style={modalStyles.historySummaryRow}>
+                    <TouchableOpacity
+                      style={[
+                        modalStyles.historySummaryBox,
+                        { borderColor: TX_TYPE_THEME.income.border, backgroundColor: TX_TYPE_THEME.income.bg },
+                        historyTypeFilter === 'income' && { borderWidth: 2, borderColor: TX_TYPE_THEME.income.color },
+                      ]}
+                      onPress={() => setHistoryTypeFilter((prev) => (prev === 'income' ? 'all' : 'income'))}
+                      activeOpacity={0.7}
                     >
-                      {formatMoney(totalIncome, account.currency)}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      modalStyles.historySummaryBox,
-                      { borderColor: TX_TYPE_THEME.expense.border, backgroundColor: TX_TYPE_THEME.expense.bg },
-                      historyTypeFilter === 'expense' && { borderWidth: 2, borderColor: TX_TYPE_THEME.expense.color },
-                    ]}
-                    onPress={() => setHistoryTypeFilter((prev) => (prev === 'expense' ? 'all' : 'expense'))}
-                    activeOpacity={0.7}
-                  >
-                    <View style={modalStyles.summaryLabelRow}>
-                      <Ionicons name="arrow-up" size={12} color={TX_TYPE_THEME.expense.color} />
+                      <View style={modalStyles.summaryLabelRow}>
+                        <Ionicons name="arrow-down" size={12} color={TX_TYPE_THEME.income.color} />
+                        <Text
+                          style={[modalStyles.historySummaryLabel, { color: TX_TYPE_THEME.income.color }]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          INCOME
+                        </Text>
+                      </View>
                       <Text
-                        style={[modalStyles.historySummaryLabel, { color: TX_TYPE_THEME.expense.color }]}
+                        style={[modalStyles.historySummaryValue, { color: TX_TYPE_THEME.income.color }]}
                         numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
                         ellipsizeMode="tail"
                       >
-                        {isInvestment ? 'OUTFLOW' : 'EXPENSE'}
+                        {formatMoney(detailSummary.totalIncome, account.currency)}
                       </Text>
-                    </View>
-                    <Text
-                      style={[modalStyles.historySummaryValue, { color: TX_TYPE_THEME.expense.color }]}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.7}
-                      ellipsizeMode="tail"
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        modalStyles.historySummaryBox,
+                        { borderColor: TX_TYPE_THEME.expense.border, backgroundColor: TX_TYPE_THEME.expense.bg },
+                        historyTypeFilter === 'expense' && { borderWidth: 2, borderColor: TX_TYPE_THEME.expense.color },
+                      ]}
+                      onPress={() => setHistoryTypeFilter((prev) => (prev === 'expense' ? 'all' : 'expense'))}
+                      activeOpacity={0.7}
                     >
-                      {formatMoney(totalExpense, account.currency)}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                      <View style={modalStyles.summaryLabelRow}>
+                        <Ionicons name="arrow-up" size={12} color={TX_TYPE_THEME.expense.color} />
+                        <Text
+                          style={[modalStyles.historySummaryLabel, { color: TX_TYPE_THEME.expense.color }]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          EXPENSE
+                        </Text>
+                      </View>
+                      <Text
+                        style={[modalStyles.historySummaryValue, { color: TX_TYPE_THEME.expense.color }]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
+                        ellipsizeMode="tail"
+                      >
+                        {formatMoney(detailSummary.totalExpense, account.currency)}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
 
                 {account.subAccounts.length > 1 && (
                   <ScrollView
@@ -548,16 +603,14 @@ export const AccountDetailModal = ({
                   </TouchableOpacity>
                 )}
               </ScrollView>
-            </View>
-        </View>
-    </Modal>
+    </BottomSheetModal>
   );
 };
 
 const modalStyles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   dismissArea: {
@@ -654,7 +707,7 @@ const modalStyles = StyleSheet.create({
     gap: 4,
   },
   addPocketHeaderBtnText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 12,
     fontWeight: '800',
     flexShrink: 0,
@@ -666,11 +719,11 @@ const modalStyles = StyleSheet.create({
   },
   // Redesigned Account Hero Card
   accountHeroCard: {
-    backgroundColor: '#11141D',
+    backgroundColor: COLORS.bgCanvas,
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: COLORS.border,
     marginBottom: 20,
     gap: 16,
     shadowColor: '#000000',
@@ -701,7 +754,7 @@ const modalStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   accountHeroName: {
-    color: '#F8FAFC',
+    color: COLORS.textPrimary,
     fontSize: 18,
     fontWeight: '900',
     letterSpacing: -0.3,
@@ -725,9 +778,9 @@ const modalStyles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 7,
     borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: COLORS.border,
   },
   heroActionBtnDanger: {
     backgroundColor: 'rgba(244, 63, 94, 0.08)',
@@ -745,9 +798,9 @@ const modalStyles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
+    borderColor: COLORS.border,
   },
   accountHeroBalanceLabel: {
     color: COLORS.textMuted,
@@ -760,7 +813,7 @@ const modalStyles = StyleSheet.create({
   accountHeroBalanceVal: {
     fontSize: 28,
     fontWeight: '900',
-    color: '#F8FAFC',
+    color: COLORS.textPrimary,
     letterSpacing: -0.6,
     fontVariant: ['tabular-nums'],
   },
@@ -773,11 +826,11 @@ const modalStyles = StyleSheet.create({
   },
   specItem: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: COLORS.bgCard,
     borderRadius: 12,
     padding: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
+    borderColor: COLORS.border,
     gap: 6,
   },
   specLabel: {
@@ -802,12 +855,12 @@ const modalStyles = StyleSheet.create({
   specCurrencyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.bgCardSub,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: COLORS.border,
     alignSelf: 'flex-start',
   },
   specCurrencyText: {
@@ -819,11 +872,11 @@ const modalStyles = StyleSheet.create({
 
   // Description / Note Box
   accountDescBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: COLORS.bgCard,
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
+    borderColor: COLORS.border,
     gap: 6,
   },
   descHeaderRow: {
@@ -847,12 +900,12 @@ const modalStyles = StyleSheet.create({
 
   // Pocket
   subCard: {
-    backgroundColor: '#121520',
+    backgroundColor: COLORS.bgCardSub,
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.border,
     marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
@@ -896,9 +949,9 @@ const modalStyles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -972,7 +1025,7 @@ const modalStyles = StyleSheet.create({
     borderColor: COLORS.border,
     borderLeftColor: COLORS.border,
     borderRadius: RADIUS.md,
-    backgroundColor: hexToRgba('#FFFFFF', 0.02),
+    backgroundColor: COLORS.bgCardSub,
     gap: 12,
   },
   historyIcon: {

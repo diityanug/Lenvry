@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Modal,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
   Keyboard,
   BackHandler,
@@ -15,7 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { Account, DebtItem, formatMoney } from '../../../types/finance';
 import { COLORS } from '../../../constants/theme';
-import { useKeyboardHeight } from '../../../hooks/useKeyboardHeight';
+import { BottomSheetModalHost, BottomSheetSurface } from '../../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../../hooks/useKeyboardHeight';
 import { CalculatorKeypad } from '../CalculatorKeypad';
 import {
   evaluateArithmetic,
@@ -24,6 +23,7 @@ import {
   formatExpression,
   hasMathOperators,
   MAX_NOMINAL_VALUE,
+  roundCurrencyAmount,
 } from '../../../utils/math';
 import { hapticLight } from '../../../utils/haptics';
 import {
@@ -56,10 +56,8 @@ export const SettleDebtModal = ({
   const requestCloseRef = React.useRef<() => void>(() => onClose());
 
   return (
-    <Modal
+    <BottomSheetModalHost
       visible={Boolean(debt)}
-      transparent={true}
-      animationType="slide"
       onRequestClose={() => {
         if (requestCloseRef.current) {
           requestCloseRef.current();
@@ -67,7 +65,6 @@ export const SettleDebtModal = ({
           onClose();
         }
       }}
-      statusBarTranslucent={true}
     >
       {debt ? (
         <SettleDebtModalContent
@@ -82,7 +79,7 @@ export const SettleDebtModal = ({
           }}
         />
       ) : null}
-    </Modal>
+    </BottomSheetModalHost>
   );
 };
 
@@ -109,18 +106,21 @@ const SettleDebtModalContent = ({
   onShowAlert,
   registerRequestClose,
 }: SettleDebtModalContentProps) => {
-  const availableAccounts = accounts.filter((a) => a.currency === debt.currency);
-  const primaryAcc = availableAccounts.length > 0 ? availableAccounts[0] : accounts[0];
+  const eligibleAccounts = React.useMemo(
+    () => accounts.filter((a) => a.currency === debt.currency && a.type !== 'Investment'),
+    [accounts, debt.currency]
+  );
+  const primaryAcc = eligibleAccounts[0];
 
   const [settleAmount, setSettleAmount] = useState(() =>
-    formatExpression(debt.remainingAmount.toString(), debt.currency)
+    formatExpression(roundCurrencyAmount(debt.remainingAmount, debt.currency).toString(), debt.currency)
   );
   const [isKeypadOpen, setIsKeypadOpen] = useState(false);
   const [settleAccId, setSettleAccId] = useState(primaryAcc ? primaryAcc.id : '');
   const [settleSubAccId, setSettleSubAccId] = useState(primaryAcc?.subAccounts[0]?.id || '');
   const [settleNotes, setSettleNotes] = useState('');
 
-  const keyboardHeight = useKeyboardHeight();
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(28);
 
   const evaluatedAmountStr = React.useMemo(
     () => evaluateArithmeticStr(settleAmount, debt.currency),
@@ -129,8 +129,15 @@ const SettleDebtModalContent = ({
   const isAmountMath = React.useMemo(() => hasMathOperators(settleAmount), [settleAmount]);
   const formattedDisplayAmount = formatCalculatedDisplay(evaluatedAmountStr, debt.currency);
 
-  const livePaymentValue = evaluateArithmetic(settleAmount, debt.currency);
-  const liveRemainingAfter = Math.max(0, debt.remainingAmount - livePaymentValue);
+  const livePaymentValue = roundCurrencyAmount(
+    evaluateArithmetic(settleAmount, debt.currency),
+    debt.currency
+  );
+  const roundedRemainingBalance = roundCurrencyAmount(debt.remainingAmount, debt.currency);
+  const liveRemainingAfter = Math.max(
+    0,
+    roundCurrencyAmount(roundedRemainingBalance - livePaymentValue, debt.currency)
+  );
 
   const openAmountKeypad = () => {
     Keyboard.dismiss();
@@ -193,23 +200,33 @@ const SettleDebtModalContent = ({
 
   const handleConfirm = () => {
     setIsKeypadOpen(false);
-    if (!settleAccId) {
-      onShowAlert('warning', 'Account Required', 'Please select which account this transaction goes to.');
+    const selectedAcc = eligibleAccounts.find((a) => a.id === settleAccId);
+    if (!selectedAcc) {
+      onShowAlert(
+        'warning',
+        `No ${debt.currency} Account Selected`,
+        eligibleAccounts.length === 0
+          ? `Please create a ${debt.currency} Cash/Bank account before settling this ${debt.currency} entry.`
+          : `Please select a valid ${debt.currency} account.`
+      );
       return;
     }
 
-    const evaluated = evaluateArithmetic(settleAmount, debt.currency);
+    const evaluated = roundCurrencyAmount(
+      evaluateArithmetic(settleAmount, debt.currency),
+      debt.currency
+    );
     const parsedPayAmount = Math.min(MAX_NOMINAL_VALUE, Math.max(0, evaluated));
     if (!parsedPayAmount || parsedPayAmount <= 0) {
       onShowAlert('warning', 'Invalid Amount', 'Please enter a valid payment amount.');
       return;
     }
 
-    if (parsedPayAmount > debt.remainingAmount) {
+    if (parsedPayAmount > roundedRemainingBalance) {
       onShowAlert(
         'warning',
         'Amount Exceeds Balance',
-        `The payment amount (${formatMoney(parsedPayAmount, debt.currency)}) exceeds the remaining balance (${formatMoney(debt.remainingAmount, debt.currency)}).`
+        `The payment amount (${formatMoney(parsedPayAmount, debt.currency)}) exceeds the remaining balance (${formatMoney(roundedRemainingBalance, debt.currency)}).`
       );
       return;
     }
@@ -217,19 +234,21 @@ const SettleDebtModalContent = ({
     onConfirm({
       debtId: debt.id,
       amountPaid: parsedPayAmount,
-      accountId: settleAccId,
-      subAccountId: settleSubAccId,
+      accountId: selectedAcc.id,
+      subAccountId: settleSubAccId || selectedAcc.subAccounts[0]?.id || 'main',
       notes: settleNotes.trim() || undefined,
     });
   };
 
   return (
-    <View style={styles.modalOverlay}>
-      <TouchableWithoutFeedback onPress={handleDismiss}>
-        <View style={styles.dismissArea} />
-      </TouchableWithoutFeedback>
-      <View style={styles.settleModalSheet}>
-        <View style={styles.modalHandle} />
+    <BottomSheetSurface
+      overlayStyle={styles.modalOverlay}
+      sheetStyle={styles.settleModalSheet}
+      keyboardOverlap={keyboardOverlap}
+      onOverlayLayout={onOverlayLayout}
+      onBackdropPress={handleDismiss}
+    >
+      <View style={styles.modalHandle} />
 
         <View style={styles.modalHeaderRow}>
           <View style={{ flex: 1, minWidth: 0, marginRight: 10 }}>
@@ -251,10 +270,9 @@ const SettleDebtModalContent = ({
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          automaticallyAdjustKeyboardInsets={true}
+          {...KEEP_KEYBOARD_SCROLL_PROPS}
           onScrollBeginDrag={() => setIsKeypadOpen(false)}
-          contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
+          contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
         >
           {/* CURRENT BALANCE BANNER */}
           <View style={styles.currentBalanceBanner}>
@@ -279,41 +297,49 @@ const SettleDebtModalContent = ({
               : 'Select the account where payment will be deducted from'}
           </Text>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.accPickerContent}
-            style={styles.accPickerScroll}
-          >
-            {accounts.map((acc) => {
-              const isSelected = acc.id === settleAccId;
-              return (
-                <TouchableOpacity
-                  key={acc.id}
-                  style={[styles.accPill, isSelected && styles.accPillSelected]}
-                  onPress={() => {
-                    setIsKeypadOpen(false);
-                    setSettleAccId(acc.id);
-                    setSettleSubAccId(acc.subAccounts[0]?.id || '');
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name="wallet-outline"
-                    size={15}
-                    color={isSelected ? styles.accPillTextSelected.color : COLORS.textMuted}
-                  />
-                  <Text style={[styles.accPillText, isSelected && styles.accPillTextSelected]}>
-                    {acc.name} ({acc.currency})
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          {eligibleAccounts.length === 0 ? (
+            <View style={{ padding: 12, borderRadius: 12, backgroundColor: 'rgba(201, 91, 91, 0.12)', borderWidth: 1, borderColor: 'rgba(201, 91, 91, 0.3)', marginBottom: 16 }}>
+              <Text style={{ color: COLORS.danger, fontSize: 12.5, fontWeight: '600' }}>
+                No {debt.currency} non-investment account found. Add a {debt.currency} Cash, Bank, or E-Wallet account first to prevent currency mismatch.
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.accPickerContent}
+              style={styles.accPickerScroll}
+            >
+              {eligibleAccounts.map((acc) => {
+                const isSelected = acc.id === settleAccId;
+                return (
+                  <TouchableOpacity
+                    key={acc.id}
+                    style={[styles.accPill, isSelected && styles.accPillSelected]}
+                    onPress={() => {
+                      setIsKeypadOpen(false);
+                      setSettleAccId(acc.id);
+                      setSettleSubAccId(acc.subAccounts[0]?.id || '');
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="wallet-outline"
+                      size={15}
+                      color={isSelected ? styles.accPillTextSelected.color : COLORS.textMuted}
+                    />
+                    <Text style={[styles.accPillText, isSelected && styles.accPillTextSelected]}>
+                      {acc.name} ({acc.currency})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
 
           {/* Pocket picker if available */}
           {(() => {
-            const currentAcc = accounts.find((a) => a.id === settleAccId);
+            const currentAcc = eligibleAccounts.find((a) => a.id === settleAccId);
             if (currentAcc && currentAcc.subAccounts.length > 1) {
               return (
                 <View style={{ marginBottom: 16 }}>
@@ -466,7 +492,7 @@ const SettleDebtModalContent = ({
             onPress={handleConfirm}
             activeOpacity={0.8}
           >
-            <Ionicons name="checkmark-circle" size={18} color="#08090C" />
+            <Ionicons name="checkmark-circle" size={18} color={COLORS.textInverse} />
             <Text style={styles.btnConfirmSettleText}>
               {debt.type === 'receivable'
                 ? 'Confirm & Deposit to Account'
@@ -492,7 +518,6 @@ const SettleDebtModalContent = ({
             />
           </Animated.View>
         )}
-      </View>
-    </View>
+    </BottomSheetSurface>
   );
 };

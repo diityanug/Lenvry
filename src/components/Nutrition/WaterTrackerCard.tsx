@@ -45,7 +45,7 @@ export const WaterTrackerCard = ({
       <View style={waterStyles.headerRow}>
         <View style={waterStyles.titleGroup}>
           <View style={waterStyles.iconWrapper}>
-            <Ionicons name="water" size={18} color="#38BDF8" />
+            <Ionicons name="water" size={18} color="#0284C7" />
           </View>
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -112,10 +112,10 @@ export const WaterTrackerCard = ({
           activeOpacity={0.8}
         >
           <View style={waterStyles.btnIconBg}>
-            <Ionicons name="add" size={13} color="#38BDF8" />
+            <Ionicons name="add" size={13} color="#0284C7" />
           </View>
           <View style={waterStyles.btnTextCol}>
-            <Text style={waterStyles.quickBtnTitle}>250 ml</Text>
+            <Text style={waterStyles.quickBtnTitle} numberOfLines={1} adjustsFontSizeToFit>250 ml</Text>
             <Text style={waterStyles.quickBtnSub}>Glass</Text>
           </View>
         </TouchableOpacity>
@@ -126,10 +126,10 @@ export const WaterTrackerCard = ({
           activeOpacity={0.8}
         >
           <View style={waterStyles.btnIconBg}>
-            <Ionicons name="add" size={13} color="#38BDF8" />
+            <Ionicons name="add" size={13} color="#0284C7" />
           </View>
           <View style={waterStyles.btnTextCol}>
-            <Text style={waterStyles.quickBtnTitle}>500 ml</Text>
+            <Text style={waterStyles.quickBtnTitle} numberOfLines={1} adjustsFontSizeToFit>500 ml</Text>
             <Text style={waterStyles.quickBtnSub}>Bottle</Text>
           </View>
         </TouchableOpacity>
@@ -140,10 +140,10 @@ export const WaterTrackerCard = ({
           activeOpacity={0.8}
         >
           <View style={waterStyles.btnIconBg}>
-            <Ionicons name="add" size={13} color="#38BDF8" />
+            <Ionicons name="add" size={13} color="#0284C7" />
           </View>
           <View style={waterStyles.btnTextCol}>
-            <Text style={waterStyles.quickBtnTitle}>100 ml</Text>
+            <Text style={waterStyles.quickBtnTitle} numberOfLines={1} adjustsFontSizeToFit>100 ml</Text>
             <Text style={waterStyles.quickBtnSub}>Sip</Text>
           </View>
         </TouchableOpacity>
@@ -159,7 +159,7 @@ const waterStyles = StyleSheet.create({
     padding: 18,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.16)',
+    borderColor: 'rgba(2, 132, 199, 0.16)',
   },
   headerRow: {
     flexDirection: 'row',
@@ -177,11 +177,11 @@ const waterStyles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    backgroundColor: 'rgba(2, 132, 199, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.28)',
+    borderColor: 'rgba(2, 132, 199, 0.28)',
   },
   title: {
     fontSize: 15,
@@ -207,21 +207,21 @@ const waterStyles = StyleSheet.create({
     borderColor: 'rgba(16, 185, 129, 0.3)',
   },
   goalReachedText: {
-    color: '#10B981',
+    color: COLORS.success,
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 0.3,
   },
   badgePercent: {
-    backgroundColor: 'rgba(56, 189, 248, 0.14)',
+    backgroundColor: 'rgba(2, 132, 199, 0.14)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderColor: 'rgba(2, 132, 199, 0.3)',
   },
   badgePercentText: {
-    color: '#38BDF8',
+    color: '#0284C7',
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: -0.2,
@@ -249,7 +249,7 @@ const waterStyles = StyleSheet.create({
   bigAmount: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#38BDF8',
+    color: '#0284C7',
     letterSpacing: -0.5,
   },
   targetLabel: {
@@ -267,7 +267,7 @@ const waterStyles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.bgCardSub,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -285,12 +285,12 @@ const waterStyles = StyleSheet.create({
     overflow: 'hidden',
   },
   segmentPillFilled: {
-    backgroundColor: '#38BDF8',
+    backgroundColor: '#0284C7',
   },
   segmentPillEmpty: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
-    borderColor: COLORS.borderSubtle,
+    borderColor: COLORS.border,
   },
   segmentGlow: {
     flex: 1,
@@ -306,17 +306,17 @@ const waterStyles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.bgCardSub,
     paddingVertical: 9,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.22)',
-    gap: 8,
+    borderColor: 'rgba(2, 132, 199, 0.22)',
+    gap: 6,
   },
   btnIconBg: {
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
     borderRadius: 6,
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    backgroundColor: 'rgba(2, 132, 199, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -324,7 +324,7 @@ const waterStyles = StyleSheet.create({
     flex: 1,
   },
   quickBtnTitle: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '800',
     color: COLORS.textPrimary,
   },

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Text,
   View,
@@ -6,13 +6,12 @@ import {
   StatusBar,
   FlatList,
   Keyboard,
-  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
 
 import { Workout } from '../types/fitness';
+import { formatDateKey } from '../constants/date';
 import { TAB_BAR_HEIGHT } from '../constants/tabBar';
 import { COLORS } from '../constants/theme';
 import { RoutinePreset } from '../constants/fitness';
@@ -25,17 +24,13 @@ import AddWorkoutModal from '../components/Fitness/AddWorkoutModal';
 import WorkoutHistoryModal from '../components/Fitness/WorkoutHistoryModal';
 import RoutinePresetsModal from '../components/Fitness/RoutinePresetsModal';
 import AppAlertModal, { AppAlertConfig } from '../components/Common/AppAlertModal';
+import { HeaderActionButton } from '../components/Common/AppButtons';
 import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 import { fitnessStyles as styles } from '../styles/fitnessStyles';
 import { hapticSuccess } from '../utils/haptics';
 import { useFitnessStore } from '../stores';
-
-const formatDateKey = (d: Date): string => {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+import { useActiveDate } from '../hooks/useDayRollover';
+import { generateId } from '../utils/id';
 
 export default function FitnessScreen() {
   const workouts = useFitnessStore((s) => s.workouts);
@@ -44,15 +39,13 @@ export default function FitnessScreen() {
   const updateWorkout = useFitnessStore((s) => s.updateWorkout);
   const deleteWorkoutFromStore = useFitnessStore((s) => s.deleteWorkout);
   const setWorkouts = useFitnessStore((s) => s.setWorkouts);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [todayDate, setTodayDate] = useState<Date>(new Date());
-  const lastTodayKeyRef = useRef(formatDateKey(new Date()));
 
   const [modalVisible, setModalVisible] = useState(false);
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [routineModalVisible, setRoutineModalVisible] = useState(false);
   const [prefillWorkout, setPrefillWorkout] = useState<Workout | null>(null);
+  const [activeFilter, setActiveFilter] = useState('All');
 
   const [alertConfig, setAlertConfig] = useState<AppAlertConfig>({
     visible: false,
@@ -60,63 +53,11 @@ export default function FitnessScreen() {
     message: '',
   });
 
-  const [activeFilter, setActiveFilter] = useState('All');
-
-  const syncDateToTodayIfOnToday = useCallback(() => {
-    const now = new Date();
-    setTodayDate(now);
-    const newTodayKey = formatDateKey(now);
-    const oldTodayKey = lastTodayKeyRef.current;
-    lastTodayKeyRef.current = newTodayKey;
-
-    setSelectedDate((prevDate) => {
-      const prevKey = formatDateKey(prevDate);
-      if (prevKey === oldTodayKey) {
-        return now;
-      }
-      return prevDate;
-    });
-  }, []);
-
-  const loadWorkouts = useCallback(async () => {
-    await loadFitness();
+  const loadWorkouts = useCallback(() => {
+    loadFitness();
   }, [loadFitness]);
 
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active') {
-        syncDateToTodayIfOnToday();
-        loadWorkouts();
-      }
-    });
-
-    let timer: ReturnType<typeof setTimeout>;
-    const scheduleNextMidnight = () => {
-      const now = new Date();
-      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
-      const msToMidnight = Math.max(1000, midnight.getTime() - now.getTime());
-
-      timer = setTimeout(() => {
-        syncDateToTodayIfOnToday();
-        loadWorkouts();
-        scheduleNextMidnight();
-      }, msToMidnight);
-    };
-
-    scheduleNextMidnight();
-
-    return () => {
-      subscription.remove();
-      if (timer) clearTimeout(timer);
-    };
-  }, [syncDateToTodayIfOnToday, loadWorkouts]);
-
-  useFocusEffect(
-    useCallback(() => {
-      syncDateToTodayIfOnToday();
-      loadWorkouts();
-    }, [syncDateToTodayIfOnToday, loadWorkouts])
-  );
+  const { selectedDate, setSelectedDate, todayDate } = useActiveDate(loadWorkouts);
 
   const showAlert = (
     type: AppAlertConfig['type'],
@@ -171,7 +112,7 @@ export default function FitnessScreen() {
         });
       } else {
         const newWorkout: Workout = {
-          id: new Date().getTime().toString() + Math.random().toString().slice(2, 6),
+          id: generateId('workout'),
           exercise: data.exercise.trim(),
           category: data.category,
           sets: data.sets,
@@ -197,7 +138,6 @@ export default function FitnessScreen() {
   };
 
   const handleCloneWorkout = (item: Workout) => {
-    // Clone creates a new workout without ID
     setPrefillWorkout({
       ...item,
       id: '',
@@ -206,9 +146,8 @@ export default function FitnessScreen() {
   };
 
   const handleSelectRoutine = async (routine: RoutinePreset) => {
-    const now = new Date().getTime();
-    const newItems: Workout[] = routine.exercises.map((ex, index) => ({
-      id: (now + index).toString(),
+    const newItems: Workout[] = routine.exercises.map((ex) => ({
+      id: generateId('workout'),
       exercise: ex.exercise,
       category: ex.category,
       sets: ex.sets,
@@ -243,145 +182,140 @@ export default function FitnessScreen() {
   return (
     <ErrorBoundary fallbackTitle="Fitness Encountered an Issue">
       <SafeAreaView style={[styles.container, { backgroundColor: COLORS.bgCanvas }]} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCanvas} translucent={true} />
+        <StatusBar barStyle="dark-content" />
 
-      {/* HEADER WITH HISTORY & ADD BUTTONS */}
-      <View style={styles.headerRow}>
-        <View style={{ flex: 1, marginRight: 12 }}>
-          <Text style={styles.title}>Fitness</Text>
-          <Text style={styles.slogan}>Track your workout sessions</Text>
-        </View>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={styles.title}>Fitness</Text>
+            <Text style={styles.slogan}>Track your workout sessions</Text>
+          </View>
 
-        <View style={styles.headerRightActions}>
-          <TouchableOpacity
-            style={[styles.headerAddBtn, { backgroundColor: COLORS.bgCardSub, borderWidth: 1, borderColor: COLORS.border, marginRight: 8 }]}
-            onPress={() => setRoutineModalVisible(true)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="flash" size={14} color={COLORS.warning} />
-            <Text style={[styles.headerAddBtnText, { color: COLORS.textPrimary }]}>Presets</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.headerAddBtn}
-            onPress={() => {
-              setPrefillWorkout(null);
-              setModalVisible(true);
-            }}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={16} color="#08090C" />
-            <Text style={styles.headerAddBtnText}>Add</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <FlatList
-        data={filteredWorkouts}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 36 }}
-        ListHeaderComponent={
-          <>
-            <DateStrip
-              selectedDate={selectedDate}
-              todayDate={todayDate}
-              onSelectDate={setSelectedDate}
-              onOpenCalendar={() => setCalendarModalVisible(true)}
+          <View style={styles.headerRightActions}>
+            <HeaderActionButton
+              label="Presets"
+              icon="flash"
+              variant="secondary"
+              iconColor={COLORS.warning}
+              onPress={() => setRoutineModalVisible(true)}
+              accessibilityLabel="Workout Presets"
             />
 
-            <HeroMetrics selectedDate={selectedDate} workouts={currentDayWorkouts} />
+            <HeaderActionButton
+              label="Add"
+              color={COLORS.fitness}
+              onPress={() => {
+                setPrefillWorkout(null);
+                setModalVisible(true);
+              }}
+              accessibilityLabel="Add Workout"
+            />
+          </View>
+        </View>
 
-            <CategoryFilter activeFilter={activeFilter} onSelectCategory={setActiveFilter} />
+        <FlatList
+          data={filteredWorkouts}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 36 }}
+          ListHeaderComponent={
+            <>
+              <DateStrip
+                selectedDate={selectedDate}
+                todayDate={todayDate}
+                onSelectDate={setSelectedDate}
+                onOpenCalendar={() => setCalendarModalVisible(true)}
+              />
 
-            {/* SECTION TITLE & BADGE (Rule 3: Clean header) */}
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionTitle}>{"TODAY'S EXERCISES"}</Text>
-                <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{filteredWorkouts.length}</Text>
+              <HeroMetrics selectedDate={selectedDate} workouts={currentDayWorkouts} />
+
+              <CategoryFilter activeFilter={activeFilter} onSelectCategory={setActiveFilter} />
+
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleRow}>
+                  <Text style={styles.sectionTitle}>{"TODAY'S EXERCISES"}</Text>
+                  <View style={styles.countBadge}>
+                    <Text style={styles.countBadgeText}>{filteredWorkouts.length}</Text>
+                  </View>
                 </View>
               </View>
+
+              {workouts.length > 0 && (
+                <TouchableOpacity
+                  style={styles.historyActionBar}
+                  onPress={() => setHistoryModalVisible(true)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="time-outline" size={16} color={COLORS.warning} />
+                  <Text style={styles.historyActionBarText}>
+                    View All Logged Workouts ({workouts.length})
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
+          }
+          renderItem={({ item }) => (
+            <WorkoutCard
+              item={item}
+              onDelete={deleteWorkout}
+              onEdit={handleEditWorkout}
+              onClone={handleCloneWorkout}
+            />
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIconContainer}>
+                <Ionicons name="barbell-outline" size={32} color={COLORS.warning} />
+              </View>
+              <Text style={styles.emptyText}>
+                {currentDateKey > todayDateKey
+                  ? 'No workout planned for this date.'
+                  : 'No workouts recorded yet.'}
+              </Text>
+              <Text style={styles.emptySubText}>
+                {currentDateKey > todayDateKey
+                  ? 'Tap "Add" or "Presets" above to schedule a session.'
+                  : 'Tap "Add" or "Presets" above to record your sets and load.'}
+              </Text>
             </View>
+          }
+        />
 
-            {/* Dedicated Workout History Bar */}
-            {workouts.length > 0 && (
-              <TouchableOpacity
-                style={styles.historyActionBar}
-                onPress={() => setHistoryModalVisible(true)}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="time-outline" size={16} color={COLORS.warning} />
-                <Text style={styles.historyActionBarText}>
-                  View All Logged Workouts ({workouts.length})
-                </Text>
-              </TouchableOpacity>
-            )}
-          </>
-        }
-        renderItem={({ item }) => (
-          <WorkoutCard
-            item={item}
-            onDelete={deleteWorkout}
-            onEdit={handleEditWorkout}
-            onClone={handleCloneWorkout}
-          />
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconContainer}>
-              <Ionicons name="barbell-outline" size={32} color={COLORS.warning} />
-            </View>
-            <Text style={styles.emptyText}>
-              {currentDateKey > todayDateKey
-                ? 'No workout planned for this date.'
-                : 'No workouts recorded yet.'}
-            </Text>
-            <Text style={styles.emptySubText}>
-              {currentDateKey > todayDateKey
-                ? 'Tap "Add" or "Presets" above to schedule a session.'
-                : 'Tap "Add" or "Presets" above to record your sets and load.'}
-            </Text>
-          </View>
-        }
-      />
+        <SharedCalendarModal
+          visible={calendarModalVisible}
+          selectedDate={selectedDate}
+          themeColor={COLORS.fitness}
+          title="Select Workout Date"
+          onClose={() => setCalendarModalVisible(false)}
+          onSelectDate={setSelectedDate}
+        />
 
-      <SharedCalendarModal
-        visible={calendarModalVisible}
-        selectedDate={selectedDate}
-        themeColor={COLORS.fitness}
-        title="Select Workout Date"
-        onClose={() => setCalendarModalVisible(false)}
-        onSelectDate={setSelectedDate}
-      />
+        <AddWorkoutModal
+          visible={modalVisible}
+          selectedDate={selectedDate}
+          initialData={prefillWorkout}
+          onClose={() => {
+            setModalVisible(false);
+            setPrefillWorkout(null);
+          }}
+          onSave={saveWorkout}
+        />
 
-      <AddWorkoutModal
-        visible={modalVisible}
-        selectedDate={selectedDate}
-        initialData={prefillWorkout}
-        onClose={() => {
-          setModalVisible(false);
-          setPrefillWorkout(null);
-        }}
-        onSave={saveWorkout}
-      />
+        <RoutinePresetsModal
+          visible={routineModalVisible}
+          onClose={() => setRoutineModalVisible(false)}
+          onSelectRoutine={handleSelectRoutine}
+        />
 
-      <RoutinePresetsModal
-        visible={routineModalVisible}
-        onClose={() => setRoutineModalVisible(false)}
-        onSelectRoutine={handleSelectRoutine}
-      />
+        <WorkoutHistoryModal
+          visible={historyModalVisible}
+          workouts={workouts}
+          onClose={() => setHistoryModalVisible(false)}
+          onDelete={deleteWorkout}
+          onClone={handleCloneWorkout}
+        />
 
-      <WorkoutHistoryModal
-        visible={historyModalVisible}
-        workouts={workouts}
-        onClose={() => setHistoryModalVisible(false)}
-        onDelete={deleteWorkout}
-        onClone={handleCloneWorkout}
-      />
-
-      <AppAlertModal config={alertConfig} onClose={closeAlert} />
-    </SafeAreaView>
-  </ErrorBoundary>
+        <AppAlertModal config={alertConfig} onClose={closeAlert} />
+      </SafeAreaView>
+    </ErrorBoundary>
   );
 }

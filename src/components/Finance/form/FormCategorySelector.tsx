@@ -66,7 +66,7 @@ export const FormCategorySelector = ({
                 <Ionicons
                   name={theme.icon}
                   size={15}
-                  color={isSelected ? '#08090C' : theme.color}
+                  color={isSelected ? COLORS.textInverse : theme.color}
                 />
               </View>
               <Text

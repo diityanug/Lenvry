@@ -27,6 +27,9 @@ export interface Transaction {
   deletedToSubAccountName?: string;
   toAmount?: number;
   exchangeRate?: number;
+  billId?: string;
+  debtId?: string;
+  debtAction?: 'initial' | 'settlement';
 }
 
 // Resolve pocket display name and deleted state
@@ -168,7 +171,7 @@ export const hexToRgba = (hex: string, alpha: number): string => {
   const g = parseInt(full.slice(2, 4), 16);
   const b = parseInt(full.slice(4, 6), 16);
   if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) {
-    return `rgba(148, 163, 184, ${alpha})`;
+    return `rgba(184, 179, 170, ${alpha})`;
   }
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
@@ -180,90 +183,91 @@ export interface FinanceTheme {
 }
 
 export const ACCOUNT_TYPE_THEME: Record<Account['type'], FinanceTheme> = {
-  Bank: { color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.14)', border: 'rgba(56, 189, 248, 0.34)' },
+  Bank: { color: '#2563EB', bg: 'rgba(37, 99, 235, 0.12)', border: 'rgba(37, 99, 235, 0.28)' },
   'E-Wallet': {
-    color: '#C084FC',
-    bg: 'rgba(192, 132, 252, 0.14)',
-    border: 'rgba(192, 132, 252, 0.34)',
+    color: '#B85D43',
+    bg: 'rgba(184, 93, 67, 0.12)',
+    border: 'rgba(184, 93, 67, 0.28)',
   },
-  Cash: { color: '#34D399', bg: 'rgba(52, 211, 153, 0.14)', border: 'rgba(52, 211, 153, 0.34)' },
+  Cash: { color: '#16794B', bg: 'rgba(22, 121, 75, 0.12)', border: 'rgba(22, 121, 75, 0.28)' },
   Investment: {
-    color: '#FBBF24',
-    bg: 'rgba(251, 191, 36, 0.14)',
-    border: 'rgba(251, 191, 36, 0.34)',
+    color: '#C96D12',
+    bg: 'rgba(201, 109, 18, 0.12)',
+    border: 'rgba(201, 109, 18, 0.28)',
   },
   'Credit Card': {
-    color: '#FB7185',
-    bg: 'rgba(251, 113, 133, 0.14)',
-    border: 'rgba(251, 113, 133, 0.34)',
+    color: '#C93B3B',
+    bg: 'rgba(201, 59, 59, 0.12)',
+    border: 'rgba(201, 59, 59, 0.28)',
   },
-  'E-Money': { color: '#2DD4BF', bg: 'rgba(45, 212, 191, 0.14)', border: 'rgba(45, 212, 191, 0.34)' },
+  'E-Money': { color: '#0D8A7E', bg: 'rgba(13, 138, 126, 0.12)', border: 'rgba(13, 138, 126, 0.28)' },
 };
 
 export const TX_TYPE_THEME: Record<'income' | 'expense' | 'transfer', FinanceTheme & { label: string }> = {
   income: {
-    color: '#10B981',
-    bg: 'rgba(16, 185, 129, 0.14)',
-    border: 'rgba(16, 185, 129, 0.34)',
+    color: '#16794B',
+    bg: 'rgba(22, 121, 75, 0.12)',
+    border: 'rgba(22, 121, 75, 0.28)',
     label: 'Income',
   },
   expense: {
-    color: '#F43F5E',
-    bg: 'rgba(244, 63, 94, 0.14)',
-    border: 'rgba(244, 63, 94, 0.34)',
+    color: '#C93B3B',
+    bg: 'rgba(201, 59, 59, 0.12)',
+    border: 'rgba(201, 59, 59, 0.28)',
     label: 'Expense',
   },
   transfer: {
-    color: '#818CF8',
-    bg: 'rgba(129, 140, 248, 0.14)',
-    border: 'rgba(129, 140, 248, 0.34)',
+    color: '#4F46E5',
+    bg: 'rgba(79, 70, 229, 0.12)',
+    border: 'rgba(79, 70, 229, 0.28)',
     label: 'Transfer',
   },
 };
 
 const CATEGORY_PALETTE = [
-  '#F97316',
-  '#F59E0B',
-  '#84CC16',
-  '#10B981',
-  '#2DD4BF',
-  '#38BDF8',
-  '#818CF8',
-  '#A855F7',
-  '#EC4899',
-  '#F43F5E',
+  '#B85D43',
+  '#C96D12',
+  '#3D7A5A',
+  '#16794B',
+  '#0D8A7E',
+  '#2563EB',
+  '#4F46E5',
+  '#7E22CE',
+  '#C93B3B',
+  '#9E4A32',
 ];
 
 const CATEGORY_COLOR_OVERRIDES: Record<string, string> = {
-  'Food & Beverages': '#F97316',
-  Snacks: '#F59E0B',
-  Shopping: '#EC4899',
-  'Bills & Utilities': '#8B5CF6',
-  'Housing / Rent': '#A855F7',
-  'Internet & Phone': '#38BDF8',
-  Insurance: '#2DD4BF',
-  'Fitness & Gym': '#84CC16',
-  'Cloud & Storage': '#818CF8',
-  Fuel: '#F59E0B',
-  Parking: '#94A3B8',
-  'Vehicle Services': '#FB923C',
-  'Public Services': '#22D3EE',
-  Personal: '#C084FC',
-  'Home Services': '#34D399',
-  Furnisings: '#F472B6',
-  Social: '#FB7185',
-  'Health & Medical': '#F43F5E',
-  Education: '#06B6D4',
-  Travel: '#22D3EE',
-  Salary: '#10B981',
-  Allowance: '#34D399',
-  Interest: '#2DD4BF',
-  Investments: '#84CC16',
-  Bonus: '#FBBF24',
-  Gift: '#F472B6',
-  Transfer: '#818CF8',
-  Adjustment: '#94A3B8',
-  Others: '#94A3B8',
+  'Food & Beverages': '#B85D43',
+  Snacks: '#C96D12',
+  Shopping: '#BE185D',
+  'Bills & Utilities': '#4F46E5',
+  'Housing / Rent': '#7E22CE',
+  'Internet & Phone': '#2563EB',
+  Insurance: '#0D8A7E',
+  'Fitness & Gym': '#3D7A5A',
+  'Cloud & Storage': '#4338CA',
+  Fuel: '#B45309',
+  Parking: '#64748B',
+  'Vehicle Services': '#9E4A32',
+  'Public Services': '#0F766E',
+  Personal: '#7E22CE',
+  'Home Services': '#3D7A5A',
+  Furnisings: '#BE185D',
+  Social: '#C93B3B',
+  'Health & Medical': '#B91C1C',
+  Education: '#0D8A7E',
+  Travel: '#2563EB',
+  Salary: '#16794B',
+  Allowance: '#3D7A5A',
+  Interest: '#0D8A7E',
+  Investments: '#65A30D',
+  Bonus: '#C96D12',
+  Gift: '#BE185D',
+  Transfer: '#4F46E5',
+  Adjustment: '#64748B',
+  'Debt & Loan': '#C96D12',
+  Others: '#64748B',
 };
 
 const hashString = (value: string): number => {
@@ -289,9 +293,9 @@ export const getCategoryTheme = (
     return {
       color: custom.color,
       bg: custom.bg || hexToRgba(custom.color, 0.14),
-      border: hexToRgba(custom.color, 0.34),
+      border: hexToRgba(custom.color, 0.30),
     };
   }
   const color = getCategoryColor(category);
-  return { color, bg: hexToRgba(color, 0.14), border: hexToRgba(color, 0.34) };
+  return { color, bg: hexToRgba(color, 0.14), border: hexToRgba(color, 0.30) };
 };

@@ -1,8 +1,10 @@
 import { z } from 'zod';
+import { formatDateKey } from '../constants/date';
 import { DEFAULT_CATEGORIES } from '../constants/habits';
 import { DEFAULT_NUTRITION_TARGET } from '../types/nutrition';
 import { DEFAULT_NOTIFICATION_SETTINGS } from '../types/settings';
 import { NOTE_CATEGORIES } from '../types/notes';
+import { generateId } from '../utils/id';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -55,16 +57,9 @@ const safeBool = (fallback = false) =>
     .optional()
     .transform((val) => (typeof val === 'boolean' ? val : fallback));
 
-let uidCounter = 0;
-const genUid = (prefix: string) => {
-  uidCounter += 1;
-  return `${prefix}_${Date.now().toString(36)}${uidCounter.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-};
+const genUid = (prefix: string) => generateId(prefix);
 
-const getTodayKey = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-};
+const getTodayKey = () => formatDateKey(new Date());
 
 // ---------------------------------------------------------------------------
 // SubTask & Habit Schemas
@@ -161,6 +156,9 @@ export const TransactionSchema = z.object({
   deletedToSubAccountName: safeOptStr(),
   toAmount: safeOptNum(),
   exchangeRate: safeOptNum(),
+  billId: safeOptStr(),
+  debtId: safeOptStr(),
+  debtAction: z.enum(['initial', 'settlement']).optional().catch(undefined),
 });
 
 export const CategoryBudgetSchema = z.object({
@@ -204,9 +202,17 @@ export const DebtItemSchema = z
     notes: safeOptStr(),
   })
   .transform((item) => {
-    const rem = Math.max(0, item.originalAmount - item.paidAmount);
+    const round2 = (n: number) => {
+      const r = Math.round((n + Number.EPSILON) * 100) / 100;
+      return r < 0.005 ? 0 : r;
+    };
+    const roundedOrig = round2(Math.max(0, item.originalAmount));
+    const roundedPaid = Math.min(roundedOrig, round2(Math.max(0, item.paidAmount)));
+    const rem = round2(Math.max(0, roundedOrig - roundedPaid));
     return {
       ...item,
+      originalAmount: roundedOrig,
+      paidAmount: roundedPaid,
       remainingAmount: rem,
       status: rem <= 0 ? ('settled' as const) : ('active' as const),
     };

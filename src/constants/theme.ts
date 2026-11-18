@@ -1,54 +1,60 @@
 export const COLORS = {
-  // Inky Dark Canvas & Layered Surfaces (Linear & Raycast Inspired)
-  bgPrimary: '#08090C',
-  bgCanvas: '#08090C',
-  bgCard: '#111318',
-  bgCardSub: '#161922',
-  bgCardHover: '#1C202C',
+  // Warm Cream Linen Surfaces (Solid Layered Hierarchy)
+  bgPrimary: '#F4EFE6',
+  bgCanvas: '#F4EFE6',
+  bgCard: '#FFFFFF',
+  bgCardSub: '#EDE6D8',
+  bgCardHover: '#E4DBC9',
 
-  // Hairlines & Borders
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderLight: 'rgba(255, 255, 255, 0.15)',
-  borderHighlight: 'rgba(255, 255, 255, 0.22)',
-  borderSubtle: 'rgba(255, 255, 255, 0.04)',
+  // Warm Espresso Hairlines & Borders
+  border: 'rgba(28, 25, 23, 0.10)',
+  borderLight: 'rgba(28, 25, 23, 0.16)',
+  borderHighlight: 'rgba(28, 25, 23, 0.25)',
+  borderSubtle: 'rgba(28, 25, 23, 0.06)',
 
-  // Primary Brand Accent (Linear Electric Indigo)
-  accent: '#6366F1',
-  accentHover: '#818CF8',
-  accentSoft: 'rgba(99, 102, 241, 0.15)',
-  accentLight: 'rgba(99, 102, 241, 0.15)',
+  // Primary Brand Accent (Rich Warm Terracotta)
+  accent: '#B85D43',
+  accentHover: '#9E4A32',
+  accentSoft: 'rgba(184, 93, 67, 0.12)',
+  accentLight: 'rgba(184, 93, 67, 0.12)',
 
-  // Disciplined Semantic Accents
-  accentUSD: '#38BDF8',
-  accentUSDSoft: 'rgba(56, 189, 248, 0.15)',
-  finance: '#38BDF8',
-  financeLight: 'rgba(56, 189, 248, 0.15)',
-  fitness: '#F59E0B',
-  fitnessLight: 'rgba(245, 158, 11, 0.15)',
-  habit: '#10B981',
-  habitLight: 'rgba(16, 185, 129, 0.15)',
-  nutrition: '#2DD4BF',
-  nutritionLight: 'rgba(45, 212, 191, 0.12)',
-  protein: '#38BDF8',
-  carbs: '#FBBF24',
-  fat: '#FB7185',
-  success: '#10B981',
-  successSoft: 'rgba(16, 185, 129, 0.15)',
-  successLight: 'rgba(16, 185, 129, 0.15)',
-  warning: '#F59E0B',
-  warningSoft: 'rgba(245, 158, 11, 0.15)',
-  danger: '#F43F5E',
-  dangerSoft: 'rgba(244, 63, 94, 0.15)',
-  dangerLight: 'rgba(244, 63, 94, 0.15)',
+  // Editorial Pillar & Semantic Accents (High Contrast on Cream & White Buttons)
+  accentUSD: '#2563EB',
+  accentUSDSoft: 'rgba(37, 99, 235, 0.12)',
+  finance: '#2563EB',
+  financeLight: 'rgba(37, 99, 235, 0.12)',
+  financeHeroIDR: '#E3EFE6',
+  financeHeroUSD: '#E4ECF8',
+  fitness: '#C96D12',
+  fitnessLight: 'rgba(201, 109, 18, 0.13)',
+  habit: '#3D7A5A',
+  habitLight: 'rgba(61, 122, 90, 0.13)',
+  nutrition: '#0D8A7E',
+  nutritionLight: 'rgba(13, 138, 126, 0.12)',
+  protein: '#2563EB',
+  carbs: '#C96D12',
+  fat: '#C93B3B',
+  success: '#16794B',
+  successSoft: 'rgba(22, 121, 75, 0.12)',
+  successLight: 'rgba(22, 121, 75, 0.12)',
+  warning: '#C96D12',
+  warningSoft: 'rgba(201, 109, 18, 0.13)',
+  danger: '#C93B3B',
+  dangerSoft: 'rgba(201, 59, 59, 0.12)',
+  dangerLight: 'rgba(201, 59, 59, 0.12)',
 
-  // Typography Hierarchy
-  textPrimary: '#F8FAFC',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
-  textInverse: '#08090C',
+  // Deep Espresso Typography Hierarchy
+  textPrimary: '#1C1917',
+  textSecondary: '#57524A',
+  textMuted: '#847D72',
+  textInverse: '#FFFFFF',
 
-  // Overlays
-  overlay: 'rgba(5, 6, 9, 0.85)',
+  // Warm Dim Scrim Overlays
+  overlay: 'rgba(28, 25, 23, 0.52)',
+};
+
+export const NUMERAL_STYLE = {
+  fontVariant: ['tabular-nums'] as ('tabular-nums')[],
 };
 
 export const RADIUS = {

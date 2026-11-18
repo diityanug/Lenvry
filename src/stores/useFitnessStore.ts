@@ -1,15 +1,15 @@
 import { create } from 'zustand';
-import { readStored, writeStored } from '../storage';
+import { readStored, updateStored, writeStored } from '../storage';
 import { Workout } from '../types/fitness';
 
 interface FitnessState {
   workouts: Workout[];
   isLoaded: boolean;
   loadFitness: (force?: boolean) => Promise<void>;
-  addWorkout: (workout: Workout) => Promise<void>;
-  updateWorkout: (workout: Workout) => Promise<void>;
-  deleteWorkout: (id: string) => Promise<void>;
-  setWorkouts: (workouts: Workout[]) => Promise<void>;
+  addWorkout: (workout: Workout) => Promise<boolean>;
+  updateWorkout: (workout: Workout) => Promise<boolean>;
+  deleteWorkout: (id: string) => Promise<boolean>;
+  setWorkouts: (workouts: Workout[]) => Promise<boolean>;
 }
 
 export const useFitnessStore = create<FitnessState>((set, get) => ({
@@ -25,38 +25,59 @@ export const useFitnessStore = create<FitnessState>((set, get) => ({
     }
   },
   addWorkout: async (workout: Workout) => {
-    const updated = [workout, ...get().workouts];
-    set({ workouts: updated });
+    const previous = get().workouts;
+    set({ workouts: [workout, ...previous] });
     try {
-      await writeStored('fitnessWorkouts', updated);
+      const persisted = await updateStored('fitnessWorkouts', (current) => [workout, ...current]);
+      set({ workouts: persisted });
+      return true;
     } catch (e) {
       console.warn('Failed to add workout', e);
+      set({ workouts: previous });
+      return false;
     }
   },
   updateWorkout: async (workout: Workout) => {
-    const updated = get().workouts.map((w) => (w.id === workout.id ? workout : w));
-    set({ workouts: updated });
+    const previous = get().workouts;
+    set({ workouts: previous.map((w) => (w.id === workout.id ? workout : w)) });
     try {
-      await writeStored('fitnessWorkouts', updated);
+      const persisted = await updateStored('fitnessWorkouts', (current) =>
+        current.map((w) => (w.id === workout.id ? workout : w))
+      );
+      set({ workouts: persisted });
+      return true;
     } catch (e) {
       console.warn('Failed to update workout', e);
+      set({ workouts: previous });
+      return false;
     }
   },
   deleteWorkout: async (id: string) => {
-    const updated = get().workouts.filter((w) => w.id !== id);
-    set({ workouts: updated });
+    const previous = get().workouts;
+    set({ workouts: previous.filter((w) => w.id !== id) });
     try {
-      await writeStored('fitnessWorkouts', updated);
+      const persisted = await updateStored('fitnessWorkouts', (current) =>
+        current.filter((w) => w.id !== id)
+      );
+      set({ workouts: persisted });
+      return true;
     } catch (e) {
       console.warn('Failed to delete workout', e);
+      set({ workouts: previous });
+      return false;
     }
   },
   setWorkouts: async (workouts: Workout[]) => {
+    const previous = get().workouts;
     set({ workouts });
     try {
-      await writeStored('fitnessWorkouts', workouts);
+      const persisted = await writeStored('fitnessWorkouts', workouts);
+      set({ workouts: persisted });
+      return true;
     } catch (e) {
       console.warn('Failed to persist workouts', e);
+      set({ workouts: previous });
+      return false;
     }
   },
 }));

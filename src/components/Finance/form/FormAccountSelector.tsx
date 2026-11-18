@@ -45,8 +45,8 @@ export const FormAccountSelector = ({
               style={[
                 styles.accountCard,
                 {
-                  backgroundColor: isSelected ? theme.color : hexToRgba(theme.color, 0.18),
-                  borderColor: isSelected ? theme.color : hexToRgba(theme.color, 0.4),
+                  backgroundColor: isSelected ? theme.color : COLORS.bgCard,
+                  borderColor: isSelected ? theme.color : COLORS.border,
                 },
               ]}
               onPress={() => {
@@ -58,20 +58,20 @@ export const FormAccountSelector = ({
               <View
                 style={[
                   styles.accountIconWrap,
-                  { backgroundColor: isSelected ? '#08090C' : theme.color },
+                  { backgroundColor: isSelected ? COLORS.textInverse : theme.color },
                 ]}
               >
                 <FontAwesome5
                   name={iconName}
                   size={14}
-                  color={isSelected ? theme.color : '#08090C'}
+                  color={isSelected ? theme.color : COLORS.textInverse}
                 />
               </View>
               <View style={styles.accountTextCol}>
                 <Text
                   style={[
                     styles.accountName,
-                    { color: isSelected ? '#08090C' : COLORS.textPrimary },
+                    { color: isSelected ? COLORS.textInverse : COLORS.textPrimary },
                   ]}
                   numberOfLines={1}
                 >
@@ -80,7 +80,7 @@ export const FormAccountSelector = ({
                 <Text
                   style={[
                     styles.accountMeta,
-                    { color: isSelected ? '#1E293B' : theme.color },
+                    { color: isSelected ? 'rgba(255, 255, 255, 0.86)' : theme.color },
                   ]}
                   numberOfLines={1}
                 >
@@ -141,7 +141,7 @@ export const FormAccountSelector = ({
                       <Ionicons
                         name={isSubSelected ? 'checkmark-circle' : 'wallet-outline'}
                         size={15}
-                        color={isSubSelected ? '#08090C' : '#818CF8'}
+                        color={isSubSelected ? COLORS.textInverse : '#4F46E5'}
                       />
                       <Text
                         style={[
@@ -218,10 +218,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.bgCardSub,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.border,
     paddingVertical: 9,
     paddingHorizontal: 12,
   },
@@ -288,12 +288,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   subPocketCardUnselected: {
-    backgroundColor: hexToRgba('#818CF8', 0.12),
-    borderColor: hexToRgba('#818CF8', 0.3),
+    backgroundColor: hexToRgba('#4F46E5', 0.10),
+    borderColor: hexToRgba('#4F46E5', 0.28),
   },
   subPocketCardSelected: {
-    backgroundColor: '#818CF8',
-    borderColor: '#818CF8',
+    backgroundColor: '#4F46E5',
+    borderColor: '#4F46E5',
   },
   subPocketText: {
     flex: 1,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   subPocketTextSelected: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
 });

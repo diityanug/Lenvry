@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Modal,
   View,
   Text,
   TextInput,
@@ -8,7 +7,6 @@ import {
   ScrollView,
   Platform,
   Keyboard,
-  TouchableWithoutFeedback,
   StyleSheet,
   BackHandler,
   PanResponder,
@@ -24,7 +22,8 @@ import {
 } from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
 import { getCategoryIcon } from './CategoryBreakdownCard';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { BottomSheetModal } from '../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
 import { CalculatorKeypad } from './CalculatorKeypad';
 import {
   evaluateArithmetic,
@@ -59,7 +58,7 @@ export const CategoryBudgetModal = ({
   onOpenAddCategory,
   onDeleteCategory,
 }: CategoryBudgetModalProps) => {
-  const keyboardHeight = useKeyboardHeight();
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(28);
   const [selectedCat, setSelectedCat] = useState(categories[0] || 'Food & Beverages');
   const [isKeypadOpen, setIsKeypadOpen] = useState(false);
   const currentCurrencyBudgets = budgets.filter((b) => (b.currency || 'IDR') === currency);
@@ -71,13 +70,26 @@ export const CategoryBudgetModal = ({
   const [prevVisible, setPrevVisible] = useState(visible);
   const [prevCat, setPrevCat] = useState(selectedCat);
   const [prevCurrency, setPrevCurrency] = useState(currency);
+  const [prevCategoriesLen, setPrevCategoriesLen] = useState(categories.length);
 
-  if (visible !== prevVisible || selectedCat !== prevCat || currency !== prevCurrency) {
+  if (
+    visible !== prevVisible ||
+    selectedCat !== prevCat ||
+    currency !== prevCurrency ||
+    categories.length !== prevCategoriesLen
+  ) {
     setPrevVisible(visible);
-    setPrevCat(selectedCat);
+    setPrevCategoriesLen(categories.length);
+    const activeCat = categories.includes(selectedCat)
+      ? selectedCat
+      : categories[0] || 'Food & Beverages';
+    if (activeCat !== selectedCat) {
+      setSelectedCat(activeCat);
+    }
+    setPrevCat(activeCat);
     setPrevCurrency(currency);
     if (visible) {
-      const existing = currentCurrencyBudgets.find((b) => b.category === selectedCat);
+      const existing = currentCurrencyBudgets.find((b) => b.category === activeCat);
       setLimitText(existing && existing.limit > 0 ? formatExpression(existing.limit.toString(), currency) : '');
       setIsKeypadOpen(false);
     }
@@ -176,14 +188,16 @@ export const CategoryBudgetModal = ({
   const presets = currency === 'USD' ? [100, 250, 500, 1000] : [500000, 1000000, 2000000, 5000000];
 
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={handleRequestClose}>
-      <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={handleDismiss}>
-          <View style={styles.dismissArea} />
-        </TouchableWithoutFeedback>
-
-        <View style={styles.content}>
-          <View style={styles.handle} />
+    <BottomSheetModal
+      visible={visible}
+      onRequestClose={handleRequestClose}
+      onBackdropPress={handleDismiss}
+      overlayStyle={styles.overlay}
+      sheetStyle={styles.content}
+      keyboardOverlap={keyboardOverlap}
+      onOverlayLayout={onOverlayLayout}
+    >
+      <View style={styles.handle} />
 
           {/* Header */}
           <View style={styles.headerRow}>
@@ -213,9 +227,8 @@ export const CategoryBudgetModal = ({
 
           <ScrollView
             showsVerticalScrollIndicator={false}
-            automaticallyAdjustKeyboardInsets={true}
-            contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
-            keyboardShouldPersistTaps="handled"
+            {...KEEP_KEYBOARD_SCROLL_PROPS}
+            contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
           >
             <View style={styles.sectionCard}>
               <Text style={styles.label} numberOfLines={1}>
@@ -250,7 +263,7 @@ export const CategoryBudgetModal = ({
                       <Ionicons
                         name={catIcon}
                         size={16}
-                        color={isSelected ? '#08090C' : catTheme.color}
+                        color={isSelected ? COLORS.textInverse : catTheme.color}
                       />
                       <Text
                         style={[styles.chipText, isSelected && styles.chipTextActive]}
@@ -399,7 +412,7 @@ export const CategoryBudgetModal = ({
               onPress={handleSave}
               activeOpacity={0.85}
             >
-              <Ionicons name="checkmark-circle" size={18} color="#08090C" />
+              <Ionicons name="checkmark-circle" size={18} color={COLORS.textInverse} />
               <Text style={styles.saveBtnText} numberOfLines={1}>
                 APPLY BUDGET
               </Text>
@@ -423,9 +436,7 @@ export const CategoryBudgetModal = ({
               />
             </Animated.View>
           )}
-        </View>
-      </View>
-    </Modal>
+    </BottomSheetModal>
   );
 };
 
@@ -545,7 +556,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   chipTextActive: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
   chipDot: {
@@ -679,7 +690,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   saveBtnText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 0.4,

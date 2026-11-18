@@ -2,12 +2,11 @@ import React from 'react';
 import {
   Text,
   View,
-  Modal,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   StyleSheet,
 } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { BottomSheetModal } from '../Common/BottomSheetModal';
 import DraggableFlatList, {
   ScaleDecorator,
   RenderItemParams,
@@ -79,46 +78,44 @@ export const ManageAccountsModal = ({
   };
 
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={styles.dismissArea} />
-        </TouchableWithoutFeedback>
+    <BottomSheetModal
+      visible={visible}
+      onRequestClose={onClose}
+      onBackdropPress={onClose}
+      overlayStyle={styles.overlay}
+      sheetStyle={styles.content}
+    >
+      <View style={styles.handle} />
 
-        <View style={styles.content}>
-          <View style={styles.handle} />
-
-          {/* Header */}
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.headerTitle}>Manage Accounts Order</Text>
-              <Text style={styles.headerSubtitle}>Hold and drag rows to reorder your account list</Text>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
-              <Ionicons name="close" size={20} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          <GestureHandlerRootView style={styles.manageContainer}>
-            <DraggableFlatList
-              data={accounts}
-              keyExtractor={(item) => item.id}
-              renderItem={renderDraggableItem}
-              onDragEnd={({ data }) => onReorderAccounts(data)}
-              contentContainerStyle={styles.listContainer}
-              showsVerticalScrollIndicator={false}
-            />
-          </GestureHandlerRootView>
+      {/* Header */}
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.headerTitle}>Manage Accounts Order</Text>
+          <Text style={styles.headerSubtitle}>Hold and drag rows to reorder your account list</Text>
         </View>
+        <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
+          <Ionicons name="close" size={20} color={COLORS.textSecondary} />
+        </TouchableOpacity>
       </View>
-    </Modal>
+
+      <GestureHandlerRootView style={styles.manageContainer}>
+        <DraggableFlatList
+          data={accounts}
+          keyExtractor={(item) => item.id}
+          renderItem={renderDraggableItem}
+          onDragEnd={({ data }) => onReorderAccounts(data)}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+        />
+      </GestureHandlerRootView>
+    </BottomSheetModal>
   );
 };
 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 6, 9, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   dismissArea: {

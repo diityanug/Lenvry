@@ -2,12 +2,10 @@ import React, { useState, useMemo } from 'react';
 import {
   Text,
   View,
-  Modal,
   TouchableOpacity,
   FlatList,
   ScrollView,
   TextInput,
-  TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +13,8 @@ import { Workout } from '../../types/fitness';
 import { getCategoryIcon } from '../../constants/fitness';
 import { COLORS } from '../../constants/theme';
 import { fitnessStyles as styles } from '../../styles/fitnessStyles';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { BottomSheetModal } from '../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
 
 interface WorkoutHistoryModalProps {
   visible: boolean;
@@ -32,7 +31,7 @@ export default function WorkoutHistoryModal({
   onDelete,
   onClone,
 }: WorkoutHistoryModalProps) {
-  const keyboardHeight = useKeyboardHeight();
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(24);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
@@ -78,21 +77,23 @@ export default function WorkoutHistoryModal({
     }
   };
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); onClose(); }}>
-          <View style={styles.modalDismissArea} />
-        </TouchableWithoutFeedback>
+  const handleBackdropDismiss = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
 
-        <View style={styles.historyModalContent}>
-          {/* Top Drag Handle */}
-          <View style={styles.modalHandle} />
+  return (
+    <BottomSheetModal
+      visible={visible}
+      onRequestClose={onClose}
+      onBackdropPress={handleBackdropDismiss}
+      overlayStyle={styles.modalOverlay}
+      sheetStyle={styles.historyModalContent}
+      keyboardOverlap={keyboardOverlap}
+      onOverlayLayout={onOverlayLayout}
+    >
+      {/* Top Drag Handle */}
+      <View style={styles.modalHandle} />
 
           {/* Fixed Header Section */}
           <View style={styles.historyFixedHeader}>
@@ -167,9 +168,8 @@ export default function WorkoutHistoryModal({
             data={filteredList}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            contentContainerStyle={{ paddingBottom: Math.max(24, keyboardHeight + 24) }}
+            {...KEEP_KEYBOARD_SCROLL_PROPS}
+            contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
             renderItem={({ item }) => {
               const isCardio = item.category === 'Cardio';
               return (
@@ -193,15 +193,15 @@ export default function WorkoutHistoryModal({
                       </View>
                     </View>
 
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                       {onClone && (
                         <TouchableOpacity
                           onPress={() => {
                             onClone(item);
-                            onClose();
                           }}
                           style={styles.historyActionBtn}
                           activeOpacity={0.7}
+                          hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                         >
                           <Ionicons name="copy-outline" size={13} color={COLORS.textSecondary} />
                           <Text style={styles.historyActionBtnText}>Copy</Text>
@@ -211,6 +211,7 @@ export default function WorkoutHistoryModal({
                         onPress={() => onDelete(item.id)}
                         style={[styles.historyActionBtn, styles.historyDeleteBtn]}
                         activeOpacity={0.7}
+                        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                       >
                         <Ionicons name="trash-outline" size={14} color={COLORS.danger} />
                       </TouchableOpacity>
@@ -276,8 +277,6 @@ export default function WorkoutHistoryModal({
               </View>
             }
           />
-        </View>
-      </View>
-    </Modal>
+    </BottomSheetModal>
   );
 }

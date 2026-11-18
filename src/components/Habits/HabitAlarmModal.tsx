@@ -47,17 +47,13 @@ function HabitAlarmContent({
   const [pulseAnim] = useState(() => new Animated.Value(1));
   const [rippleAnim] = useState(() => new Animated.Value(0));
 
-  // Sound playback & pulsing loop
+  const isMutedRef = React.useRef(isMuted);
   useEffect(() => {
-    const soundId = data.soundId || 'chime';
-    playSoundPreview(soundId);
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
 
-    const loopInterval = setInterval(() => {
-      if (!isMuted) {
-        playSoundPreview(soundId);
-      }
-    }, 4000);
-
+  // Pulsing visual animation loop
+  useEffect(() => {
     const pulseAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -84,12 +80,29 @@ function HabitAlarmContent({
     rippleAnimation.start();
 
     return () => {
-      clearInterval(loopInterval);
       pulseAnimation.stop();
       rippleAnimation.stop();
+    };
+  }, [pulseAnim, rippleAnim]);
+
+  // Sound playback loop
+  useEffect(() => {
+    const soundId = data.soundId || 'chime';
+    if (!isMutedRef.current) {
+      playSoundPreview(soundId);
+    }
+
+    const loopInterval = setInterval(() => {
+      if (!isMutedRef.current) {
+        playSoundPreview(soundId);
+      }
+    }, 4000);
+
+    return () => {
+      clearInterval(loopInterval);
       stopSoundPreview();
     };
-  }, [data.soundId, isMuted, pulseAnim, rippleAnim]);
+  }, [data.soundId]);
 
   const handleToggleMute = () => {
     if (isMuted) {
@@ -178,7 +191,7 @@ function HabitAlarmContent({
               },
             ]}
           >
-            <Ionicons name="alarm" size={54} color="#08090C" />
+            <Ionicons name="alarm" size={54} color={COLORS.textInverse} />
           </Animated.View>
         </View>
 
@@ -214,7 +227,7 @@ function HabitAlarmContent({
           onPress={handleActionComplete}
           activeOpacity={0.85}
         >
-          <Ionicons name="checkmark-done" size={20} color="#08090C" style={{ marginRight: 8 }} />
+          <Ionicons name="checkmark-done" size={20} color={COLORS.textInverse} style={{ marginRight: 8 }} />
           <Text style={styles.completeBtnText}>MARK COMPLETE NOW</Text>
         </TouchableOpacity>
 
@@ -415,7 +428,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
   },
   completeBtnText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 0.6,

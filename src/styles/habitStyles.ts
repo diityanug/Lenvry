@@ -17,7 +17,7 @@ export const habitStyles = StyleSheet.create({
   },
   headerTitleBold: {
     fontSize: 26,
-    fontWeight: '800',
+    fontWeight: '700',
     color: COLORS.textPrimary,
     letterSpacing: -0.6,
   },
@@ -38,9 +38,9 @@ export const habitStyles = StyleSheet.create({
     gap: 4,
   },
   headerAddBtnText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 0.3,
   },
   todayBanner: {
@@ -49,7 +49,7 @@ export const habitStyles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: COLORS.successSoft,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderColor: 'rgba(110, 180, 126, 0.28)',
     paddingVertical: 7,
     paddingHorizontal: 12,
     borderRadius: RADIUS.sm,
@@ -161,11 +161,11 @@ export const habitStyles = StyleSheet.create({
   filterChipText: {
     color: COLORS.textSecondary,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   filterChipTextActive: {
-    color: '#08090C',
-    fontWeight: '800',
+    color: COLORS.textInverse,
+    fontWeight: '700',
   },
 
   // Progress Card
@@ -331,7 +331,7 @@ export const habitStyles = StyleSheet.create({
     fontWeight: '600',
   },
   chipModalTextActive: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
   chipAdd: {
@@ -339,7 +339,7 @@ export const habitStyles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.successSoft,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(22, 121, 75, 0.30)',
     borderStyle: 'dashed',
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -359,7 +359,7 @@ export const habitStyles = StyleSheet.create({
     marginBottom: 24,
   },
   saveButtonText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.4,

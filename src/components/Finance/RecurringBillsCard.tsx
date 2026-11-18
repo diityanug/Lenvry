@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { FadeModalHost } from '../Common/BottomSheetModal';
 import {
   RecurringBill,
   Transaction,
@@ -8,9 +9,11 @@ import {
   getCategoryTheme,
   hexToRgba,
 } from '../../types/finance';
+import { matchRecurringBillsToTransactions } from '../../utils/financeCalculations';
 import { SHORT_MONTHS } from '../../constants/date';
 import { COLORS } from '../../constants/theme';
 import AppAlertModal, { AppAlertConfig } from '../Common/AppAlertModal';
+import { SectionAddButton } from '../Common/AppButtons';
 import { AddRecurringBillModal } from './recurring/AddRecurringBillModal';
 import {
   cardStyles,
@@ -100,14 +103,10 @@ export const RecurringBillsCard = ({
   const currentDay = today.getDate();
   const daysInViewingMonth = new Date(viewingYear, viewingMonth + 1, 0).getDate();
 
+  const billMatches = matchRecurringBillsToTransactions(filteredBills, monthlyTransactions);
+
   const processedBills = filteredBills.map((bill) => {
-    const matchingTx = monthlyTransactions.find((t) => {
-      if (t.type !== 'expense') return false;
-      const desc = t.description.trim().toLowerCase();
-      const bName = bill.name.trim().toLowerCase();
-      if (!desc || !bName) return false;
-      return desc.includes(bName) || (desc.length >= 3 && bName.includes(desc));
-    });
+    const matchingTx = billMatches.get(bill.id);
 
     const isPaid = Boolean(matchingTx);
     let paidDateStr = '';
@@ -119,18 +118,19 @@ export const RecurringBillsCard = ({
     let daysUntil = 0;
     let statusText = '';
     let statusType: 'paid' | 'today' | 'soon' | 'normal' | 'overdue' = 'normal';
+    const effectiveDueDay = Math.min(Math.max(1, bill.dueDateDay), daysInViewingMonth);
 
     if (isPaid) {
       statusType = 'paid';
       statusText = `Paid (${paidDateStr})`;
       daysUntil = 999;
     } else if (isCurrentMonth) {
-      if (bill.dueDateDay === currentDay) {
+      if (effectiveDueDay === currentDay) {
         statusType = 'today';
         statusText = 'Due Today!';
         daysUntil = 0;
-      } else if (bill.dueDateDay > currentDay) {
-        daysUntil = bill.dueDateDay - currentDay;
+      } else if (effectiveDueDay > currentDay) {
+        daysUntil = effectiveDueDay - currentDay;
         if (daysUntil === 1) {
           statusType = 'soon';
           statusText = 'Due tomorrow';
@@ -142,19 +142,19 @@ export const RecurringBillsCard = ({
           statusText = `In ${daysUntil} days`;
         }
       } else {
-        daysUntil = daysInViewingMonth - currentDay + bill.dueDateDay;
+        daysUntil = daysInViewingMonth - currentDay + effectiveDueDay;
         statusType = 'overdue';
         statusText = 'Overdue';
       }
     } else if (isPastMonth) {
       statusType = 'overdue';
       statusText = `Unpaid in ${monthName}`;
-      daysUntil = 100 + bill.dueDateDay;
+      daysUntil = 100 + effectiveDueDay;
     } else {
       // Future month
       statusType = 'normal';
-      statusText = `Due on ${getOrdinal(bill.dueDateDay)}`;
-      daysUntil = bill.dueDateDay;
+      statusText = `Due on ${getOrdinal(effectiveDueDay)}`;
+      daysUntil = effectiveDueDay;
     }
 
     const startIdx = (bill.startYear ?? viewingYear) * 12 + (bill.startMonth ?? viewingMonth);
@@ -191,9 +191,11 @@ export const RecurringBillsCard = ({
       ? unpaidBills
       : paidBills;
 
-  const totalPaidAmount = paidBills.reduce((sum, b) => sum + b.amount, 0);
+  const totalPaidAmount = paidBills.reduce((sum, b) => sum + (b.matchingTx?.amount ?? b.amount), 0);
+  const totalPaidScheduled = paidBills.reduce((sum, b) => sum + b.amount, 0);
   const totalUnpaidAmount = unpaidBills.reduce((sum, b) => sum + b.amount, 0);
-  const progressPercent = totalBillsAmount > 0 ? Math.round((totalPaidAmount / totalBillsAmount) * 100) : 0;
+  const progressPercent =
+    totalBillsAmount > 0 ? Math.min(100, Math.round((totalPaidScheduled / totalBillsAmount) * 100)) : 0;
 
   const [alertConfig, setAlertConfig] = useState<AppAlertConfig>({
     visible: false,
@@ -256,16 +258,14 @@ export const RecurringBillsCard = ({
       </View>
 
       {/* Dedicated Add Action Bar */}
-      <TouchableOpacity
-        style={cardStyles.addBillBar}
+      <SectionAddButton
+        label="Add Recurring Bill or Subscription"
         onPress={() => setModalVisible(true)}
-        activeOpacity={0.75}
-      >
-        <Ionicons name="add-circle" size={18} color={ACCENT} />
-        <Text style={cardStyles.addBillBarText}>
-          Add Recurring Bill or Subscription
-        </Text>
-      </TouchableOpacity>
+        color={ACCENT}
+        borderColor="rgba(37, 99, 235, 0.3)"
+        surface="sub"
+        style={{ marginBottom: 16 }}
+      />
 
       {/* Monthly Payment Health Tracker Banner */}
       {filteredBills.length > 0 && (
@@ -287,7 +287,7 @@ export const RecurringBillsCard = ({
               <Text
                 style={[
                   cardStyles.summaryRemainingVal,
-                  totalUnpaidAmount > 0 ? { color: '#F59E0B' } : { color: INCOME },
+                  totalUnpaidAmount > 0 ? { color: '#C96D12' } : { color: INCOME },
                 ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
@@ -319,7 +319,7 @@ export const RecurringBillsCard = ({
               </Text>
             </View>
             <View style={cardStyles.summaryLegendItem}>
-              <View style={[cardStyles.summaryDot, { backgroundColor: '#F59E0B' }]} />
+              <View style={[cardStyles.summaryDot, { backgroundColor: '#C96D12' }]} />
               <Text style={cardStyles.summaryLegendText}>
                 Unpaid {formatMoney(totalUnpaidAmount, currency)}
               </Text>
@@ -354,7 +354,7 @@ export const RecurringBillsCard = ({
             <Text
               style={[
                 cardStyles.tabBtnText,
-                filterTab === 'unpaid' && { color: '#F59E0B', fontWeight: '800' },
+                filterTab === 'unpaid' && { color: '#C96D12', fontWeight: '700' },
               ]}
               numberOfLines={1}
               adjustsFontSizeToFit
@@ -372,7 +372,7 @@ export const RecurringBillsCard = ({
             <Text
               style={[
                 cardStyles.tabBtnText,
-                filterTab === 'paid' && { color: INCOME, fontWeight: '800' },
+                filterTab === 'paid' && { color: INCOME, fontWeight: '700' },
               ]}
               numberOfLines={1}
               adjustsFontSizeToFit
@@ -516,7 +516,11 @@ export const RecurringBillsCard = ({
                       <Ionicons name="checkmark-circle" size={20} color={INCOME} />
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={cardStyles.paidLabelText}>Paid for {monthName}</Text>
-                        <Text style={cardStyles.paidSubDateText}>Recorded on {bill.paidDateStr}</Text>
+                        <Text style={cardStyles.paidSubDateText}>
+                          {bill.matchingTx && bill.matchingTx.amount !== bill.amount
+                            ? `${formatMoney(bill.matchingTx.amount, bill.currency)} • ${bill.paidDateStr}`
+                            : `Recorded on ${bill.paidDateStr}`}
+                        </Text>
                       </View>
                     </View>
 
@@ -527,7 +531,7 @@ export const RecurringBillsCard = ({
                           onPress={() => confirmUndoPayment(bill, bill.matchingTx!.id)}
                           activeOpacity={0.7}
                         >
-                          <Ionicons name="arrow-undo-outline" size={14} color="#FB7185" />
+                          <Ionicons name="arrow-undo-outline" size={14} color={COLORS.danger} />
                           <Text style={cardStyles.undoActionText}>Undo</Text>
                         </TouchableOpacity>
                       )}
@@ -582,9 +586,7 @@ export const RecurringBillsCard = ({
       )}
 
       {/* Delete / End Choice Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
+      <FadeModalHost
         visible={Boolean(deleteChoiceModal.visible && deleteChoiceModal.bill)}
         onRequestClose={() => setDeleteChoiceModal({ visible: false, bill: null })}
       >
@@ -649,7 +651,7 @@ export const RecurringBillsCard = ({
                   activeOpacity={0.8}
                 >
                   <View style={cardStyles.choiceOptionIconDanger}>
-                    <Ionicons name="trash-outline" size={18} color="#FB7185" />
+                    <Ionicons name="trash-outline" size={18} color={COLORS.danger} />
                   </View>
                   <View style={cardStyles.choiceOptionTextWrap}>
                     <Text style={cardStyles.choiceOptionTitleDelete}>
@@ -673,7 +675,7 @@ export const RecurringBillsCard = ({
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
-      </Modal>
+      </FadeModalHost>
 
       {/* Custom Alert Modal */}
       <AppAlertModal

@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   StyleSheet,
   TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { FadeModalHost } from '../Common/BottomSheetModal';
 import { COLORS, RADIUS } from '../../constants/theme';
 
 interface TimePickerModalProps {
@@ -487,7 +487,7 @@ function TimePickerContent({
                 onPress={handleConfirm}
                 activeOpacity={0.85}
               >
-                <Ionicons name="checkmark-circle" size={16} color="#08090C" style={{ marginRight: 6 }} />
+                <Ionicons name="checkmark-circle" size={16} color={COLORS.textInverse} style={{ marginRight: 6 }} />
                 <Text style={styles.confirmBtnText}>SET REMINDER</Text>
               </TouchableOpacity>
             </View>
@@ -499,11 +499,10 @@ function TimePickerContent({
 }
 
 export default function TimePickerModal({ visible, ...props }: TimePickerModalProps) {
-  if (!visible) return null;
   return (
-    <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={props.onClose}>
-      <TimePickerContent {...props} />
-    </Modal>
+    <FadeModalHost visible={visible} onRequestClose={props.onClose}>
+      {visible ? <TimePickerContent {...props} /> : null}
+    </FadeModalHost>
   );
 }
 
@@ -584,8 +583,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stepperBtn: {
-    width: 32,
-    height: 22,
+    width: 44,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -649,7 +648,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   periodBtnTextActive: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '900',
   },
   quickMinutesRow: {
@@ -686,7 +685,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   quickMinuteChipTextActive: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
   presetsSection: {
@@ -789,7 +788,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.success,
   },
   confirmBtnText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 0.5,

@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { FadeModalHost } from './BottomSheetModal';
 import { alertModalStyles as styles } from '../../styles/alertModalStyles';
 import { COLORS } from '../../constants/theme';
 
@@ -33,15 +34,15 @@ export default function AppAlertModal({ config, onClose }: AppAlertModalProps) {
           iconColor: COLORS.success,
           iconBg: COLORS.successLight,
           btnBg: COLORS.success,
-          btnTextColor: '#08090C',
+          btnTextColor: COLORS.textInverse,
         };
       case 'warning':
         return {
           icon: 'warning' as const,
           iconColor: COLORS.warning,
-          iconBg: 'rgba(245, 158, 11, 0.14)',
+          iconBg: COLORS.warningSoft,
           btnBg: COLORS.warning,
-          btnTextColor: '#08090C',
+          btnTextColor: COLORS.textInverse,
         };
       case 'danger':
         return {
@@ -49,7 +50,7 @@ export default function AppAlertModal({ config, onClose }: AppAlertModalProps) {
           iconColor: COLORS.danger,
           iconBg: COLORS.dangerLight,
           btnBg: COLORS.danger,
-          btnTextColor: '#FFFFFF',
+          btnTextColor: COLORS.textPrimary,
         };
       case 'info':
       default:
@@ -58,7 +59,7 @@ export default function AppAlertModal({ config, onClose }: AppAlertModalProps) {
           iconColor: COLORS.finance,
           iconBg: COLORS.financeLight,
           btnBg: COLORS.finance,
-          btnTextColor: '#08090C',
+          btnTextColor: COLORS.textInverse,
         };
     }
   };
@@ -76,9 +77,7 @@ export default function AppAlertModal({ config, onClose }: AppAlertModalProps) {
   };
 
   return (
-    <Modal
-      animationType="fade"
-      transparent={true}
+    <FadeModalHost
       visible={config.visible}
       onRequestClose={handleCancel}
     >
@@ -118,6 +117,6 @@ export default function AppAlertModal({ config, onClose }: AppAlertModalProps) {
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+    </FadeModalHost>
   );
 }

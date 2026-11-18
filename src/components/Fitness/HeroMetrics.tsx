@@ -2,6 +2,7 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { Workout } from '../../types/fitness';
 import { fitnessStyles as styles } from '../../styles/fitnessStyles';
+import { computeDailyFitnessMetrics } from '../../utils/fitnessHelpers';
 
 interface HeroMetricsProps {
   selectedDate: Date;
@@ -9,11 +10,7 @@ interface HeroMetricsProps {
 }
 
 export default function HeroMetrics({ selectedDate, workouts }: HeroMetricsProps) {
-  const dayVolume = workouts.reduce((total, item) => {
-    return total + (parseInt(item.sets || '0', 10) * parseInt(item.reps || '0', 10) * parseFloat(item.weight || '0'));
-  }, 0);
-  const daySets = workouts.reduce((total, item) => total + parseInt(item.sets || '0', 10), 0);
-  const dayReps = workouts.reduce((total, item) => total + parseInt(item.reps || '0', 10), 0);
+  const { dayVolume, daySets, dayReps, exerciseCount } = computeDailyFitnessMetrics(workouts);
 
   const formattedDate = selectedDate.toLocaleDateString('en-US', {
     weekday: 'short',
@@ -35,7 +32,7 @@ export default function HeroMetrics({ selectedDate, workouts }: HeroMetricsProps
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>Exercises</Text>
-          <Text style={styles.statValue}>{workouts.length}</Text>
+          <Text style={styles.statValue}>{exerciseCount}</Text>
         </View>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>Sets</Text>

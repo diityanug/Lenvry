@@ -9,6 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { COLORS, RADIUS } from '../../constants/theme';
+import { SectionAddButton } from '../Common/AppButtons';
 import {
   LearningCourse,
   LearningStatus,
@@ -63,10 +64,10 @@ export default function LearningTrackerSection({
         {/* Metric 1: In Progress */}
         <View style={[styles.statCard, styles.statCardInProgress]}>
           <View style={styles.statCardTopRow}>
-            <Ionicons name="play-circle" size={13} color="#38BDF8" />
-            <Text style={[styles.statCardLabel, { color: '#38BDF8' }]}>IN PROGRESS</Text>
+            <Ionicons name="play-circle" size={13} color="#1D4ED8" />
+            <Text style={[styles.statCardLabel, { color: '#1D4ED8' }]}>IN PROGRESS</Text>
           </View>
-          <Text style={[styles.statCardValue, { color: '#38BDF8' }]}>
+          <Text style={[styles.statCardValue, { color: '#1D4ED8' }]}>
             {stats.inProgress}
           </Text>
         </View>
@@ -74,10 +75,10 @@ export default function LearningTrackerSection({
         {/* Metric 2: Completed */}
         <View style={[styles.statCard, styles.statCardCompleted]}>
           <View style={styles.statCardTopRow}>
-            <Ionicons name="checkmark-circle" size={13} color="#10B981" />
-            <Text style={[styles.statCardLabel, { color: '#10B981' }]}>COMPLETED</Text>
+            <Ionicons name="checkmark-circle" size={13} color="#15803D" />
+            <Text style={[styles.statCardLabel, { color: '#15803D' }]}>COMPLETED</Text>
           </View>
-          <Text style={[styles.statCardValue, { color: '#10B981' }]}>
+          <Text style={[styles.statCardValue, { color: '#15803D' }]}>
             {stats.completed}
           </Text>
         </View>
@@ -85,10 +86,10 @@ export default function LearningTrackerSection({
         {/* Metric 3: Hours Studied */}
         <View style={[styles.statCard, styles.statCardHours]}>
           <View style={styles.statCardTopRow}>
-            <Ionicons name="time" size={13} color="#A78BFA" />
-            <Text style={[styles.statCardLabel, { color: '#A78BFA' }]}>STUDIED</Text>
+            <Ionicons name="time" size={13} color="#6D28D9" />
+            <Text style={[styles.statCardLabel, { color: '#6D28D9' }]}>STUDIED</Text>
           </View>
-          <Text style={[styles.statCardValue, { color: '#A78BFA' }]}>
+          <Text style={[styles.statCardValue, { color: '#6D28D9' }]}>
             {stats.totalHours % 1 === 0 ? stats.totalHours : stats.totalHours.toFixed(1)}
             <Text style={styles.statCardUnit}> hrs</Text>
           </Text>
@@ -96,14 +97,14 @@ export default function LearningTrackerSection({
       </View>
 
       {/* Dedicated Add Course Action Bar */}
-      <TouchableOpacity
-        style={styles.addCourseBar}
+      <SectionAddButton
+        label="Track New Course"
         onPress={onCreateCourse}
-        activeOpacity={0.75}
-      >
-        <Ionicons name="add-circle" size={18} color={COLORS.accentHover} />
-        <Text style={styles.addCourseBarText}>Track New Course</Text>
-      </TouchableOpacity>
+        color={COLORS.accentHover}
+        borderColor="rgba(204, 120, 92, 0.32)"
+        surface="card"
+        style={{ marginBottom: 14 }}
+      />
 
       {/* Category Filter Tabs (Single-row horizontal scroll, balanced & symmetrical) */}
       {courses.length > 0 && (
@@ -404,24 +405,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statCardInProgress: {
-    backgroundColor: 'rgba(56, 189, 248, 0.08)',
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    backgroundColor: '#EDF4FF',
+    borderColor: 'rgba(37, 99, 235, 0.28)',
   },
   statCardActiveInProgress: {
-    backgroundColor: 'rgba(56, 189, 248, 0.18)',
-    borderColor: '#38BDF8',
+    backgroundColor: '#DCE9FE',
+    borderColor: '#2563EB',
   },
   statCardCompleted: {
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-    borderColor: 'rgba(16, 185, 129, 0.25)',
+    backgroundColor: '#EAF6EF',
+    borderColor: 'rgba(22, 121, 75, 0.28)',
   },
   statCardActiveCompleted: {
-    backgroundColor: 'rgba(16, 185, 129, 0.18)',
-    borderColor: '#10B981',
+    backgroundColor: '#D7EFE1',
+    borderColor: '#16794B',
   },
   statCardHours: {
-    backgroundColor: 'rgba(167, 139, 250, 0.08)',
-    borderColor: 'rgba(167, 139, 250, 0.25)',
+    backgroundColor: '#F3EEFF',
+    borderColor: 'rgba(109, 40, 217, 0.28)',
   },
   statCardTopRow: {
     flexDirection: 'row',
@@ -451,9 +452,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+    backgroundColor: COLORS.bgCard,
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.25)',
+    borderColor: 'rgba(204, 120, 92, 0.32)',
     borderRadius: RADIUS.lg,
     paddingVertical: 11,
     paddingHorizontal: 16,
@@ -497,10 +498,10 @@ const styles = StyleSheet.create({
   },
   filterTabTextActive: {
     color: COLORS.accentHover,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   filterBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: COLORS.bgCardSub,
     paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: RADIUS.full,
@@ -509,7 +510,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   filterBadgeActive: {
-    backgroundColor: 'rgba(99, 102, 241, 0.25)',
+    backgroundColor: 'rgba(184, 93, 67, 0.16)',
   },
   filterBadgeText: {
     color: COLORS.textMuted,
@@ -518,7 +519,7 @@ const styles = StyleSheet.create({
   },
   filterBadgeTextActive: {
     color: COLORS.accentHover,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   emptyCard: {
     backgroundColor: COLORS.bgCard,
@@ -530,7 +531,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.06,
     shadowRadius: 16,
     elevation: 3,
   },
@@ -667,18 +668,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    borderTopColor: COLORS.border,
   },
   hoursBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.bgCardSub,
     paddingHorizontal: 8,
     paddingVertical: 3.5,
     borderRadius: RADIUS.xs,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.border,
   },
   hoursBadgeText: {
     color: COLORS.textSecondary,

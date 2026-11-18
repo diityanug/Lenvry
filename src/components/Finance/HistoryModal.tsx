@@ -2,17 +2,16 @@ import React, { useState, useMemo } from 'react';
 import {
   Text,
   View,
-  Modal,
   TouchableOpacity,
   FlatList,
   ScrollView,
   TextInput,
-  TouchableWithoutFeedback,
   StyleSheet,
   Platform,
   Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BottomSheetModal } from '../Common/BottomSheetModal';
 import {
   Transaction,
   Account,
@@ -25,7 +24,7 @@ import {
 import { TransactionCard } from './FinanceCards';
 import { TransactionDetailModal } from './TransactionDetailModal';
 import { COLORS, RADIUS } from '../../constants/theme';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
 
 interface HistoryModalProps {
   visible: boolean;
@@ -35,6 +34,8 @@ interface HistoryModalProps {
   historyTypeFilter: 'all' | 'income' | 'expense' | 'transfer';
   historyCatFilter: string;
   historyAvailableCategories: string[];
+  includeInvestment?: boolean;
+  onToggleIncludeInvestment?: () => void;
   onClose: () => void;
   setTypeFilter: (filter: 'all' | 'income' | 'expense' | 'transfer') => void;
   setCatFilter: (cat: string) => void;
@@ -47,9 +48,9 @@ const FILTER_ORDER = ['all', 'expense', 'income', 'transfer'] as const;
 
 const FILTER_THEME: Record<'all' | 'income' | 'expense' | 'transfer', { color: string; bg: string; border: string }> = {
   all: {
-    color: '#38BDF8',
-    bg: 'rgba(56, 189, 248, 0.16)',
-    border: 'rgba(56, 189, 248, 0.42)',
+    color: COLORS.finance,
+    bg: 'rgba(37, 99, 235, 0.12)',
+    border: 'rgba(37, 99, 235, 0.34)',
   },
   expense: TX_TYPE_THEME.expense,
   income: TX_TYPE_THEME.income,
@@ -57,9 +58,9 @@ const FILTER_THEME: Record<'all' | 'income' | 'expense' | 'transfer', { color: s
 };
 
 const ALL_CATEGORIES_THEME = {
-  color: '#38BDF8',
-  bg: 'rgba(56, 189, 248, 0.16)',
-  border: 'rgba(56, 189, 248, 0.42)',
+  color: COLORS.finance,
+  bg: 'rgba(37, 99, 235, 0.12)',
+  border: 'rgba(37, 99, 235, 0.34)',
 };
 
 export const HistoryModal = ({
@@ -70,6 +71,8 @@ export const HistoryModal = ({
   historyTypeFilter,
   historyCatFilter,
   historyAvailableCategories,
+  includeInvestment = false,
+  onToggleIncludeInvestment,
   onClose,
   setTypeFilter,
   setCatFilter,
@@ -78,22 +81,30 @@ export const HistoryModal = ({
   onEdit,
 }: HistoryModalProps) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const keyboardHeight = useKeyboardHeight();
-  const [selectedTxForDetail, setSelectedTxForDetail] = useState<Transaction | null>(null);
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(32);
+  const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
+
+  const selectedTxForDetail = useMemo(
+    () => historyTransactions.find((t) => t.id === selectedTxId) ?? null,
+    [historyTransactions, selectedTxId]
+  );
 
   const handleClose = () => {
     Keyboard.dismiss();
+    setSelectedTxId(null);
     onClose();
   };
 
   const filteredList = useMemo(() => {
-    let result = historyTransactions.filter((tx) => {
-      const acc = accounts.find((a) => a.id === tx.accountId);
-      if (acc?.type === 'Investment') return false;
-      const toAcc = tx.toAccountId ? accounts.find((a) => a.id === tx.toAccountId) : undefined;
-      if (toAcc?.type === 'Investment') return false;
-      return true;
-    });
+    let result = includeInvestment
+      ? historyTransactions
+      : historyTransactions.filter((tx) => {
+          const acc = accounts.find((a) => a.id === tx.accountId);
+          if (acc?.type === 'Investment') return false;
+          const toAcc = tx.toAccountId ? accounts.find((a) => a.id === tx.toAccountId) : undefined;
+          if (toAcc?.type === 'Investment') return false;
+          return true;
+        });
 
     if (searchQuery.trim()) {
       const tokens = searchQuery.toLowerCase().trim().split(/\s+/);
@@ -147,18 +158,24 @@ export const HistoryModal = ({
     }
 
     return result;
-  }, [historyTransactions, searchQuery, accounts]);
+  }, [historyTransactions, includeInvestment, searchQuery, accounts]);
+
+  const hasInvestmentAccounts = useMemo(
+    () => accounts.some((a) => a.type === 'Investment'),
+    [accounts]
+  );
 
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={handleClose}>
-      <View style={modalStyles.overlay}>
-        <TouchableWithoutFeedback onPress={handleClose}>
-          <View style={StyleSheet.absoluteFill} />
-        </TouchableWithoutFeedback>
-
-        {/* Modal Container */}
-        <View style={modalStyles.content}>
-          <View style={modalStyles.handle} />
+    <BottomSheetModal
+      visible={visible}
+      onRequestClose={handleClose}
+      onBackdropPress={handleClose}
+      overlayStyle={modalStyles.overlay}
+      sheetStyle={modalStyles.content}
+      keyboardOverlap={keyboardOverlap}
+      onOverlayLayout={onOverlayLayout}
+    >
+      <View style={modalStyles.handle} />
 
           {/* HEADER SECTION */}
           <View style={modalStyles.fixedHeaderSection}>
@@ -173,14 +190,52 @@ export const HistoryModal = ({
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity
-                onPress={handleClose}
-                activeOpacity={0.7}
-                style={modalStyles.closeBtn}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              >
-                <Ionicons name="close" size={18} color={COLORS.textSecondary} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {hasInvestmentAccounts && onToggleIncludeInvestment && (
+                  <TouchableOpacity
+                    onPress={onToggleIncludeInvestment}
+                    activeOpacity={0.75}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: RADIUS.full,
+                      backgroundColor: includeInvestment
+                        ? 'rgba(201, 109, 18, 0.12)'
+                        : COLORS.bgCardSub,
+                      borderWidth: 1,
+                      borderColor: includeInvestment
+                        ? 'rgba(201, 109, 18, 0.34)'
+                        : COLORS.borderSubtle,
+                    }}
+                  >
+                    <Ionicons
+                      name="trending-up-outline"
+                      size={13}
+                      color={includeInvestment ? COLORS.warning : COLORS.textMuted}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '700',
+                        color: includeInvestment ? COLORS.warning : COLORS.textMuted,
+                      }}
+                    >
+                      Investments
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={handleClose}
+                  activeOpacity={0.7}
+                  style={modalStyles.closeBtn}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                  <Ionicons name="close" size={18} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Search Input */}
@@ -306,11 +361,11 @@ export const HistoryModal = ({
             extraData={filteredList}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={true}
-            keyboardShouldPersistTaps="handled"
+            {...KEEP_KEYBOARD_SCROLL_PROPS}
             style={modalStyles.flatList}
             contentContainerStyle={[
               modalStyles.listContent,
-              { paddingBottom: Math.max(32, keyboardHeight + 32) },
+              { paddingBottom: scrollBottomPadding },
             ]}
             ListEmptyComponent={
               <View style={modalStyles.emptyState}>
@@ -333,7 +388,7 @@ export const HistoryModal = ({
                 onClone={onClone}
                 onDelete={onDelete}
                 onEdit={onEdit}
-                onPress={(tx) => setSelectedTxForDetail(tx)}
+                onPress={(tx) => setSelectedTxId(tx.id)}
               />
             )}
           />
@@ -343,32 +398,25 @@ export const HistoryModal = ({
             transaction={selectedTxForDetail}
             accounts={accounts}
             customCategoryIcons={customCategoryIcons}
-            onClose={() => setSelectedTxForDetail(null)}
+            onClose={() => setSelectedTxId(null)}
             onEdit={(tx) => {
-              setSelectedTxForDetail(null);
-              onClose();
               onEdit?.(tx);
             }}
             onClone={(tx) => {
-              setSelectedTxForDetail(null);
-              onClose();
               onClone(tx);
             }}
             onDelete={(id) => {
-              setSelectedTxForDetail(null);
               onDelete(id);
             }}
           />
-        </View>
-      </View>
-    </Modal>
+    </BottomSheetModal>
   );
 };
 
 const modalStyles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   content: {
@@ -423,7 +471,7 @@ const modalStyles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.4)',
+    borderColor: 'rgba(37, 99, 235, 0.4)',
     maxWidth: 90,
   },
   badgeText: {
@@ -544,7 +592,7 @@ const modalStyles = StyleSheet.create({
     borderRadius: RADIUS.xl,
     backgroundColor: COLORS.financeLight,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.32)',
+    borderColor: 'rgba(37, 99, 235, 0.32)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,

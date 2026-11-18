@@ -1,17 +1,17 @@
 import React from 'react';
 import {
-  Modal,
   Text,
   View,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  TouchableWithoutFeedback,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ROUTINE_PRESETS, RoutinePreset, getCategoryIcon } from '../../constants/fitness';
 import { COLORS, RADIUS } from '../../constants/theme';
+import { BottomSheetModal } from '../Common/BottomSheetModal';
+import { formatRoutineExerciseSummary } from '../../utils/fitnessHelpers';
 
 interface RoutinePresetsModalProps {
   visible: boolean;
@@ -25,61 +25,59 @@ export default function RoutinePresetsModal({
   onSelectRoutine,
 }: RoutinePresetsModalProps) {
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <View style={modalStyles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={modalStyles.dismissArea} />
-        </TouchableWithoutFeedback>
+    <BottomSheetModal
+      visible={visible}
+      onRequestClose={onClose}
+      onBackdropPress={onClose}
+      overlayStyle={modalStyles.overlay}
+      sheetStyle={modalStyles.content}
+    >
+      <View style={modalStyles.handle} />
 
-        <View style={modalStyles.content}>
-          <View style={modalStyles.handle} />
-
-        <View style={modalStyles.headerRow}>
-          <View>
-            <Text style={modalStyles.title}>Workout Routines</Text>
-
-          </View>
-          <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-            <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
-          </TouchableOpacity>
+      <View style={modalStyles.headerRow}>
+        <View>
+          <Text style={modalStyles.title}>Workout Routines</Text>
+          <Text style={modalStyles.subtitle}>Tap a routine to add all exercises</Text>
         </View>
-
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
-          {ROUTINE_PRESETS.map((routine) => (
-            <TouchableOpacity
-              key={routine.name}
-              style={modalStyles.routineCard}
-              onPress={() => onSelectRoutine(routine)}
-              activeOpacity={0.8}
-            >
-              <View style={modalStyles.routineHeader}>
-                <View style={modalStyles.iconBadge}>
-                  <Ionicons name={getCategoryIcon(routine.category) as any} size={18} color={COLORS.warning} />
-                </View>
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={modalStyles.routineName}>{routine.name}</Text>
-                  <Text style={modalStyles.routineDesc}>{routine.description}</Text>
-                </View>
-                <View style={modalStyles.addBtn}>
-                  <Ionicons name="add-circle" size={22} color={COLORS.warning} />
-                </View>
-              </View>
-
-              <View style={modalStyles.exercisesList}>
-                {routine.exercises.map((ex, idx) => (
-                  <View key={idx} style={modalStyles.exerciseChip}>
-                    <Text style={modalStyles.exerciseChipText}>
-                      • {ex.exercise} ({ex.sets}x{ex.reps} @ {ex.weight}kg)
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        </View>
+        <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+          <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
+        </TouchableOpacity>
       </View>
-    </Modal>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+        {ROUTINE_PRESETS.map((routine) => (
+          <TouchableOpacity
+            key={routine.name}
+            style={modalStyles.routineCard}
+            onPress={() => onSelectRoutine(routine)}
+            activeOpacity={0.8}
+          >
+            <View style={modalStyles.routineHeader}>
+              <View style={modalStyles.iconBadge}>
+                <Ionicons name={getCategoryIcon(routine.category) as any} size={18} color={COLORS.warning} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={modalStyles.routineName}>{routine.name}</Text>
+                <Text style={modalStyles.routineDesc}>{routine.description}</Text>
+              </View>
+              <View style={modalStyles.addBtn}>
+                <Ionicons name="add-circle" size={22} color={COLORS.warning} />
+              </View>
+            </View>
+
+            <View style={modalStyles.exercisesList}>
+              {routine.exercises.map((ex, idx) => (
+                <View key={idx} style={modalStyles.exerciseChip}>
+                  <Text style={modalStyles.exerciseChipText}>
+                    {formatRoutineExerciseSummary(ex)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </BottomSheetModal>
   );
 }
 

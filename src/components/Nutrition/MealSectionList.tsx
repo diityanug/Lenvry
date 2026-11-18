@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MealType, NutritionLog, MEAL_TYPE_CONFIG } from '../../types/nutrition';
 import { COLORS, RADIUS } from '../../constants/theme';
+import { CardIconButton, SectionAddButton } from '../Common/AppButtons';
 
 interface MealSectionListProps {
   logs: NutritionLog[];
@@ -95,24 +96,24 @@ export const MealSectionList = ({
 
                           <View style={mealStyles.actionIconsGroup}>
                             {onEditLog && (
-                              <TouchableOpacity
-                                style={mealStyles.iconBtn}
+                              <CardIconButton
+                                icon="create-outline"
+                                iconSize={14}
+                                tone="surfaceCard"
+                                rounded={true}
                                 onPress={() => onEditLog(item)}
-                                activeOpacity={0.7}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                              >
-                                <Ionicons name="create-outline" size={14} color={COLORS.textSecondary} />
-                              </TouchableOpacity>
+                                accessibilityLabel="Edit food log"
+                              />
                             )}
 
-                            <TouchableOpacity
-                              style={[mealStyles.iconBtn, mealStyles.deleteIconBtn]}
+                            <CardIconButton
+                              icon="trash-outline"
+                              iconSize={14}
+                              tone="danger"
+                              rounded={true}
                               onPress={() => onDeleteLog(item.id)}
-                              activeOpacity={0.7}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Ionicons name="trash-outline" size={14} color={COLORS.danger} />
-                            </TouchableOpacity>
+                              accessibilityLabel="Delete food log"
+                            />
                           </View>
                         </View>
                       </View>
@@ -141,16 +142,13 @@ export const MealSectionList = ({
             )}
 
             {/* Bottom Add button under category card */}
-            <TouchableOpacity
-              style={mealStyles.bottomAddBtn}
+            <SectionAddButton
+              label={`Add ${config.label}`}
               onPress={() => onOpenAddForMeal(type)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="add" size={15} color={COLORS.nutrition} />
-              <Text style={mealStyles.bottomAddBtnText}>
-                Add {config.label}
-              </Text>
-            </TouchableOpacity>
+              color={COLORS.nutrition}
+              surface="sub"
+              variant="compactDashed"
+            />
           </View>
         );
       })}
@@ -212,9 +210,9 @@ const mealStyles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 12,
     borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.22)',
+    borderColor: 'rgba(93, 184, 166, 0.28)',
     marginBottom: 12,
   },
   copyYesterdayBarText: {
@@ -283,12 +281,12 @@ const mealStyles = StyleSheet.create({
   },
   actionIconsGroup: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 10,
   },
   iconBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: COLORS.bgCard,
     alignItems: 'center',
     justifyContent: 'center',
@@ -305,7 +303,7 @@ const mealStyles = StyleSheet.create({
     gap: 6,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: COLORS.border,
   },
   macroPill: {
     flexDirection: 'row',

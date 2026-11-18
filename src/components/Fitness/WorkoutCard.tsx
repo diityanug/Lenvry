@@ -1,9 +1,10 @@
 import React from 'react';
-import { Text, View, TouchableOpacity, StyleSheet } from 'react-native';
+import { Text, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Workout } from '../../types/fitness';
 import { getCategoryIcon } from '../../constants/fitness';
 import { COLORS, RADIUS } from '../../constants/theme';
+import { CardIconButton } from '../Common/AppButtons';
 
 interface WorkoutCardProps {
   item: Workout;
@@ -43,35 +44,30 @@ export default function WorkoutCard({ item, onDelete, onEdit, onClone }: Workout
         {/* Compact Action Buttons */}
         <View style={cardStyles.actionButtonsGroup}>
           {onEdit && (
-            <TouchableOpacity
+            <CardIconButton
+              icon="create-outline"
+              rounded={true}
               onPress={() => onEdit(item)}
-              style={cardStyles.iconActionBtn}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="create-outline" size={15} color={COLORS.textSecondary} />
-            </TouchableOpacity>
+              accessibilityLabel="Edit workout"
+            />
           )}
 
           {onClone && (
-            <TouchableOpacity
+            <CardIconButton
+              icon="copy-outline"
+              rounded={true}
               onPress={() => onClone(item)}
-              style={cardStyles.iconActionBtn}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="copy-outline" size={15} color={COLORS.textSecondary} />
-            </TouchableOpacity>
+              accessibilityLabel="Duplicate workout"
+            />
           )}
 
-          <TouchableOpacity
+          <CardIconButton
+            icon="trash-outline"
+            tone="danger"
+            rounded={true}
             onPress={() => onDelete(item.id)}
-            style={[cardStyles.iconActionBtn, cardStyles.deleteIconBtn]}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="trash-outline" size={15} color={COLORS.danger} />
-          </TouchableOpacity>
+            accessibilityLabel="Delete workout"
+          />
         </View>
       </View>
 
@@ -112,7 +108,13 @@ export default function WorkoutCard({ item, onDelete, onEdit, onClone }: Workout
             <View style={[cardStyles.statChip, cardStyles.statChipHighlight]}>
               <Ionicons name="barbell-outline" size={12} color={COLORS.warning} style={{ marginRight: 4 }} />
               <Text style={[cardStyles.statChipText, { color: COLORS.warning, fontWeight: '700' }]}>
-                {item.weight} <Text style={cardStyles.statUnit}>kg</Text>
+                {parseFloat((item.weight || '0').replace(',', '.')) <= 0 ? (
+                  'Bodyweight'
+                ) : (
+                  <>
+                    {item.weight} <Text style={cardStyles.statUnit}>kg</Text>
+                  </>
+                )}
               </Text>
             </View>
 
@@ -188,12 +190,12 @@ const cardStyles = StyleSheet.create({
   actionButtonsGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 10,
   },
   iconActionBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: COLORS.bgCardSub,
     alignItems: 'center',
     justifyContent: 'center',

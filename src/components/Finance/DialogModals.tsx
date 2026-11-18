@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   Text,
   View,
-  Modal,
   TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
@@ -13,7 +12,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { hexToRgba } from '../../types/finance';
+import { Account, hexToRgba } from '../../types/finance';
 import { CalculatorKeypad } from './CalculatorKeypad';
 import {
   evaluateArithmeticStr,
@@ -22,16 +21,18 @@ import {
   hasMathOperators,
 } from '../../utils/math';
 import { COLORS, RADIUS } from '../../constants/theme';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { BottomSheetModal, FadeModalHost } from '../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardBottomPadding } from '../../hooks/useKeyboardHeight';
 
-const SKY = '#38BDF8';
-const VIOLET = '#818CF8';
+const SKY = COLORS.finance;
+const VIOLET = COLORS.accent;
 
 // EDIT BALANCE MODAL
 interface EditBalanceModalProps {
   visible: boolean;
   value: string;
   currency: 'IDR' | 'USD';
+  accountType?: Account['type'];
   onClose: () => void;
   onSave: () => void;
   onChangeValue: (val: string) => void;
@@ -41,6 +42,7 @@ export const EditBalanceModal = ({
   visible,
   value,
   currency,
+  accountType,
   onClose,
   onSave,
   onChangeValue,
@@ -68,26 +70,30 @@ export const EditBalanceModal = ({
   const handleApply = () => {
     if (isMath) {
       const res = evaluateArithmeticStr(value, currency);
-      if (res && res !== '0') onChangeValue(formatCalculatedDisplay(res, currency));
+      if (res) onChangeValue(formatCalculatedDisplay(res, currency));
     }
     onSave();
   };
 
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <View style={dialogStyles.overlayBottom}>
-        <TouchableWithoutFeedback onPress={handleDismiss}>
-          <View style={dialogStyles.dismissArea} />
-        </TouchableWithoutFeedback>
-
-        <View style={dialogStyles.bottomSheetContent}>
-          <View style={dialogStyles.sheetHandle} />
+    <BottomSheetModal
+      visible={visible}
+      onRequestClose={onClose}
+      onBackdropPress={handleDismiss}
+      overlayStyle={dialogStyles.overlayBottom}
+      sheetStyle={dialogStyles.bottomSheetContent}
+    >
+      <View style={dialogStyles.sheetHandle} />
 
           {/* Header */}
           <View style={dialogStyles.sheetHeader}>
             <View style={{ flex: 1 }}>
               <Text style={dialogStyles.sheetTitle} numberOfLines={1}>Adjust Pocket Balance</Text>
-              <Text style={dialogStyles.sheetSubtitle} numberOfLines={1}>Set the corrected balance for this pocket</Text>
+              <Text style={dialogStyles.sheetSubtitle} numberOfLines={1}>
+                {accountType === 'Credit Card'
+                  ? 'Enter outstanding card balance as negative (e.g. -1.500.000)'
+                  : 'Set the corrected balance for this pocket'}
+              </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={dialogStyles.sheetCloseBtn} activeOpacity={0.7} accessibilityRole="button">
               <Ionicons name="close" size={20} color={COLORS.textSecondary} />
@@ -124,11 +130,10 @@ export const EditBalanceModal = ({
               onDone={handleApply}
               currency={currency}
               accentColor={COLORS.finance}
+              allowNegative={true}
             />
           </View>
-        </View>
-      </View>
-    </Modal>
+    </BottomSheetModal>
   );
 };
 
@@ -154,7 +159,7 @@ export const RenameModal = ({
   onChangeValue,
   onChangeDescValue,
 }: RenameModalProps) => {
-  const keyboardHeight = useKeyboardHeight();
+  const keyboardBottomPadding = useKeyboardBottomPadding(20);
 
   const handleDismiss = () => {
     Keyboard.dismiss();
@@ -165,7 +170,7 @@ export const RenameModal = ({
   const pillColor = isMain ? SKY : VIOLET;
 
   return (
-    <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
+    <FadeModalHost visible={visible} onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -173,11 +178,11 @@ export const RenameModal = ({
         <ScrollView
           contentContainerStyle={[
             dialogStyles.scrollOverlayCenter,
-            { paddingBottom: Math.max(20, keyboardHeight + 20) },
+            { paddingBottom: keyboardBottomPadding },
           ]}
           bounces={false}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+          {...KEEP_KEYBOARD_SCROLL_PROPS}
         >
           <TouchableWithoutFeedback onPress={handleDismiss}>
             <View style={StyleSheet.absoluteFill} />
@@ -247,36 +252,36 @@ export const RenameModal = ({
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </Modal>
+    </FadeModalHost>
   );
 };
 
 // Available icons for custom categories
 const AVAILABLE_CATEGORY_ICONS = [
-  { icon: 'pricetag-outline', label: 'Tag', color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.16)' },
-  { icon: 'cart-outline', label: 'Shopping', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.16)' },
-  { icon: 'restaurant-outline', label: 'Food', color: '#F97316', bg: 'rgba(249, 115, 22, 0.16)' },
-  { icon: 'cafe-outline', label: 'Coffee', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.16)' },
-  { icon: 'car-outline', label: 'Transport', color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.16)' },
-  { icon: 'receipt-outline', label: 'Bills', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.16)' },
-  { icon: 'game-controller-outline', label: 'Gaming', color: '#A855F7', bg: 'rgba(168, 85, 247, 0.16)' },
-  { icon: 'film-outline', label: 'Movie', color: '#E11D48', bg: 'rgba(225, 29, 72, 0.16)' },
-  { icon: 'barbell-outline', label: 'Fitness', color: '#10B981', bg: 'rgba(16, 185, 129, 0.16)' },
-  { icon: 'medkit-outline', label: 'Health', color: '#14B8A6', bg: 'rgba(20, 184, 166, 0.16)' },
-  { icon: 'school-outline', label: 'Education', color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.16)' },
-  { icon: 'airplane-outline', label: 'Travel', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.16)' },
-  { icon: 'home-outline', label: 'Home', color: '#EAB308', bg: 'rgba(234, 179, 8, 0.16)' },
-  { icon: 'gift-outline', label: 'Gift', color: '#F43F5E', bg: 'rgba(244, 63, 94, 0.16)' },
-  { icon: 'cash-outline', label: 'Salary', color: '#10B981', bg: 'rgba(16, 185, 129, 0.16)' },
-  { icon: 'wallet-outline', label: 'Wallet', color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.16)' },
-  { icon: 'trending-up-outline', label: 'Invest', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.16)' },
-  { icon: 'business-outline', label: 'Business', color: '#64748B', bg: 'rgba(100, 116, 139, 0.16)' },
-  { icon: 'laptop-outline', label: 'Tech', color: '#0EA5E9', bg: 'rgba(14, 165, 233, 0.16)' },
-  { icon: 'shirt-outline', label: 'Fashion', color: '#D946EF', bg: 'rgba(217, 70, 239, 0.16)' },
-  { icon: 'paw-outline', label: 'Pets', color: '#F97316', bg: 'rgba(249, 115, 22, 0.16)' },
-  { icon: 'musical-notes-outline', label: 'Music', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.16)' },
-  { icon: 'book-outline', label: 'Books', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.16)' },
-  { icon: 'sparkles-outline', label: 'Special', color: '#FBBF24', bg: 'rgba(251, 191, 36, 0.16)' },
+  { icon: 'pricetag-outline', label: 'Tag', color: '#2563EB', bg: 'rgba(37, 99, 235, 0.12)' },
+  { icon: 'cart-outline', label: 'Shopping', color: '#DB2777', bg: 'rgba(219, 39, 119, 0.12)' },
+  { icon: 'restaurant-outline', label: 'Food', color: '#EA580C', bg: 'rgba(234, 88, 12, 0.12)' },
+  { icon: 'cafe-outline', label: 'Coffee', color: '#C96D12', bg: 'rgba(201, 109, 18, 0.12)' },
+  { icon: 'car-outline', label: 'Transport', color: '#2563EB', bg: 'rgba(37, 99, 235, 0.12)' },
+  { icon: 'receipt-outline', label: 'Bills', color: '#6D28D9', bg: 'rgba(109, 40, 217, 0.12)' },
+  { icon: 'game-controller-outline', label: 'Gaming', color: '#7E22CE', bg: 'rgba(126, 34, 206, 0.12)' },
+  { icon: 'film-outline', label: 'Movie', color: '#C93B3B', bg: 'rgba(201, 59, 59, 0.12)' },
+  { icon: 'barbell-outline', label: 'Fitness', color: '#16794B', bg: 'rgba(22, 121, 75, 0.12)' },
+  { icon: 'medkit-outline', label: 'Health', color: '#0D8A7E', bg: 'rgba(13, 138, 126, 0.12)' },
+  { icon: 'school-outline', label: 'Education', color: '#0284C7', bg: 'rgba(2, 132, 199, 0.12)' },
+  { icon: 'airplane-outline', label: 'Travel', color: '#2563EB', bg: 'rgba(37, 99, 235, 0.12)' },
+  { icon: 'home-outline', label: 'Home', color: '#B45309', bg: 'rgba(180, 83, 9, 0.12)' },
+  { icon: 'gift-outline', label: 'Gift', color: '#C93B3B', bg: 'rgba(201, 59, 59, 0.12)' },
+  { icon: 'cash-outline', label: 'Salary', color: '#16794B', bg: 'rgba(22, 121, 75, 0.12)' },
+  { icon: 'wallet-outline', label: 'Wallet', color: '#0284C7', bg: 'rgba(2, 132, 199, 0.12)' },
+  { icon: 'trending-up-outline', label: 'Invest', color: '#6D28D9', bg: 'rgba(109, 40, 217, 0.12)' },
+  { icon: 'business-outline', label: 'Business', color: '#475569', bg: 'rgba(71, 85, 105, 0.12)' },
+  { icon: 'laptop-outline', label: 'Tech', color: '#0284C7', bg: 'rgba(2, 132, 199, 0.12)' },
+  { icon: 'shirt-outline', label: 'Fashion', color: '#A21CAF', bg: 'rgba(162, 28, 175, 0.12)' },
+  { icon: 'paw-outline', label: 'Pets', color: '#EA580C', bg: 'rgba(234, 88, 12, 0.12)' },
+  { icon: 'musical-notes-outline', label: 'Music', color: '#6D28D9', bg: 'rgba(109, 40, 217, 0.12)' },
+  { icon: 'book-outline', label: 'Books', color: '#C96D12', bg: 'rgba(201, 109, 18, 0.12)' },
+  { icon: 'sparkles-outline', label: 'Special', color: '#B45309', bg: 'rgba(180, 83, 9, 0.12)' },
 ];
 
 // ADD CATEGORY MODAL
@@ -299,10 +304,19 @@ export const AddCategoryModal = ({
   onChangeValue,
   onChangeIcon,
 }: AddCategoryModalProps) => {
-  const keyboardHeight = useKeyboardHeight();
+  const keyboardBottomPadding = useKeyboardBottomPadding(20);
   const [activeIconItem, setActiveIconItem] = useState(
     AVAILABLE_CATEGORY_ICONS.find((i) => i.icon === selectedIcon) || AVAILABLE_CATEGORY_ICONS[0]
   );
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
+    if (visible) {
+      setActiveIconItem(
+        AVAILABLE_CATEGORY_ICONS.find((i) => i.icon === selectedIcon) || AVAILABLE_CATEGORY_ICONS[0]
+      );
+    }
+  }
 
   const handleSelectIcon = (item: (typeof AVAILABLE_CATEGORY_ICONS)[0]) => {
     setActiveIconItem(item);
@@ -319,7 +333,7 @@ export const AddCategoryModal = ({
   };
 
   return (
-    <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
+    <FadeModalHost visible={visible} onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -327,11 +341,11 @@ export const AddCategoryModal = ({
         <ScrollView
           contentContainerStyle={[
             dialogStyles.scrollOverlayCenter,
-            { paddingBottom: Math.max(20, keyboardHeight + 20) },
+            { paddingBottom: keyboardBottomPadding },
           ]}
           bounces={false}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+          {...KEEP_KEYBOARD_SCROLL_PROPS}
         >
           <TouchableWithoutFeedback onPress={handleDismiss}>
             <View style={StyleSheet.absoluteFill} />
@@ -397,7 +411,7 @@ export const AddCategoryModal = ({
                       <Ionicons
                         name={item.icon as any}
                         size={22}
-                        color={isSelected ? '#08090C' : item.color}
+                        color={isSelected ? COLORS.textInverse : item.color}
                       />
                     </TouchableOpacity>
                   );
@@ -421,7 +435,7 @@ export const AddCategoryModal = ({
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </Modal>
+    </FadeModalHost>
   );
 };
 
@@ -656,7 +670,7 @@ const dialogStyles = StyleSheet.create({
     alignItems: 'center',
   },
   btnConfirmText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 12.5,
     fontWeight: '900',
     letterSpacing: 0.5,
@@ -701,7 +715,7 @@ const dialogStyles = StyleSheet.create({
   },
   overlayBottom: {
     flex: 1,
-    backgroundColor: 'rgba(5, 6, 9, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   dismissArea: {

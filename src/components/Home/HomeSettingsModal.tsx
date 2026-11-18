@@ -1,27 +1,26 @@
 import React, { useState } from 'react';
 import {
-  Modal,
   View,
   Text,
   TextInput,
   TouchableOpacity,
   ScrollView,
   Keyboard,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { writeStored } from '../../storage';
 import { homeStyles as styles } from '../../styles/homeStyles';
 import { COLORS } from '../../constants/theme';
 import { exportBackup, importRestore, clearAllAppData, exportTransactionsCsv } from '../../services/backupService';
+import { syncFoodSeedIfNeeded } from '../../services/foodSeedSyncService';
 import AppAlertModal, { AppAlertConfig } from '../Common/AppAlertModal';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { BottomSheetModalHost, BottomSheetSurface } from '../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
 
 interface HomeSettingsModalProps {
   visible: boolean;
   onClose: () => void;
   currentUserName: string;
-  onUserNameUpdated: (name: string) => void;
+  onUserNameUpdated: (name: string) => Promise<boolean> | void;
   onDataResetOrRestored: () => void;
 }
 
@@ -33,13 +32,7 @@ export default function HomeSettingsModal({
   onDataResetOrRestored,
 }: HomeSettingsModalProps) {
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-      statusBarTranslucent={true}
-    >
+    <BottomSheetModalHost visible={visible} onRequestClose={onClose}>
       {visible ? (
         <HomeSettingsContent
           onClose={onClose}
@@ -48,7 +41,7 @@ export default function HomeSettingsModal({
           onDataResetOrRestored={onDataResetOrRestored}
         />
       ) : null}
-    </Modal>
+    </BottomSheetModalHost>
   );
 }
 
@@ -59,7 +52,8 @@ function HomeSettingsContent({
   onDataResetOrRestored,
 }: Omit<HomeSettingsModalProps, 'visible'>) {
   const [userName, setUserName] = useState(currentUserName);
-  const keyboardHeight = useKeyboardHeight();
+  const [isSyncingFoodSeed, setIsSyncingFoodSeed] = useState(false);
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(28);
 
   const [alertConfig, setAlertConfig] = useState<AppAlertConfig>({
     visible: false,
@@ -97,9 +91,12 @@ function HomeSettingsContent({
       return;
     }
     try {
-      await writeStored('userName', trimmed);
+      const updated = await onUserNameUpdated(trimmed);
+      if (updated === false) {
+        showAlert('danger', 'Error', 'Failed to save profile name.');
+        return;
+      }
       Keyboard.dismiss();
-      onUserNameUpdated(trimmed);
       showAlert('success', 'Profile Updated', 'Your profile name has been saved.');
     } catch {
       showAlert('danger', 'Error', 'Failed to save profile name.');
@@ -130,6 +127,35 @@ function HomeSettingsContent({
       showAlert('success', 'Data Restored', 'All application data was restored successfully.');
     } else if (!res.canceled && res.message) {
       showAlert('danger', 'Restore Failed', res.message);
+    }
+  };
+
+  const handleSyncFoodDatabase = async () => {
+    if (isSyncingFoodSeed) return;
+    setIsSyncingFoodSeed(true);
+    try {
+      const res = await syncFoodSeedIfNeeded({ force: true });
+      if (res.status === 'updated') {
+        showAlert(
+          'success',
+          'Food Database Updated',
+          `Synced version ${res.currentVersion} (${res.itemCount.toLocaleString()} items).`
+        );
+      } else if (res.status === 'up_to_date') {
+        showAlert(
+          'info',
+          'Already Up to Date',
+          `Food database is on version ${res.currentVersion} (${res.itemCount.toLocaleString()} items).`
+        );
+      } else {
+        showAlert(
+          'warning',
+          'Sync Failed',
+          res.errorMessage || 'Unable to reach remote food database.'
+        );
+      }
+    } finally {
+      setIsSyncingFoodSeed(false);
     }
   };
 
@@ -165,13 +191,14 @@ function HomeSettingsContent({
 
   return (
     <>
-      <View style={styles.modalOverlay}>
-        <TouchableWithoutFeedback onPress={handleDismissOverlay}>
-          <View style={styles.dismissArea} />
-        </TouchableWithoutFeedback>
-
-        <View style={styles.modalContent}>
-          <View style={styles.modalHandle} />
+      <BottomSheetSurface
+        overlayStyle={styles.modalOverlay}
+        sheetStyle={styles.modalContent}
+        keyboardOverlap={keyboardOverlap}
+        onOverlayLayout={onOverlayLayout}
+        onBackdropPress={handleDismissOverlay}
+      >
+        <View style={styles.modalHandle} />
 
             <View style={styles.modalHeader}>
               <View>
@@ -190,11 +217,11 @@ function HomeSettingsContent({
 
             <ScrollView
               showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="on-drag"
-              automaticallyAdjustKeyboardInsets={true}
+              {...KEEP_KEYBOARD_SCROLL_PROPS}
               bounces={false}
-              contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
+              contentContainerStyle={{
+                paddingBottom: scrollBottomPadding,
+              }}
             >
               {/* Profile Section */}
               <View style={styles.settingsGroup}>
@@ -270,6 +297,26 @@ function HomeSettingsContent({
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleSyncFoodDatabase}
+                  disabled={isSyncingFoodSeed}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.menuIconBox}>
+                    <Ionicons name="sync-outline" size={18} color={COLORS.nutrition} />
+                  </View>
+                  <View style={styles.menuTextContainer}>
+                    <Text style={styles.menuItemTitle}>Sync Food Database</Text>
+                    <Text style={styles.menuItemDesc}>
+                      {isSyncingFoodSeed
+                        ? 'Checking remote food seed...'
+                        : 'Update nutrition items over the air'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                </TouchableOpacity>
               </View>
 
               {/* Danger Zone */}
@@ -288,8 +335,7 @@ function HomeSettingsContent({
                 </Text>
               </View>
             </ScrollView>
-          </View>
-        </View>
+      </BottomSheetSurface>
 
       <AppAlertModal config={alertConfig} onClose={closeAlert} />
     </>

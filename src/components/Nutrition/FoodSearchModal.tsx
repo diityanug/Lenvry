@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Modal,
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   ScrollView,
   FlatList,
   Keyboard,
@@ -17,9 +15,11 @@ import {
   searchFoodsAsync,
   calculateNutrientsForWeight,
 } from '../../services/nutritionDatabaseService';
+import { syncFoodSeedIfNeeded } from '../../services/foodSeedSyncService';
 import { nutritionStyles as styles } from '../../styles/nutritionStyles';
 import { COLORS } from '../../constants/theme';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { BottomSheetModalHost, BottomSheetSurface } from '../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
 
 interface FoodSearchModalProps {
   visible: boolean;
@@ -54,15 +54,9 @@ export const FoodSearchModal = ({
   ...props
 }: FoodSearchModalProps) => {
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={props.onClose}
-      statusBarTranslucent={true}
-    >
+    <BottomSheetModalHost visible={visible} onRequestClose={props.onClose}>
       {visible ? <FoodSearchContent {...props} /> : null}
-    </Modal>
+    </BottomSheetModalHost>
   );
 };
 
@@ -79,12 +73,29 @@ function FoodSearchContent({
   const [activeMeal, setActiveMeal] = useState<MealType>(defaultMealType);
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [portionGramsText, setPortionGramsText] = useState('100');
-  const keyboardHeight = useKeyboardHeight();
-  const isKeyboardVisible = keyboardHeight > 0;
+  const {
+    isKeyboardVisible,
+    keyboardOverlap,
+    scrollBottomPadding,
+    onOverlayLayout,
+  } = useKeyboardAwareSheet(28);
   const { height: windowHeight } = useWindowDimensions();
 
   // Async filter food items from SQLite database
   const [filteredFoods, setFilteredFoods] = useState<FoodItem[]>([]);
+  const [seedRevision, setSeedRevision] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    syncFoodSeedIfNeeded().then((result) => {
+      if (isMounted && result.status === 'updated') {
+        setSeedRevision((prev) => prev + 1);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -102,7 +113,7 @@ function FoodSearchContent({
     return () => {
       isMounted = false;
     };
-  }, [searchQuery, selectedCategory, customFoods]);
+  }, [searchQuery, selectedCategory, customFoods, seedRevision]);
 
   const handleSelectFood = (item: FoodItem) => {
     Keyboard.dismiss();
@@ -110,7 +121,9 @@ function FoodSearchContent({
     setPortionGramsText(item.defaultServingGrams.toString());
   };
 
-  const currentGrams = Math.max(1, parseInt(portionGramsText, 10) || 100);
+  const parsedGrams = parseInt(portionGramsText, 10);
+  const currentGrams = isNaN(parsedGrams) ? 0 : Math.max(0, parsedGrams);
+  const effectiveGrams = currentGrams > 0 ? currentGrams : (selectedFood?.defaultServingGrams || 100);
   const liveNutrients = selectedFood
     ? calculateNutrientsForWeight(selectedFood, currentGrams)
     : { calories: 0, protein: 0, carbs: 0, fat: 0 };
@@ -122,23 +135,25 @@ function FoodSearchContent({
   };
 
   const adjustGramsBy = (delta: number) => {
-    const nextVal = Math.max(5, currentGrams + delta);
+    const nextVal = Math.max(5, effectiveGrams + delta);
     setPortionGramsText(nextVal.toString());
   };
 
   const handleConfirmLog = () => {
     if (!selectedFood) return;
+    const finalGrams = Math.max(1, effectiveGrams);
+    const finalNutrients = calculateNutrientsForWeight(selectedFood, finalGrams);
     onLogFood({
       date: selectedDateStr,
       mealType: activeMeal,
       foodId: selectedFood.id,
       foodName: selectedFood.name,
-      portionGrams: currentGrams,
-      servingDescription: `${currentGrams}g portion`,
-      calories: liveNutrients.calories,
-      protein: liveNutrients.protein,
-      carbs: liveNutrients.carbs,
-      fat: liveNutrients.fat,
+      portionGrams: finalGrams,
+      servingDescription: `${finalGrams}g portion`,
+      calories: finalNutrients.calories,
+      protein: finalNutrients.protein,
+      carbs: finalNutrients.carbs,
+      fat: finalNutrients.fat,
     });
     setSelectedFood(null);
     setSearchQuery('');
@@ -153,27 +168,21 @@ function FoodSearchContent({
   const activeMealLabel = MEALS.find((m) => m.type === activeMeal)?.label || 'Meal';
 
   return (
-    <View style={styles.modalOverlay}>
-      <TouchableWithoutFeedback onPress={handleDismiss}>
-        <View style={styles.dismissArea} />
-      </TouchableWithoutFeedback>
-
-      <View style={[styles.modalContent, selectedFood && styles.modalContentPortion]}>
-        <View style={styles.modalHandle} />
+    <BottomSheetSurface
+      overlayStyle={styles.modalOverlay}
+      sheetStyle={[styles.modalContent, selectedFood && styles.modalContentPortion]}
+      keyboardOverlap={keyboardOverlap}
+      onOverlayLayout={onOverlayLayout}
+      onBackdropPress={handleDismiss}
+    >
+      <View style={styles.modalHandle} />
 
         {/* VIEW MODE 1: SEARCH & SELECTION */}
         {!selectedFood ? (
           <>
             {/* Modal Header */}
             <View style={styles.modalHeaderRow}>
-              <View>
-                <Text style={styles.modalTitle}>Add Food</Text>
-                {!isKeyboardVisible && (
-                  <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>
-                    
-                  </Text>
-                )}
-              </View>
+              <Text style={styles.modalTitle}>Add Food</Text>
               <TouchableOpacity onPress={handleDismiss} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="close-circle" size={24} color={COLORS.textMuted} />
               </TouchableOpacity>
@@ -289,13 +298,13 @@ function FoodSearchContent({
               <FlatList
                 data={filteredFoods}
                 keyExtractor={(item) => item.id}
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
+                {...KEEP_KEYBOARD_SCROLL_PROPS}
                 showsVerticalScrollIndicator={false}
                 style={{
-                  maxHeight: isKeyboardVisible ? windowHeight * 0.35 : windowHeight * 0.52,
+                  flexShrink: 1,
+                  maxHeight: isKeyboardVisible ? undefined : windowHeight * 0.52,
                 }}
-                contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
+                contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
                 ListEmptyComponent={
                   <View style={{ alignItems: 'center', paddingVertical: 36 }}>
                     <Ionicons name="restaurant-outline" size={36} color={COLORS.textMuted} />
@@ -353,13 +362,10 @@ function FoodSearchContent({
             /* VIEW MODE 2: PORTION ADJUSTER & NUTRITION CALCULATION */
             <ScrollView
               showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="on-drag"
-              automaticallyAdjustKeyboardInsets={true}
+              {...KEEP_KEYBOARD_SCROLL_PROPS}
               bounces={false}
-              contentContainerStyle={{ paddingBottom: Math.max(28, keyboardHeight + 28) }}
+              contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
             >
-              {/* Back to list button */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <TouchableOpacity
                   onPress={() => setSelectedFood(null)}
@@ -571,14 +577,13 @@ function FoodSearchContent({
                 onPress={handleConfirmLog}
                 activeOpacity={0.85}
               >
-                <Ionicons name="checkmark-circle" size={18} color="#08090C" style={{ marginRight: 6 }} />
+                <Ionicons name="checkmark-circle" size={18} color={COLORS.textInverse} style={{ marginRight: 6 }} />
                 <Text style={styles.logSaveBtnText}>
                   LOG {currentGrams}G TO {activeMealLabel.toUpperCase()}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
           )}
-        </View>
-    </View>
+    </BottomSheetSurface>
   );
 }

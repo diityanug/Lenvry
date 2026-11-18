@@ -6,13 +6,12 @@
     "orientation": "portrait",
     "icon": "./assets/lenvry.png",
     "scheme": "lenvry",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F4EFE6",
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#08090C",
-        "foregroundImage": "./assets/lenvry.png",
-        "backgroundImage": "./assets/lenvry.png",
-        "monochromeImage": "./assets/lenvry.png"
+        "backgroundColor": "#F4EFE6",
+        "foregroundImage": "./assets/lenvry.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.adiityanug.lenvry",
@@ -27,7 +26,8 @@
       ]
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.adiityanug.lenvry"
     },
     "web": {
       "output": "static",
@@ -38,7 +38,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#08090C",
+          "backgroundColor": "#F4EFE6",
           "image": "./assets/lenvry.png",
           "imageWidth": 120
         }
@@ -62,7 +62,8 @@
       ],
       "expo-asset",
       "expo-sharing",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,

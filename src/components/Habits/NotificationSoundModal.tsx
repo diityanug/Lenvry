@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   StyleSheet,
   TouchableWithoutFeedback,
@@ -11,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { FadeModalHost } from '../Common/BottomSheetModal';
 import { COLORS, RADIUS } from '../../constants/theme';
 import {
   SOUND_OPTIONS,
@@ -26,8 +26,8 @@ import {
 
 interface NotificationSoundModalProps {
   visible: boolean;
-  selectedSoundId: string;
-  onSelectSound: (soundId: string) => void;
+  selectedSoundId?: string;
+  onSelectSound?: (soundId: string) => void;
   onClose: () => void;
 }
 
@@ -35,17 +35,10 @@ export default function NotificationSoundModal({
   visible,
   ...props
 }: NotificationSoundModalProps) {
-  if (!visible) return null;
-
   return (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={visible}
-      onRequestClose={props.onClose}
-    >
-      <NotificationSoundContent {...props} />
-    </Modal>
+    <FadeModalHost visible={visible} onRequestClose={props.onClose}>
+      {visible ? <NotificationSoundContent {...props} /> : null}
+    </FadeModalHost>
   );
 }
 
@@ -92,7 +85,7 @@ function NotificationSoundContent({
   };
 
   const handleSelect = (sound: SoundOption) => {
-    onSelectSound(sound.id);
+    onSelectSound?.(sound.id);
     saveNotificationSettings({ defaultSound: sound.id });
     setSettings((prev) => ({ ...prev, defaultSound: sound.id }));
   };
@@ -201,7 +194,7 @@ function NotificationSoundContent({
                           <Ionicons
                             name={isPlaying ? 'pause' : 'volume-high-outline'}
                             size={16}
-                            color={isPlaying ? '#08090C' : COLORS.textPrimary}
+                            color={isPlaying ? COLORS.textInverse : COLORS.textPrimary}
                           />
                         </TouchableOpacity>
                       </TouchableOpacity>
@@ -262,12 +255,16 @@ function NotificationSoundContent({
                     disabled={isSendingTest}
                   >
                     {isSendingTest ? (
-                      <ActivityIndicator size="small" color="#08090C" style={{ marginRight: 6 }} />
+                      <ActivityIndicator
+                        size="small"
+                        color={testSent ? COLORS.textInverse : COLORS.textPrimary}
+                        style={{ marginRight: 6 }}
+                      />
                     ) : (
                       <Ionicons
                         name={testSent ? 'checkmark-circle' : 'notifications-circle'}
                         size={18}
-                        color={testSent ? '#08090C' : COLORS.textPrimary}
+                        color={testSent ? COLORS.textInverse : COLORS.textPrimary}
                         style={{ marginRight: 6 }}
                       />
                     )}
@@ -388,7 +385,7 @@ const styles = StyleSheet.create({
   },
   soundCardSelected: {
     borderColor: COLORS.success,
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    backgroundColor: '#EAF6EF',
   },
   radioCircle: {
     width: 18,
@@ -518,7 +515,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   testBtnTextSuccess: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
   testHint: {
@@ -535,7 +532,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   doneBtnText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.5,

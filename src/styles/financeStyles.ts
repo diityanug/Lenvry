@@ -20,9 +20,9 @@ export const financeStyles = StyleSheet.create({
   },
   title: {
     fontSize: 26,
-    fontWeight: '800',
+    fontWeight: '700',
     color: COLORS.textPrimary,
-    letterSpacing: -0.7,
+    letterSpacing: -0.6,
   },
   slogan: {
     fontSize: 13,
@@ -48,9 +48,9 @@ export const financeStyles = StyleSheet.create({
     minHeight: 42,
   },
   headerAddBtnText: {
-    color: '#06131F',
+    color: COLORS.textInverse,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 0.2,
   },
 
@@ -58,29 +58,22 @@ export const financeStyles = StyleSheet.create({
   // Hero net worth card
   // ------------------------------------------------------------------
   heroCard: {
-    backgroundColor: '#005CE6',
+    backgroundColor: COLORS.financeHeroIDR,
     borderRadius: 24,
     padding: 22,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    shadowColor: '#005CE6',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 8,
+    borderColor: COLORS.borderLight,
     overflow: 'hidden',
     position: 'relative',
   },
   heroCardIDR: {
-    backgroundColor: '#005CE6',
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    shadowColor: '#005CE6',
+    backgroundColor: COLORS.financeHeroIDR,
+    borderColor: COLORS.borderLight,
   },
   heroCardUSD: {
-    backgroundColor: '#0284C7',
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    shadowColor: '#0284C7',
+    backgroundColor: COLORS.financeHeroUSD,
+    borderColor: COLORS.borderLight,
   },
   cardCircleDeco: {
     position: 'absolute',
@@ -89,7 +82,7 @@ export const financeStyles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(28, 25, 23, 0.04)',
   },
   cardBrandGroup: {
     flexDirection: 'row',
@@ -99,18 +92,18 @@ export const financeStyles = StyleSheet.create({
   cardBrandTitle: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: COLORS.textPrimary,
     letterSpacing: -0.5,
   },
   cardBrandDivider: {
     width: 1,
     height: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: COLORS.borderHighlight,
   },
   cardBrandSub: {
     fontSize: 10,
     fontWeight: '800',
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: COLORS.textSecondary,
     letterSpacing: 1,
   },
   heroTopRow: {
@@ -165,49 +158,68 @@ export const financeStyles = StyleSheet.create({
     marginBottom: 16,
   },
   balanceLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: 'rgba(255, 255, 255, 0.8)',
-    letterSpacing: 1.2,
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    letterSpacing: 1.0,
     textTransform: 'uppercase',
   },
   currencyToggle: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.22)',
+    backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.md,
     padding: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: COLORS.borderLight,
   },
   toggleBtn: {
-    paddingHorizontal: 12,
+    minWidth: 46,
+    paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: RADIUS.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   toggleBtnActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.textPrimary,
   },
   toggleBtnText: {
-    color: 'rgba(255, 255, 255, 0.75)',
+    color: COLORS.textSecondary,
     fontSize: 11,
     fontWeight: '700',
   },
   toggleBtnTextActive: {
-    color: '#005CE6',
-    fontWeight: '900',
+    color: COLORS.textInverse,
+    fontWeight: '700',
+  },
+  balanceAmountWrap: {
+    height: 40,
+    justifyContent: 'center',
   },
   balanceAmount: {
     fontSize: 32,
-    fontWeight: '900',
+    lineHeight: 38,
+    fontWeight: '700',
     letterSpacing: -0.8,
     fontVariant: ['tabular-nums'],
-    color: '#FFFFFF',
+    color: COLORS.textPrimary,
   },
   balanceAmountIDR: {
-    color: '#FFFFFF',
+    color: COLORS.textPrimary,
   },
   balanceAmountUSD: {
-    color: '#FFFFFF',
+    color: COLORS.textPrimary,
+  },
+  balanceSubSlot: {
+    height: 18,
+    marginTop: 4,
+    justifyContent: 'center',
+  },
+  balanceSubText: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
   },
   heroSubRow: {
     flexDirection: 'row',
@@ -215,20 +227,20 @@ export const financeStyles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+    borderTopColor: COLORS.border,
   },
   cardholderLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: 'rgba(255, 255, 255, 0.65)',
-    letterSpacing: 1,
+    fontSize: 9.5,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+    letterSpacing: 0.9,
     marginBottom: 2,
   },
   cardholderName: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 1.2,
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   dualCircleLogo: {
@@ -247,7 +259,7 @@ export const financeStyles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: RADIUS.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: COLORS.bgCardSub,
   },
   heroLiveDot: {
     width: 6,
@@ -351,13 +363,19 @@ export const financeStyles = StyleSheet.create({
   cashflowLabel: {
     flexShrink: 1,
     fontSize: 11,
+    lineHeight: 15,
     fontWeight: '700',
     color: COLORS.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
+  cashflowValueWrap: {
+    height: 24,
+    justifyContent: 'center',
+  },
   cashflowValue: {
     fontSize: 16,
+    lineHeight: 22,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
@@ -379,22 +397,31 @@ export const financeStyles = StyleSheet.create({
   },
   netFlowLabel: {
     fontSize: 11,
+    lineHeight: 15,
     fontWeight: '700',
     color: COLORS.textMuted,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     marginBottom: 6,
   },
+  netFlowValueWrap: {
+    height: 26,
+    justifyContent: 'center',
+  },
   netFlowValue: {
     fontSize: 18,
+    lineHeight: 24,
     fontWeight: '900',
     fontVariant: ['tabular-nums'],
   },
   netFlowBadge: {
+    minWidth: 76,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: RADIUS.full,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0,
   },
   netFlowBadgeText: {
@@ -426,14 +453,14 @@ export const financeStyles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: RADIUS.lg,
-    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderColor: COLORS.border,
   },
   manageAccountsBarText: {
     color: COLORS.finance,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '600',
     letterSpacing: 0.2,
   },
   historySearchBar: {
@@ -444,9 +471,9 @@ export const financeStyles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: RADIUS.lg,
-    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    backgroundColor: COLORS.bgCardSub,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderColor: COLORS.border,
     marginBottom: 12,
   },
   historySearchBarText: {
@@ -539,6 +566,7 @@ export const financeStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    minHeight: 46,
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderRadius: RADIUS.md,
@@ -553,8 +581,8 @@ export const financeStyles = StyleSheet.create({
     flexShrink: 1,
   },
   viewSwitchTextActive: {
-    color: '#06131F',
-    fontWeight: '800',
+    color: COLORS.textInverse,
+    fontWeight: '700',
   },
 
   // ------------------------------------------------------------------
@@ -572,25 +600,27 @@ export const financeStyles = StyleSheet.create({
   },
   filterTabItem: {
     flex: 1,
-    paddingVertical: 11,
+    minHeight: 40,
+    paddingVertical: 10,
     paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   filterTabItemActive: {
     backgroundColor: COLORS.bgCardSub,
-    borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
   filterTabItemText: {
     fontSize: 12.5,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.textMuted,
   },
   filterTabItemTextActive: {
     color: COLORS.textPrimary,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 
   // ------------------------------------------------------------------
@@ -646,7 +676,7 @@ export const financeStyles = StyleSheet.create({
     minHeight: 44,
   },
   emptyActionBtnText: {
-    color: '#06131F',
+    color: COLORS.textInverse,
     fontSize: 13,
     fontWeight: '800',
   },
@@ -655,10 +685,10 @@ export const financeStyles = StyleSheet.create({
   // Transaction card (Compact Modern Cover Style)
   // ------------------------------------------------------------------
   txCard: {
-    backgroundColor: '#131622',
+    backgroundColor: COLORS.bgCard,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: COLORS.border,
     marginBottom: 10,
     overflow: 'hidden',
     shadowColor: '#000000',
@@ -728,7 +758,7 @@ export const financeStyles = StyleSheet.create({
   txTitleText: {
     fontSize: 14.5,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: COLORS.textPrimary,
     letterSpacing: -0.2,
     lineHeight: 20,
   },
@@ -737,15 +767,15 @@ export const financeStyles = StyleSheet.create({
   // Account card
   // ------------------------------------------------------------------
   accCard: {
-    backgroundColor: 'rgba(18, 21, 30, 0.80)',
+    backgroundColor: COLORS.bgCard,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderColor: COLORS.borderLight,
     marginBottom: 10,
     overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
   },
@@ -778,7 +808,7 @@ export const financeStyles = StyleSheet.create({
   accNameLine: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: COLORS.textPrimary,
     letterSpacing: -0.2,
   },
   accMetaBadgeRow: {
@@ -798,12 +828,12 @@ export const financeStyles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   accCurrencyTag: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: COLORS.bgCardSub,
     paddingHorizontal: 7,
     paddingVertical: 2.5,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: COLORS.border,
   },
   accCurrencyTagText: {
     fontSize: 10.5,
@@ -821,7 +851,7 @@ export const financeStyles = StyleSheet.create({
   accBalanceValue: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: COLORS.textPrimary,
     letterSpacing: -0.3,
     fontVariant: ['tabular-nums'],
   },
@@ -851,7 +881,7 @@ export const financeStyles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: RADIUS.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: COLORS.bgCardSub,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -906,7 +936,7 @@ export const financeStyles = StyleSheet.create({
     alignItems: 'center',
   },
   accPocketMiniTag: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.bgCardSub,
     paddingHorizontal: 11,
     paddingVertical: 6,
     borderRadius: RADIUS.full,
@@ -936,10 +966,10 @@ export const financeStyles = StyleSheet.create({
   addAccountDashedCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(56, 189, 248, 0.05)',
+    backgroundColor: COLORS.bgCard,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: 'rgba(56, 189, 248, 0.32)',
+    borderColor: 'rgba(107, 147, 214, 0.36)',
     borderRadius: RADIUS.xl,
     paddingVertical: 16,
     paddingHorizontal: 18,

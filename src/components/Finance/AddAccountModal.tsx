@@ -2,18 +2,17 @@ import React from 'react';
 import {
   Text,
   View,
-  Modal,
   TextInput,
   TouchableOpacity,
   ScrollView,
-  TouchableWithoutFeedback,
   Keyboard,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Account, ACCOUNT_TYPES, ACCOUNT_TYPE_THEME } from '../../types/finance';
 import { COLORS, RADIUS } from '../../constants/theme';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { BottomSheetModal } from '../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
 
 interface AddAccountModalProps {
   visible: boolean;
@@ -52,7 +51,7 @@ export const AddAccountModal = ({
   setNewAccCurrency,
   setParentAccId,
 }: AddAccountModalProps) => {
-  const keyboardHeight = useKeyboardHeight();
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(28);
 
   const handleDismiss = () => {
     Keyboard.dismiss();
@@ -60,14 +59,16 @@ export const AddAccountModal = ({
   };
 
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={handleDismiss}>
-          <View style={styles.dismissArea} />
-        </TouchableWithoutFeedback>
-
-        <View style={styles.content}>
-          <View style={styles.handle} />
+    <BottomSheetModal
+      visible={visible}
+      onRequestClose={onClose}
+      onBackdropPress={handleDismiss}
+      overlayStyle={styles.overlay}
+      sheetStyle={styles.content}
+      keyboardOverlap={keyboardOverlap}
+      onOverlayLayout={onOverlayLayout}
+    >
+      <View style={styles.handle} />
 
           {/* Header */}
           <View style={styles.headerRow}>
@@ -82,11 +83,10 @@ export const AddAccountModal = ({
 
           <ScrollView
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets={true}
+            {...KEEP_KEYBOARD_SCROLL_PROPS}
             contentContainerStyle={[
               styles.scrollContent,
-              { paddingBottom: Math.max(28, keyboardHeight + 28) },
+              { paddingBottom: scrollBottomPadding },
             ]}
           >
             {/* Account Form Type Switcher */}
@@ -146,6 +146,11 @@ export const AddAccountModal = ({
                       );
                     })}
                   </ScrollView>
+                  {newAccType === 'Credit Card' && (
+                    <Text style={{ fontSize: 11.5, color: COLORS.textMuted, marginTop: 8 }}>
+                      Tip: Enter card debt via Adjust Balance as negative (e.g. -1.500.000) so Net Worth subtracts liabilities.
+                    </Text>
+                  )}
                 </View>
 
                 <View style={styles.fieldWrap}>
@@ -205,22 +210,20 @@ export const AddAccountModal = ({
             )}
 
             <TouchableOpacity style={styles.saveBtn} onPress={onSave} activeOpacity={0.85}>
-              <Ionicons name="checkmark-circle-outline" size={18} color="#08090C" />
+              <Ionicons name="checkmark-circle-outline" size={18} color={COLORS.textInverse} />
               <Text style={styles.saveBtnText}>
                 {accFormType === 'main' ? 'CREATE ACCOUNT' : 'CREATE POCKET'}
               </Text>
             </TouchableOpacity>
           </ScrollView>
-        </View>
-      </View>
-    </Modal>
+    </BottomSheetModal>
   );
 };
 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 6, 9, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   dismissArea: {
@@ -333,7 +336,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.borderSubtle,
   },
   chipActive: {
-    backgroundColor: 'rgba(56, 189, 248, 0.16)',
+    backgroundColor: 'rgba(37, 99, 235, 0.12)',
     borderColor: COLORS.finance,
   },
   chipText: {
@@ -358,7 +361,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.borderSubtle,
   },
   currBtnActive: {
-    backgroundColor: 'rgba(56, 189, 248, 0.16)',
+    backgroundColor: 'rgba(37, 99, 235, 0.12)',
     borderColor: COLORS.finance,
   },
   currBtnText: {
@@ -383,6 +386,6 @@ const styles = StyleSheet.create({
   saveBtnText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#08090C',
+    color: COLORS.textInverse,
   },
 });

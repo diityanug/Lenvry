@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import {
-  Modal,
   View,
   Text,
   TouchableOpacity,
   ScrollView,
-  TouchableWithoutFeedback,
   StyleSheet,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BottomSheetModal } from '../Common/BottomSheetModal';
 import {
   CategoryCustomIcon,
   getCategoryTheme,
@@ -44,19 +43,14 @@ export const ManageCategoriesModal = ({
   const themeColor = isExpense ? COLORS.danger : COLORS.success;
 
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
+    <BottomSheetModal
       visible={visible}
       onRequestClose={onClose}
+      onBackdropPress={onClose}
+      overlayStyle={styles.overlay}
+      sheetStyle={styles.content}
     >
-      <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={styles.dismissArea} />
-        </TouchableWithoutFeedback>
-
-        <View style={styles.content}>
-          <View style={styles.handle} />
+      <View style={styles.handle} />
 
           {/* Header */}
           <View style={styles.headerRow}>
@@ -173,16 +167,14 @@ export const ManageCategoriesModal = ({
               })}
             </View>
           </ScrollView>
-        </View>
-      </View>
-    </Modal>
+    </BottomSheetModal>
   );
 };
 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   dismissArea: {

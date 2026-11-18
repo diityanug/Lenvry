@@ -17,7 +17,7 @@ export const nutritionStyles = StyleSheet.create({
   },
   title: {
     fontSize: 26,
-    fontWeight: '800',
+    fontWeight: '700',
     color: COLORS.textPrimary,
     letterSpacing: -0.6,
   },
@@ -59,9 +59,9 @@ export const nutritionStyles = StyleSheet.create({
     gap: 4,
   },
   headerAddBtnText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 0.2,
   },
 
@@ -181,9 +181,9 @@ export const nutritionStyles = StyleSheet.create({
     marginTop: 6,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: 'rgba(45, 212, 191, 0.28)',
+    borderColor: 'rgba(45, 212, 191, 0.35)',
     borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(45, 212, 191, 0.05)',
+    backgroundColor: COLORS.bgCardSub,
     gap: 6,
   },
   mealBottomAddBtnText: {
@@ -337,13 +337,13 @@ export const nutritionStyles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     includeFontPadding: false,
     textAlignVertical: 'center',
   },
   categoryChipTextActive: {
     color: COLORS.nutrition,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 
   // Food Item Selection Row
@@ -586,7 +586,7 @@ export const nutritionStyles = StyleSheet.create({
     marginBottom: 8,
   },
   logSaveBtnText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.3,

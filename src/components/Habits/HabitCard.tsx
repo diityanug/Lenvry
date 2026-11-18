@@ -1,18 +1,19 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { ComponentRef, useState, useRef, useEffect } from 'react';
 import {
   Text,
   View,
   TouchableOpacity,
-  StyleSheet,
-  Modal,
   ScrollView,
   TextInput,
   Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Habit } from '../../types/habits';
-import { COLORS, RADIUS } from '../../constants/theme';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { COLORS } from '../../constants/theme';
+import { habitCardStyles as cardStyles } from '../../styles/habitCardStyles';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
+import { BottomSheetModalHost, BottomSheetSurface, FadeModalHost } from '../Common/BottomSheetModal';
+import { CardIconButton } from '../Common/AppButtons';
 
 interface HabitCardProps {
   item: Habit;
@@ -63,13 +64,13 @@ const CATEGORY_THEMES: Record<
   Mindfulness: {
     bg: 'rgba(168, 85, 247, 0.08)',
     border: 'rgba(168, 85, 247, 0.22)',
-    accent: '#A855F7',
+    accent: '#7E22CE',
     icon: 'leaf-outline',
   },
   Productivity: {
     bg: 'rgba(234, 179, 8, 0.08)',
     border: 'rgba(234, 179, 8, 0.22)',
-    accent: '#EAB308',
+    accent: '#B45309',
     icon: 'flash-outline',
   },
   Learning: {
@@ -144,8 +145,17 @@ export default function HabitCard({
   onUpdateNotes,
   customCategoryIcons,
 }: HabitCardProps) {
-  const keyboardHeight = useKeyboardHeight();
-  const detailScrollRef = useRef<ScrollView>(null);
+  const {
+    keyboardHeight,
+    keyboardOverlap: detailOverlayOverlap,
+    scrollBottomPadding: detailBottomPadding,
+    onOverlayLayout: onDetailOverlayLayout,
+  } = useKeyboardAwareSheet(24);
+  const {
+    keyboardOverlap: popupOverlayOverlap,
+    onOverlayLayout: onPopupOverlayLayout,
+  } = useKeyboardAwareSheet(20);
+  const detailScrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
 
   const [detailVisible, setDetailVisible] = useState(false);
   const [draftNote, setDraftNote] = useState('');
@@ -267,8 +277,10 @@ export default function HabitCard({
         style={[
           cardStyles.card,
           {
-            backgroundColor: isCompleted ? COLORS.bgCardSub : theme.bg,
+            backgroundColor: isCompleted ? '#EDF5EF' : COLORS.bgCard,
             borderColor: isCompleted ? COLORS.border : theme.border,
+            borderLeftWidth: 3.5,
+            borderLeftColor: isCompleted ? COLORS.borderLight : theme.accent,
           },
         ]}
       >
@@ -281,7 +293,7 @@ export default function HabitCard({
             style={[
               cardStyles.iconWrapper,
               {
-                backgroundColor: isCompleted ? 'rgba(255,255,255,0.05)' : theme.bg,
+                backgroundColor: isCompleted ? COLORS.bgCardSub : theme.bg,
                 borderColor: isCompleted ? COLORS.border : theme.border,
               },
             ]}
@@ -319,7 +331,7 @@ export default function HabitCard({
           style={[
             cardStyles.checkBtn,
             {
-              backgroundColor: isCompleted ? theme.accent : 'rgba(255,255,255,0.04)',
+              backgroundColor: isCompleted ? theme.accent : COLORS.bgCardSub,
               borderColor: isCompleted ? theme.accent : COLORS.borderLight,
             },
           ]}
@@ -327,20 +339,23 @@ export default function HabitCard({
           <Ionicons
             name="checkmark"
             size={18}
-            color={isCompleted ? '#08090C' : COLORS.textMuted}
+            color={isCompleted ? COLORS.textInverse : COLORS.textMuted}
           />
         </TouchableOpacity>
       </View>
 
       {/* Detail Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
+      <BottomSheetModalHost
         visible={detailVisible}
         onRequestClose={handleBackOrCloseDetail}
       >
-        <View style={cardStyles.modalOverlay}>
-          <View style={cardStyles.modalBox}>
+        <BottomSheetSurface
+          overlayStyle={cardStyles.modalOverlay}
+          sheetStyle={cardStyles.modalBox}
+          keyboardOverlap={detailOverlayOverlap}
+          onOverlayLayout={onDetailOverlayLayout}
+          onBackdropPress={handleBackOrCloseDetail}
+        >
             {/* Modal Header */}
             <View style={cardStyles.modalHeader}>
               <View
@@ -361,45 +376,52 @@ export default function HabitCard({
               </View>
 
               <View style={cardStyles.modalHeaderActions}>
-                <TouchableOpacity
-                  onPress={() => onEdit(item)}
-                  activeOpacity={0.7}
-                  style={cardStyles.modalIconBtn}
-                >
-                  <Ionicons name="create-outline" size={18} color={COLORS.textSecondary} />
-                </TouchableOpacity>
+                <CardIconButton
+                  icon="create-outline"
+                  iconSize={18}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setAddingNote(false);
+                    setDraftNote('');
+                    onEdit(item);
+                  }}
+                  accessibilityLabel="Edit habit"
+                />
 
-                <TouchableOpacity
-                  onPress={() => onDelete(item.id)}
-                  activeOpacity={0.7}
-                  style={cardStyles.modalIconBtn}
-                >
-                  <Ionicons name="trash-outline" size={18} color={COLORS.danger} />
-                </TouchableOpacity>
+                <CardIconButton
+                  icon="trash-outline"
+                  iconSize={18}
+                  tone="danger"
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setAddingNote(false);
+                    setDraftNote('');
+                    onDelete(item.id);
+                  }}
+                  accessibilityLabel="Delete habit"
+                />
 
-                <TouchableOpacity
+                <CardIconButton
+                  icon="close"
+                  iconSize={20}
                   onPress={() => {
                     Keyboard.dismiss();
                     setAddingNote(false);
                     setDraftNote('');
                     setDetailVisible(false);
                   }}
-                  activeOpacity={0.7}
-                  style={cardStyles.modalIconBtn}
-                >
-                  <Ionicons name="close" size={20} color={COLORS.textSecondary} />
-                </TouchableOpacity>
+                  accessibilityLabel="Close habit details"
+                />
               </View>
             </View>
 
             <ScrollView
               ref={detailScrollRef}
               showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              automaticallyAdjustKeyboardInsets={true}
+              {...KEEP_KEYBOARD_SCROLL_PROPS}
               contentContainerStyle={[
                 cardStyles.modalScrollContent,
-                { paddingBottom: Math.max(24, keyboardHeight + 24) },
+                { paddingBottom: detailBottomPadding },
               ]}
             >
               {/* Title & Completion Status Banner */}
@@ -419,12 +441,12 @@ export default function HabitCard({
                 <Ionicons
                   name={isCompleted ? 'checkmark-circle' : 'ellipse-outline'}
                   size={20}
-                  color={isCompleted ? '#08090C' : COLORS.textPrimary}
+                  color={isCompleted ? COLORS.textInverse : COLORS.textPrimary}
                 />
                 <Text
                   style={[
                     cardStyles.statusBannerText,
-                    { color: isCompleted ? '#08090C' : COLORS.textPrimary },
+                    { color: isCompleted ? COLORS.textInverse : COLORS.textPrimary },
                   ]}
                 >
                   {isCompleted ? 'Completed Today (Tap to undo)' : 'Mark as Completed'}
@@ -510,7 +532,7 @@ export default function HabitCard({
                           ]}
                         >
                           {sub.completed && (
-                            <Ionicons name="checkmark" size={12} color="#08090C" />
+                            <Ionicons name="checkmark" size={12} color={COLORS.textInverse} />
                           )}
                         </View>
                         <Text
@@ -621,24 +643,22 @@ export default function HabitCard({
                 </TouchableOpacity>
               )}
             </ScrollView>
-          </View>
-        </View>
+        </BottomSheetSurface>
 
         {/* Inner Note View / Edit Modal (nested so closing returns to Detail Modal) */}
-        <Modal
-          animationType="fade"
-          transparent={true}
+        <FadeModalHost
           visible={notePopupIndex >= 0}
           onRequestClose={handleBackOrCloseNotePopup}
         >
           <ScrollView
+            onLayout={onPopupOverlayLayout}
             contentContainerStyle={[
               cardStyles.popupOverlay,
-              { paddingBottom: Math.max(20, keyboardHeight + 20) },
+              { paddingBottom: Math.max(20, popupOverlayOverlap + 20) },
             ]}
             bounces={false}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
+            {...KEEP_KEYBOARD_SCROLL_PROPS}
           >
             <View style={cardStyles.popupBox}>
               {/* Popup Header */}
@@ -705,7 +725,7 @@ export default function HabitCard({
                       style={[cardStyles.popupPrimaryBtn, { backgroundColor: theme.accent }]}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="create-outline" size={15} color="#08090C" />
+                      <Ionicons name="create-outline" size={15} color={COLORS.textInverse} />
                       <Text style={cardStyles.popupPrimaryText}>Edit Note</Text>
                     </TouchableOpacity>
                   </View>
@@ -736,7 +756,7 @@ export default function HabitCard({
                       style={[cardStyles.popupPrimaryBtn, { backgroundColor: theme.accent }]}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="checkmark" size={16} color="#08090C" />
+                      <Ionicons name="checkmark" size={16} color={COLORS.textInverse} />
                       <Text style={cardStyles.popupPrimaryText}>Save Changes</Text>
                     </TouchableOpacity>
                   </View>
@@ -744,435 +764,8 @@ export default function HabitCard({
               )}
             </View>
           </ScrollView>
-        </Modal>
-      </Modal>
+        </FadeModalHost>
+      </BottomSheetModalHost>
     </>
   );
 }
-
-const cardStyles = StyleSheet.create({
-  // Cover Card
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: RADIUS.lg,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-  },
-  coverMainArea: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  iconWrapper: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    marginRight: 12,
-  },
-  coverTextGroup: {
-    flex: 1,
-  },
-  categoryName: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    marginBottom: 3,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    lineHeight: 20,
-  },
-  titleCompleted: {
-    textDecorationLine: 'line-through',
-    color: COLORS.textMuted,
-  },
-  checkBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Detail Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
-    justifyContent: 'flex-end',
-  },
-  modalBox: {
-    backgroundColor: COLORS.bgCard,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 22,
-    paddingTop: 20,
-    paddingBottom: 24,
-    maxHeight: '88%',
-    borderTopWidth: 1,
-    borderColor: COLORS.border,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalHeaderActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  modalTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  modalTagText: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.7,
-  },
-  modalIconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: COLORS.bgCardSub,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  modalScrollContent: {
-    paddingBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    lineHeight: 28,
-    marginBottom: 14,
-  },
-  statusBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  statusBannerText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  sectionDivider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginVertical: 18,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: COLORS.textMuted,
-    letterSpacing: 0.9,
-    marginBottom: 12,
-  },
-
-  // View-Only Overview Rows
-  metaList: {
-    gap: 12,
-  },
-  metaItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  metaLabelWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  metaLabel: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  metaValue: {
-    fontSize: 14,
-    color: COLORS.textPrimary,
-    fontWeight: '700',
-  },
-  priorityValueWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  priorityDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-
-  // Checklist
-  checklistContainer: {
-    gap: 10,
-  },
-  subtaskRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: COLORS.textMuted,
-    marginRight: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  subtaskText: {
-    fontSize: 14,
-    color: COLORS.textPrimary,
-    fontWeight: '500',
-    flex: 1,
-  },
-  subtaskCompletedText: {
-    textDecorationLine: 'line-through',
-    color: COLORS.textMuted,
-  },
-
-  // Notes List
-  notesList: {
-    gap: 10,
-    marginBottom: 12,
-  },
-  noteRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: COLORS.bgCardSub,
-  },
-  noteAccentBar: {
-    width: 3,
-    borderRadius: 2,
-    alignSelf: 'stretch',
-    marginRight: 10,
-  },
-  noteContentWrap: {
-    flex: 1,
-    marginRight: 8,
-  },
-  noteIndexLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: COLORS.textMuted,
-    letterSpacing: 0.5,
-    marginBottom: 3,
-  },
-  notePreviewText: {
-    fontSize: 14,
-    color: COLORS.textPrimary,
-    lineHeight: 20,
-  },
-  noteRemoveBtn: {
-    padding: 4,
-  },
-  emptyNotesText: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    marginBottom: 12,
-  },
-  addNoteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 11,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: COLORS.borderLight,
-  },
-  addNoteBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  noteEditorWrap: {
-    marginTop: 4,
-  },
-  noteInput: {
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: 12,
-    padding: 12,
-    color: COLORS.textPrimary,
-    fontSize: 14,
-    minHeight: 88,
-    textAlignVertical: 'top',
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  noteEditorActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-    marginTop: 10,
-  },
-  noteCancelBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noteCancelText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    fontWeight: '600',
-  },
-  noteSaveBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noteSaveText: {
-    fontSize: 13,
-    color: '#08090C',
-    fontWeight: '700',
-  },
-
-  // Note View/Edit Popup
-  popupOverlay: {
-    flexGrow: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.78)',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
-  popupBox: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: 22,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    width: '100%',
-  },
-  popupHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  popupTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-    marginRight: 10,
-  },
-  popupIconBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  popupLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORS.textMuted,
-    letterSpacing: 0.8,
-  },
-  popupSubLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    marginTop: 1,
-  },
-  popupDivider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginVertical: 14,
-  },
-  popupReaderScroll: {
-    maxHeight: 320,
-  },
-  popupReaderContent: {
-    paddingVertical: 4,
-  },
-  popupReaderText: {
-    fontSize: 15,
-    color: COLORS.textPrimary,
-    lineHeight: 24,
-  },
-  popupTextInput: {
-    backgroundColor: COLORS.bgCardSub,
-    borderRadius: 12,
-    padding: 14,
-    color: COLORS.textPrimary,
-    fontSize: 15,
-    lineHeight: 22,
-    minHeight: 150,
-    maxHeight: 280,
-    textAlignVertical: 'top',
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  popupFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 16,
-  },
-  popupDeleteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-  },
-  popupDeleteText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.danger,
-  },
-  popupPrimaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 10,
-  },
-  popupPrimaryText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#08090C',
-  },
-});

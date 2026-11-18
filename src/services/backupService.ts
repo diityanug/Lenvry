@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
+import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 
@@ -10,7 +10,7 @@ import {
   readStored,
   restoreStoredData,
 } from '../storage';
-import { formatDateKey } from '../constants/habits';
+import { formatDateKey } from '../constants/date';
 import { syncCustomFoodsToDb } from './nutritionDatabaseService';
 import { initializeAllStores } from '../stores';
 
@@ -31,6 +31,13 @@ interface BackupFile {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+async function writeTempCacheFile(fileName: string, content: string): Promise<File> {
+  const file = new File(Paths.cache, fileName);
+  file.create({ overwrite: true });
+  await file.write(content);
+  return file;
+}
+
 export async function exportBackup(): Promise<{ success: boolean; message?: string }> {
   try {
     const data = await exportStoredData();
@@ -45,36 +52,22 @@ export async function exportBackup(): Promise<{ success: boolean; message?: stri
     const jsonString = JSON.stringify(payload, null, 2);
     const fileName = `lenvry_backup_${Date.now()}.json`;
 
-    // Modern Android: Use StorageAccessFramework to let user pick folder (e.g., Download) or save directly
-    if (Platform.OS === 'android' && FileSystem.StorageAccessFramework) {
+    // Let Android users pick a persistent destination directory via SAF first.
+    if (Platform.OS === 'android') {
       try {
-        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-        if (permissions.granted) {
-          const createdUri = await FileSystem.StorageAccessFramework.createFileAsync(
-            permissions.directoryUri,
-            fileName,
-            'application/json'
-          );
-          await FileSystem.writeAsStringAsync(createdUri, jsonString, {
-            encoding: FileSystem.EncodingType.UTF8,
-          });
-          return { success: true };
-        }
+        const directory = await Directory.pickDirectoryAsync();
+        const createdFile = directory.createFile(fileName, 'application/json');
+        await createdFile.write(jsonString);
+        return { success: true };
       } catch (err) {
-        console.warn('SAF storage request failed, falling back to share sheet:', err);
+        console.warn('Directory picker skipped or failed, falling back to share sheet:', err);
       }
     }
 
-    const baseDir = FileSystem.documentDirectory || FileSystem.cacheDirectory;
-    if (!baseDir) {
-      return { success: false, message: 'Storage directory is unavailable.' };
-    }
-
-    const fileUri = `${baseDir}${fileName}`;
-    await FileSystem.writeAsStringAsync(fileUri, jsonString);
+    const file = await writeTempCacheFile(fileName, jsonString);
 
     if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri, {
+      await Sharing.shareAsync(file.uri, {
         mimeType: 'application/json',
         dialogTitle: 'Save Backup File',
         UTI: 'public.json',
@@ -102,7 +95,8 @@ export async function importRestore(
     }
 
     const fileUri = result.assets[0].uri;
-    const fileContent = await FileSystem.readAsStringAsync(fileUri);
+    const pickedFile = new File(fileUri);
+    const fileContent = await pickedFile.text();
     const parsed = JSON.parse(fileContent) as unknown;
 
     // Current format nests the rows under `data`; legacy backups are flat.
@@ -125,7 +119,7 @@ export async function importRestore(
       console.warn('Failed to sync custom foods to SQLite on restore:', err);
     }
 
-    await initializeAllStores();
+    await initializeAllStores(true);
 
     if (onSuccess) onSuccess();
     return { success: true };
@@ -145,7 +139,7 @@ export async function clearAllAppData(
     } catch (err) {
       console.warn('Failed to clear custom foods from SQLite:', err);
     }
-    await initializeAllStores();
+    await initializeAllStores(true);
     if (onSuccess) onSuccess();
     return { success: true };
   } catch (e) {
@@ -154,53 +148,84 @@ export async function clearAllAppData(
   }
 }
 
+function escapeCsvCell(value: unknown): string {
+  const str = String(value ?? '');
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
 /**
  * Export finance transactions as a standard CSV spreadsheet file.
  */
 export async function exportTransactionsCsv(): Promise<{ success: boolean; message?: string; count?: number }> {
   try {
-    const data = await exportStoredData();
-    const transactions = Array.isArray(data.financeTransactions) ? (data.financeTransactions as any[]) : [];
+    const [transactionsRaw, accountsRaw] = await Promise.all([
+      readStored('financeTransactions'),
+      readStored('financeAccounts'),
+    ]);
+    const transactions = transactionsRaw ?? [];
+    const accounts = accountsRaw ?? [];
 
     if (transactions.length === 0) {
       return { success: false, message: 'No transactions found to export.' };
     }
 
-    // CSV Headers
-    const headers = ['ID', 'Date', 'Type', 'Category', 'Amount', 'Description', 'Account ID'];
-    const escapeCsv = (str: unknown) => {
-      const val = String(str ?? '');
-      if (val.includes(',') || val.includes('"') || val.includes('\n')) {
-        return `"${val.replace(/"/g, '""')}"`;
-      }
-      return val;
+    const accountsById = new Map(accounts.map((a) => [a.id, a]));
+    const resolvePocketName = (accId?: string, subId?: string, deletedName?: string) => {
+      if (!accId) return '';
+      const acc = accountsById.get(accId);
+      const sub = acc?.subAccounts?.find((s) => s.id === subId);
+      if (sub) return sub.name;
+      return deletedName ? `${deletedName} (Deleted)` : subId || '';
     };
 
-    const rows = transactions.map((t) => [
-      escapeCsv(t.id),
-      escapeCsv(t.date),
-      escapeCsv(t.type),
-      escapeCsv(t.category),
-      escapeCsv(t.amount),
-      escapeCsv(t.description),
-      escapeCsv(t.accountId),
-    ].join(','));
+    const headers = [
+      'ID',
+      'Date',
+      'Type',
+      'Category',
+      'Amount',
+      'Description',
+      'Account ID',
+      'Account',
+      'Pocket',
+      'Currency',
+      'To Account',
+      'To Pocket',
+      'To Amount',
+      'To Currency',
+      'Exchange Rate',
+    ];
+    const rows = transactions.map((t) => {
+      const srcAcc = accountsById.get(t.accountId);
+      const dstAcc = t.toAccountId ? accountsById.get(t.toAccountId) : undefined;
+      return [
+        escapeCsvCell(t.id),
+        escapeCsvCell(t.date),
+        escapeCsvCell(t.type),
+        escapeCsvCell(t.category),
+        escapeCsvCell(t.amount),
+        escapeCsvCell(t.description),
+        escapeCsvCell(t.accountId),
+        escapeCsvCell(srcAcc?.name ?? ''),
+        escapeCsvCell(resolvePocketName(t.accountId, t.subAccountId, t.deletedSubAccountName)),
+        escapeCsvCell(srcAcc?.currency ?? ''),
+        escapeCsvCell(dstAcc?.name ?? ''),
+        escapeCsvCell(resolvePocketName(t.toAccountId, t.toSubAccountId, t.deletedToSubAccountName)),
+        escapeCsvCell(t.toAmount ?? ''),
+        escapeCsvCell(dstAcc?.currency ?? ''),
+        escapeCsvCell(t.exchangeRate ?? ''),
+      ].join(',');
+    });
 
     const csvContent = [headers.join(','), ...rows].join('\n');
     const fileName = `lenvry_transactions_${formatDateKey(new Date())}.csv`;
-
-    const baseDir = FileSystem.documentDirectory || FileSystem.cacheDirectory;
-    if (!baseDir) {
-      return { success: false, message: 'Storage directory is unavailable.' };
-    }
-
-    const fileUri = `${baseDir}${fileName}`;
-    await FileSystem.writeAsStringAsync(fileUri, csvContent, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
+    const file = await writeTempCacheFile(fileName, csvContent);
 
     if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri, {
+      await Sharing.shareAsync(file.uri, {
         mimeType: 'text/csv',
         dialogTitle: 'Export Transactions (CSV)',
         UTI: 'public.comma-separated-values-text',
@@ -213,4 +238,3 @@ export async function exportTransactionsCsv(): Promise<{ success: boolean; messa
     return { success: false, message: 'Failed to export transactions to CSV.' };
   }
 }
-

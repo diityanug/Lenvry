@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { ComponentRef, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { COLORS, RADIUS } from '../../constants/theme';
+import { SectionAddButton } from '../Common/AppButtons';
 import { NOTE_CATEGORIES, NoteCategory, StickyNote } from '../../types/notes';
 
 interface StickyNotesSectionProps {
@@ -101,7 +102,7 @@ export default function StickyNotesSection({
   onCreateNote,
 }: StickyNotesSectionProps) {
   const [activeCategory, setActiveCategory] = useState<string>('All');
-  const notesScrollRef = useRef<ScrollView>(null);
+  const notesScrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
 
   useEffect(() => {
     notesScrollRef.current?.scrollTo({ x: 0, animated: false });
@@ -150,10 +151,14 @@ export default function StickyNotesSection({
       </View>
 
       {/* Dedicated Add Note Action Bar */}
-      <TouchableOpacity onPress={onCreateNote} style={styles.addNoteBar} activeOpacity={0.75}>
-        <Ionicons name="add-circle" size={18} color={COLORS.accentHover} />
-        <Text style={styles.addNoteBarText}>Add Sticky Note</Text>
-      </TouchableOpacity>
+      <SectionAddButton
+        label="Add Sticky Note"
+        onPress={onCreateNote}
+        color={COLORS.accentHover}
+        borderColor="rgba(204, 120, 92, 0.32)"
+        surface="card"
+        style={{ marginBottom: 14 }}
+      />
 
       {/* Category Filter Bar */}
       {notes.length > 0 && (
@@ -188,12 +193,12 @@ export default function StickyNotesSection({
                 <Ionicons
                   name={(catConfig ? catConfig.icon : 'grid-outline') as any}
                   size={13}
-                  color={isSelected ? '#0B0B0F' : pillColor}
+                  color={isSelected ? COLORS.textInverse : pillColor}
                 />
                 <Text
                   style={[
                     styles.filterPillText,
-                    { color: isSelected ? '#0B0B0F' : COLORS.textSecondary },
+                    { color: isSelected ? COLORS.textInverse : COLORS.textSecondary },
                     isSelected && styles.filterPillTextActive,
                   ]}
                 >
@@ -209,7 +214,7 @@ export default function StickyNotesSection({
       {filteredNotes.length === 0 ? (
         <TouchableOpacity style={styles.emptyCard} onPress={onCreateNote} activeOpacity={0.75}>
           <View style={styles.emptyIconWrap}>
-            <Ionicons name="pencil" size={20} color="#FBBF24" />
+            <Ionicons name="pencil" size={20} color="#B45309" />
           </View>
           <Text style={styles.emptyTitle}>
             {notes.length === 0 ? 'No pinned notes yet' : `No notes in "${activeCategory}"`}
@@ -348,9 +353,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+    backgroundColor: COLORS.bgCard,
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.25)',
+    borderColor: 'rgba(204, 120, 92, 0.32)',
     borderRadius: RADIUS.lg,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -381,14 +386,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   filterPillTextActive: {
-    fontWeight: '800',
+    fontWeight: '700',
   },
   emptyCard: {
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.xl,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: 'rgba(251, 191, 36, 0.35)',
+    borderColor: 'rgba(180, 83, 9, 0.30)',
     padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
@@ -397,9 +402,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(251, 191, 36, 0.14)',
+    backgroundColor: 'rgba(180, 83, 9, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.35)',
+    borderColor: 'rgba(180, 83, 9, 0.30)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,

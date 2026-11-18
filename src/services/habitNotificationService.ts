@@ -1,26 +1,31 @@
 import { Platform } from 'react-native';
+import type * as NotificationsModule from 'expo-notifications';
+import type { AudioPlayer, AudioSource } from 'expo-audio';
 import { readStoredOr, updateStored } from '../storage';
+import { formatDateKey } from '../constants/date';
 import { Habit } from '../types/habits';
 import { DEFAULT_NOTIFICATION_SETTINGS, NotificationSettings } from '../types/settings';
 import { isAndroidExpoGo } from '../utils/expoGoHelper';
 
+type NotificationsApi = typeof NotificationsModule;
+type CreateAudioPlayerFn = (source: AudioSource) => AudioPlayer;
+
 // On Android Expo Go (SDK 53+), importing/calling expo-notifications causes an immediate crash.
-// Provide safe fallbacks so the app runs smoothly in Expo Go without errors.
-let Notifications: any = null;
+let Notifications: NotificationsApi | null = null;
 if (!isAndroidExpoGo) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Notifications = require('expo-notifications');
+    Notifications = require('expo-notifications') as NotificationsApi;
   } catch (err) {
     console.warn('Failed to load expo-notifications:', err);
   }
 }
 
-let createAudioPlayerFunc: any = null;
+let createAudioPlayerFunc: CreateAudioPlayerFn | null = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const expoAudio = require('expo-audio');
-  createAudioPlayerFunc = expoAudio.createAudioPlayer;
+  const expoAudio = require('expo-audio') as typeof import('expo-audio');
+  createAudioPlayerFunc = expoAudio.createAudioPlayer as CreateAudioPlayerFn;
 } catch {
   console.log('Native expo-audio module not loaded in Expo Go. Sound preview disabled.');
 }
@@ -30,8 +35,8 @@ export interface SoundOption {
   name: string;
   subtitle: string;
   icon: string;
-  file?: any;
-  soundFileName?: string; // used for Android notification channel
+  file?: AudioSource;
+  soundFileName?: string;
   channelId: string;
 }
 
@@ -82,12 +87,25 @@ export const SOUND_OPTIONS: SoundOption[] = [
   },
 ];
 
-// Re-exported so existing importers keep working.
 export type { NotificationSettings };
 
-// Global preview player instance
-let currentPreviewPlayer: any = null;
+let currentPreviewPlayer: AudioPlayer | null = null;
 let currentPreviewId: string | null = null;
+let previewCleanupTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Checks whether a notification payload scheduled for `targetDate` should be suppressed today.
+ */
+export function shouldSuppressNotificationForDate(data: Record<string, unknown> | undefined): boolean {
+  if (!data || typeof data.targetDate !== 'string' || !data.targetDate) {
+    return false;
+  }
+  const todayKey = formatDateKey(new Date());
+  if (data.frequency === 'once' && todayKey !== data.targetDate) {
+    return true;
+  }
+  return todayKey < data.targetDate;
+}
 
 /**
  * Play preview sound for testing or selection
@@ -98,7 +116,6 @@ export async function playSoundPreview(soundId: string, onStop?: () => void): Pr
 
     const sound = SOUND_OPTIONS.find((s) => s.id === soundId) || SOUND_OPTIONS[0];
     if (!sound.file || !createAudioPlayerFunc) {
-      // System default sound or running in Expo Go without native expo-audio
       return false;
     }
 
@@ -108,11 +125,10 @@ export async function playSoundPreview(soundId: string, onStop?: () => void): Pr
 
     player.play();
 
-    // Auto cleanup after 3 seconds
-    setTimeout(() => {
+    previewCleanupTimer = setTimeout(() => {
       if (currentPreviewPlayer === player) {
         stopSoundPreview();
-        if (onStop) onStop();
+        onStop?.();
       }
     }, 3000);
 
@@ -124,12 +140,17 @@ export async function playSoundPreview(soundId: string, onStop?: () => void): Pr
 }
 
 /**
- * Stop active sound preview
+ * Stop active sound preview and release native audio resources
  */
 export function stopSoundPreview(): void {
+  if (previewCleanupTimer) {
+    clearTimeout(previewCleanupTimer);
+    previewCleanupTimer = null;
+  }
   if (currentPreviewPlayer) {
     try {
       currentPreviewPlayer.pause();
+      currentPreviewPlayer.remove?.();
     } catch {
       // ignore
     }
@@ -163,8 +184,6 @@ export async function saveNotificationSettings(
   settings: Partial<NotificationSettings>
 ): Promise<NotificationSettings> {
   try {
-    // Read-modify-write is done under the storage lock so two quick toggles
-    // (e.g. sound + vibration) cannot drop one of the changes.
     return await updateStored('notificationSettings', (current) => ({ ...current, ...settings }));
   } catch {
     return DEFAULT_NOTIFICATION_SETTINGS;
@@ -175,7 +194,7 @@ export async function saveNotificationSettings(
  * Request notification permissions
  */
 export async function requestNotificationPermission(): Promise<boolean> {
-  if (!Notifications || !Notifications.getPermissionsAsync) {
+  if (!Notifications?.getPermissionsAsync) {
     return false;
   }
   try {
@@ -204,7 +223,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
  * Set up Android notification channels for each sound
  */
 export async function setupNotificationChannels(): Promise<void> {
-  if (Platform.OS !== 'android' || !Notifications || !Notifications.setNotificationChannelAsync) return;
+  if (Platform.OS !== 'android' || !Notifications?.setNotificationChannelAsync) return;
 
   try {
     for (const option of SOUND_OPTIONS) {
@@ -232,36 +251,17 @@ export async function initializeNotifications(): Promise<void> {
   if (!Notifications) {
     return;
   }
-  // Set in-app foreground notification presentation behavior
   if (Notifications.setNotificationHandler) {
     Notifications.setNotificationHandler({
-      handleNotification: async (notification: any) => {
-        const data = notification?.request?.content?.data;
-        if (data && data.targetDate) {
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const day = String(now.getDate()).padStart(2, '0');
-          const todayKey = `${year}-${month}-${day}`;
-
-          // If this is a one-time reminder and today is NOT the target date, do not ring!
-          if (data.frequency === 'once' && todayKey !== data.targetDate) {
-            return {
-              shouldShowBanner: false,
-              shouldShowList: false,
-              shouldPlaySound: false,
-              shouldSetBadge: false,
-            };
-          }
-          // If scheduled for a future date, do not ring today!
-          if (todayKey < data.targetDate) {
-            return {
-              shouldShowBanner: false,
-              shouldShowList: false,
-              shouldPlaySound: false,
-              shouldSetBadge: false,
-            };
-          }
+      handleNotification: async (notification) => {
+        const data = notification?.request?.content?.data as Record<string, unknown> | undefined;
+        if (shouldSuppressNotificationForDate(data)) {
+          return {
+            shouldShowBanner: false,
+            shouldShowList: false,
+            shouldPlaySound: false,
+            shouldSetBadge: false,
+          };
         }
 
         return {
@@ -302,10 +302,9 @@ function parseTimeString(timeStr?: string): { hour: number; minute: number } | n
  * Cancel any existing scheduled notifications for a habit
  */
 export async function cancelHabitReminder(notificationId?: string): Promise<void> {
-  if (!notificationId || !Notifications || !Notifications.cancelScheduledNotificationAsync) return;
+  if (!notificationId || !Notifications?.cancelScheduledNotificationAsync) return;
 
   try {
-    // If multiple IDs separated by comma
     const ids = notificationId.split(',').map((id) => id.trim()).filter(Boolean);
     for (const id of ids) {
       await Notifications.cancelScheduledNotificationAsync(id);
@@ -317,10 +316,9 @@ export async function cancelHabitReminder(notificationId?: string): Promise<void
 
 /**
  * Schedule reminder notification(s) for a habit
- * Returns notification identifier string (or comma-separated string if multiple)
  */
 export async function scheduleHabitReminder(habit: Habit): Promise<string | undefined> {
-  if (!Notifications || !Notifications.scheduleNotificationAsync) {
+  if (!Notifications?.scheduleNotificationAsync) {
     return undefined;
   }
 
@@ -331,7 +329,6 @@ export async function scheduleHabitReminder(habit: Habit): Promise<string | unde
     return undefined;
   }
 
-  // Cancel previous first
   if (habit.notificationId) {
     await cancelHabitReminder(habit.notificationId);
   }
@@ -348,7 +345,7 @@ export async function scheduleHabitReminder(habit: Habit): Promise<string | unde
   const soundId = habit.reminderSound || settings.defaultSound || 'chime';
   const soundOption = SOUND_OPTIONS.find((s) => s.id === soundId) || SOUND_OPTIONS[0];
 
-  const content: any = {
+  const content: NotificationsModule.NotificationContentInput = {
     title: `⏰ Time for: ${habit.title}`,
     body: habit.description ? habit.description : 'Complete your daily habit now!',
     sound: soundOption.soundFileName || 'default',
@@ -388,31 +385,27 @@ export async function scheduleHabitReminder(habit: Habit): Promise<string | unde
       }
     }
 
-    if (freq === 'once') {
-      // Exactly schedule on the specific habit.date at parsed.hour:minute
-      const target = new Date(targetYear, targetMonth, targetDay, parsed.hour, parsed.minute, 0, 0);
+    const triggerTypes = Notifications.SchedulableTriggerInputTypes;
 
-      // Only schedule if the target time is in the future
-      if (target.getTime() > now.getTime()) {
-        const id = await Notifications.scheduleNotificationAsync({
-          content,
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes?.DATE || 'date',
-            date: target,
-            channelId: soundOption.channelId,
-          },
-        });
-        scheduledIds.push(id);
-      } else {
-        // Time on this date has already passed
+    if (freq === 'once') {
+      const target = new Date(targetYear, targetMonth, targetDay, parsed.hour, parsed.minute, 0, 0);
+      if (target.getTime() <= now.getTime()) {
         return undefined;
       }
-    } else if (freq === 'daily') {
-      // Repeat daily
       const id = await Notifications.scheduleNotificationAsync({
         content,
         trigger: {
-          type: Notifications.SchedulableTriggerInputTypes?.DAILY || 'daily',
+          type: triggerTypes.DATE,
+          date: target,
+          channelId: soundOption.channelId,
+        },
+      });
+      scheduledIds.push(id);
+    } else if (freq === 'daily') {
+      const id = await Notifications.scheduleNotificationAsync({
+        content,
+        trigger: {
+          type: triggerTypes.DAILY,
           hour: parsed.hour,
           minute: parsed.minute,
           channelId: soundOption.channelId,
@@ -420,12 +413,11 @@ export async function scheduleHabitReminder(habit: Habit): Promise<string | unde
       });
       scheduledIds.push(id);
     } else if (freq === 'weekdays') {
-      // Repeat Monday to Friday (weekdays 2=Mon to 6=Fri in UNCalendar/Weekly)
       for (const weekday of [2, 3, 4, 5, 6]) {
         const id = await Notifications.scheduleNotificationAsync({
           content,
           trigger: {
-            type: Notifications.SchedulableTriggerInputTypes?.WEEKLY || 'weekly',
+            type: triggerTypes.WEEKLY,
             weekday,
             hour: parsed.hour,
             minute: parsed.minute,
@@ -435,14 +427,12 @@ export async function scheduleHabitReminder(habit: Habit): Promise<string | unde
         scheduledIds.push(id);
       }
     } else if (freq === 'custom_days' && Array.isArray(habit.repeatDays) && habit.repeatDays.length > 0) {
-      // habit.repeatDays: 0=Sun, 1=Mon, ..., 6=Sat
-      // expo-notifications weekly: 1=Sun, 2=Mon, ..., 7=Sat
       for (const d of habit.repeatDays) {
         const weekday = d + 1;
         const id = await Notifications.scheduleNotificationAsync({
           content,
           trigger: {
-            type: Notifications.SchedulableTriggerInputTypes?.WEEKLY || 'weekly',
+            type: triggerTypes.WEEKLY,
             weekday,
             hour: parsed.hour,
             minute: parsed.minute,
@@ -464,7 +454,7 @@ export async function scheduleHabitReminder(habit: Habit): Promise<string | unde
  * Trigger a test notification in 3 seconds to let user hear sound and see banner
  */
 export async function triggerTestNotification(soundId: string): Promise<boolean> {
-  if (!Notifications || !Notifications.scheduleNotificationAsync) {
+  if (!Notifications?.scheduleNotificationAsync) {
     return false;
   }
 
@@ -487,7 +477,7 @@ export async function triggerTestNotification(soundId: string): Promise<boolean>
         },
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes?.TIME_INTERVAL || 'timeInterval',
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: 3,
         channelId: soundOption.channelId,
       },

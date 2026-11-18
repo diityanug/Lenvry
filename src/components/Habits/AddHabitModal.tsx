@@ -2,20 +2,20 @@ import React, { useState } from 'react';
 import {
   Text,
   View,
-  Modal,
   TextInput,
   TouchableOpacity,
   Platform,
   Keyboard,
   ScrollView,
-  TouchableWithoutFeedback,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { DAYS_OF_WEEK, formatDisplayDate } from '../../constants/habits';
 import { COLORS, RADIUS } from '../../constants/theme';
 import { FrequencyType, Habit, PriorityLevel, SubTask, TimeSlot } from '../../types/habits';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { BottomSheetModalHost, BottomSheetSurface } from '../Common/BottomSheetModal';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
+import { generateId } from '../../utils/id';
 import TimePickerModal from './TimePickerModal';
 import NotificationSoundModal from './NotificationSoundModal';
 import {
@@ -106,7 +106,7 @@ export default function AddHabitModal({
   onDeleteCategory,
 }: AddHabitModalProps) {
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
+    <BottomSheetModalHost visible={visible} onRequestClose={onClose}>
       {visible ? (
         <AddHabitContent
           key={initialHabit ? initialHabit.id : 'new'}
@@ -120,7 +120,7 @@ export default function AddHabitModal({
           onDeleteCategory={onDeleteCategory}
         />
       ) : null}
-    </Modal>
+    </BottomSheetModalHost>
   );
 }
 
@@ -155,7 +155,7 @@ function AddHabitContent({
   const [localSubtasks, setLocalSubtasks] = useState<SubTask[]>(initialHabit?.subtasks || []);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const keyboardHeight = useKeyboardHeight();
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(16);
 
   const handleSelectPreset = (preset: { title: string; category: string }) => {
     setLocalTitle(preset.title);
@@ -178,7 +178,7 @@ function AddHabitContent({
     const trimmed = newSubtaskTitle.trim();
     if (!trimmed) return;
     const item: SubTask = {
-      id: Date.now().toString() + Math.random().toString().slice(2, 6),
+      id: generateId('sub'),
       title: trimmed,
       completed: false,
     };
@@ -224,13 +224,14 @@ function AddHabitContent({
 
   return (
     <>
-      <View style={habitModalStyles.overlay}>
-        <TouchableWithoutFeedback onPress={handleDismissArea}>
-          <View style={habitModalStyles.dismissArea} />
-        </TouchableWithoutFeedback>
-
-        <View style={habitModalStyles.content}>
-          <View style={habitModalStyles.handle} />
+      <BottomSheetSurface
+        overlayStyle={habitModalStyles.overlay}
+        sheetStyle={habitModalStyles.content}
+        keyboardOverlap={keyboardOverlap}
+        onOverlayLayout={onOverlayLayout}
+        onBackdropPress={handleDismissArea}
+      >
+        <View style={habitModalStyles.handle} />
 
           {/* Header */}
           <View style={habitModalStyles.headerRow}>
@@ -247,10 +248,9 @@ function AddHabitContent({
           </View>
 
           <ScrollView
-            keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets={true}
+            {...KEEP_KEYBOARD_SCROLL_PROPS}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: Math.max(16, keyboardHeight + 16) }}
+            contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
           >
             {/* Target Date Pill */}
             <View style={habitModalStyles.schedulePill}>
@@ -283,7 +283,7 @@ function AddHabitContent({
                         <Ionicons
                           name={isActive ? 'checkmark-circle' : 'add-circle-outline'}
                           size={13}
-                          color={isActive ? '#08090C' : COLORS.success}
+                          color={isActive ? COLORS.textInverse : COLORS.success}
                           style={{ marginRight: 4 }}
                         />
                         <Text
@@ -415,7 +415,7 @@ function AddHabitContent({
                       <View
                         style={[
                           habitModalStyles.priorityDot,
-                          { backgroundColor: isSelected ? '#08090C' : p.color },
+                          { backgroundColor: isSelected ? COLORS.textInverse : p.color },
                         ]}
                       />
                       <Text
@@ -548,7 +548,7 @@ function AddHabitContent({
                       <Ionicons
                         name={previewPlaying ? 'pause' : 'volume-high-outline'}
                         size={16}
-                        color={previewPlaying ? '#08090C' : COLORS.textPrimary}
+                        color={previewPlaying ? COLORS.textInverse : COLORS.textPrimary}
                       />
                     </TouchableOpacity>
                   </View>
@@ -588,7 +588,7 @@ function AddHabitContent({
                   onPress={handleAddSubtask}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="add" size={18} color="#08090C" />
+                  <Ionicons name="add" size={18} color={COLORS.textInverse} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -635,7 +635,7 @@ function AddHabitContent({
                       <Ionicons
                         name={catIcon}
                         size={16}
-                        color={isSelected ? '#08090C' : COLORS.textSecondary}
+                        color={isSelected ? COLORS.textInverse : COLORS.textSecondary}
                         style={{ marginRight: 6 }}
                       />
                       <Text
@@ -672,8 +672,7 @@ function AddHabitContent({
               </Text>
             </TouchableOpacity>
           </ScrollView>
-        </View>
-      </View>
+      </BottomSheetSurface>
 
       <TimePickerModal
         visible={timePickerVisible}
@@ -840,7 +839,7 @@ const habitModalStyles = StyleSheet.create({
     fontWeight: '600',
   },
   chipBtnTextActive: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
   priorityDot: {
@@ -852,12 +851,13 @@ const habitModalStyles = StyleSheet.create({
   daysRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 4,
     marginTop: 6,
   },
   dayCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: COLORS.bgCard,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -874,7 +874,7 @@ const habitModalStyles = StyleSheet.create({
     fontWeight: '700',
   },
   dayCircleTextActive: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
   subtaskItemRow: {
@@ -936,7 +936,7 @@ const habitModalStyles = StyleSheet.create({
     fontWeight: '600',
   },
   categoryChipTextActive: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
   addCategoryChip: {
@@ -944,7 +944,7 @@ const habitModalStyles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.successSoft,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.35)',
+    borderColor: 'rgba(22, 121, 75, 0.32)',
     borderStyle: 'dashed',
     paddingVertical: 10,
     paddingHorizontal: 15,
@@ -968,7 +968,7 @@ const habitModalStyles = StyleSheet.create({
     marginBottom: 8,
   },
   saveButtonText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.5,
@@ -994,7 +994,7 @@ const habitModalStyles = StyleSheet.create({
     fontWeight: '600',
   },
   presetChipTextActive: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontWeight: '800',
   },
   errorRow: {
@@ -1068,7 +1068,7 @@ const habitModalStyles = StyleSheet.create({
   soundRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   soundMainBtn: {
     flex: 1,

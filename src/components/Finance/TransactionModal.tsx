@@ -3,17 +3,16 @@ import React from 'react';
 import {
   BackHandler,
   Keyboard,
-  Modal,
   PanResponder,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { BottomSheetModal } from '../Common/BottomSheetModal';
 import { COLORS, RADIUS } from '../../constants/theme';
 import {
   Account,
@@ -31,7 +30,7 @@ import {
 import { hapticLight } from '../../utils/haptics';
 import { getCategoryTheme as getCategoryVisualTheme } from './CategoryBreakdownCard';
 import { FormAccountSelector } from './form/FormAccountSelector';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
 import { FormCategorySelector } from './form/FormCategorySelector';
 import { CalculatorKeypad } from './CalculatorKeypad';
 
@@ -105,13 +104,15 @@ export const TransactionModal = ({
   setToAmount,
 }: TransactionModalProps) => {
   const [activeKeypad, setActiveKeypad] = React.useState<'amount' | 'toAmount' | null>(null);
+  const [hasManualToAmount, setHasManualToAmount] = React.useState(false);
   const [prevVisible, setPrevVisible] = React.useState(visible);
-  const scrollViewRef = React.useRef<ScrollView>(null);
-  const keyboardHeight = useKeyboardHeight();
+  const scrollViewRef = React.useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const { keyboardOverlap, scrollBottomPadding, onOverlayLayout } = useKeyboardAwareSheet(28);
 
   if (prevVisible !== visible) {
     setPrevVisible(visible);
     setActiveKeypad(null);
+    setHasManualToAmount(Boolean(isEditing));
   }
 
   const handleDismiss = () => {
@@ -183,8 +184,8 @@ export const TransactionModal = ({
 
   const effectiveExchangeRate = React.useMemo(() => {
     if (!isCrossCurrency) return 0;
-    const sendVal = evaluateArithmetic(amount);
-    const recvVal = evaluateArithmetic(toAmount);
+    const sendVal = evaluateArithmetic(amount, currency);
+    const recvVal = evaluateArithmetic(toAmount, toCurrency);
     if (sendVal <= 0 || recvVal <= 0) return 0;
     if (currency === 'IDR' && toCurrency === 'USD') {
       return sendVal / recvVal;
@@ -230,6 +231,10 @@ export const TransactionModal = ({
       const otherSub = acc.subAccounts.find((s) => s.id !== newSubId);
       if (otherSub) setSelectedToSubAccId(otherSub.id);
     }
+    if (type === 'transfer' && selectedToAccount && acc.currency === selectedToAccount.currency && setToAmount) {
+      setToAmount('');
+      setHasManualToAmount(false);
+    }
   };
 
   const handleSelectSubAccount = (subId: string) => {
@@ -252,6 +257,22 @@ export const TransactionModal = ({
         setSelectedToSubAccId(acc.subAccounts[0].id);
       } else {
         setSelectedToSubAccId('');
+      }
+    }
+    if (setToAmount && currency === acc.currency) {
+      setToAmount('');
+      setHasManualToAmount(false);
+    } else if (setToAmount && !isEditing) {
+      setHasManualToAmount(false);
+      const sendVal = evaluateArithmetic(amount, currency);
+      if (sendVal > 0 && currency !== acc.currency) {
+        if (currency === 'IDR' && acc.currency === 'USD') {
+          const estUsd = Math.round((sendVal / 16000) * 100) / 100;
+          setToAmount(formatExpression(estUsd.toString(), 'USD'));
+        } else if (currency === 'USD' && acc.currency === 'IDR') {
+          const estIdr = Math.round(sendVal * 16000);
+          setToAmount(formatExpression(estIdr.toString(), 'IDR'));
+        }
       }
     }
   };
@@ -291,6 +312,7 @@ export const TransactionModal = ({
 
   const openToAmountKeypad = () => {
     Keyboard.dismiss();
+    setHasManualToAmount(true);
     setActiveKeypad('toAmount');
     scrollViewRef.current?.scrollTo({ y: 70, animated: true });
   };
@@ -299,24 +321,26 @@ export const TransactionModal = ({
     setActiveKeypad(null);
     if (isAmountMath) {
       const res = evaluateArithmeticStr(amount, currency);
-      if (res && res !== '0') setAmount(formatCalculatedDisplay(res, currency));
+      if (res) setAmount(formatCalculatedDisplay(res, currency));
     }
     if (isCrossCurrency && isToAmountMath && setToAmount) {
       const resTo = evaluateArithmeticStr(toAmount, toCurrency);
-      if (resTo && resTo !== '0') setToAmount(formatCalculatedDisplay(resTo, toCurrency));
+      if (resTo) setToAmount(formatCalculatedDisplay(resTo, toCurrency));
     }
     onSave();
   };
 
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={handleRequestClose}>
-      <View style={txStyles.overlay}>
-        <TouchableWithoutFeedback onPress={handleDismiss}>
-          <View style={txStyles.dismissArea} />
-        </TouchableWithoutFeedback>
-
-        <View style={txStyles.content}>
-          <View style={txStyles.handle} />
+    <BottomSheetModal
+      visible={visible}
+      onRequestClose={handleRequestClose}
+      onBackdropPress={handleDismiss}
+      overlayStyle={txStyles.overlay}
+      sheetStyle={txStyles.content}
+      keyboardOverlap={keyboardOverlap}
+      onOverlayLayout={onOverlayLayout}
+    >
+      <View style={txStyles.handle} />
 
           {/* Header */}
           <View style={txStyles.headerRow}>
@@ -340,10 +364,8 @@ export const TransactionModal = ({
 
           <ScrollView
             ref={scrollViewRef}
-            keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets={true}
+            {...KEEP_KEYBOARD_SCROLL_PROPS}
             showsVerticalScrollIndicator={false}
-            nestedScrollEnabled={true}
             onScrollBeginDrag={() => {
               if (activeKeypad !== null) {
                 setActiveKeypad(null);
@@ -351,7 +373,7 @@ export const TransactionModal = ({
             }}
             contentContainerStyle={[
               txStyles.scrollContent,
-              { paddingBottom: Math.max(28, keyboardHeight + 28) },
+              { paddingBottom: scrollBottomPadding },
             ]}
           >
             {/* Transaction Type Toggle */}
@@ -434,7 +456,7 @@ export const TransactionModal = ({
                 txStyles.amountCard,
                 activeKeypad === 'amount' && {
                   borderColor: typeTheme.color,
-                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                  backgroundColor: COLORS.bgCard,
                 },
               ]}
               onPress={openAmountKeypad}
@@ -504,7 +526,7 @@ export const TransactionModal = ({
                   txStyles.receivedCard,
                   activeKeypad === 'toAmount' && {
                     borderColor: COLORS.finance,
-                    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
                   },
                 ]}
                 onPress={openToAmountKeypad}
@@ -540,6 +562,7 @@ export const TransactionModal = ({
                         onPress={() => {
                           hapticLight();
                           if (setToAmount) setToAmount('');
+                          setHasManualToAmount(false);
                         }}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         accessibilityRole="button"
@@ -586,7 +609,7 @@ export const TransactionModal = ({
                 <Text style={txStyles.rateBadgeSub}>
                   {effectiveExchangeRate > 0
                     ? `Send ${currencySymbol} ${formattedDisplayAmount} ➔ Receive ${toCurrencySymbol} ${formattedDisplayToAmount}`
-                    : 'Exchange rate calculated automatically in real time'}
+                    : 'Auto-estimated at 1 USD ≈ Rp 16.000 — tap Received Amount to adjust'}
                 </Text>
               </View>
             )}
@@ -685,7 +708,7 @@ export const TransactionModal = ({
               onPress={handleSave}
               activeOpacity={0.85}
             >
-              <Ionicons name={typeIcon as any} size={16} color="#08090C" />
+              <Ionicons name={typeIcon as any} size={16} color={COLORS.textInverse} />
               <Text style={txStyles.saveBtnText}>
                 {isEditing ? 'UPDATE TRANSACTION' : 'SAVE TRANSACTION'}
               </Text>
@@ -705,15 +728,20 @@ export const TransactionModal = ({
                 onChangeValue={(val) => {
                   if (activeKeypad === 'amount') {
                     setAmount(val);
-                    if (isCrossCurrency && setToAmount && (!toAmount || toAmount === '0')) {
-                      const num = evaluateArithmetic(val);
-                      if (currency === 'IDR' && toCurrency === 'USD' && num > 0) {
-                        setToAmount((num / 16000).toFixed(2));
-                      } else if (currency === 'USD' && toCurrency === 'IDR' && num > 0) {
-                        setToAmount(Math.round(num * 16000).toString());
+                    if (isCrossCurrency && setToAmount && !hasManualToAmount) {
+                      const num = evaluateArithmetic(val, currency);
+                      if (num <= 0) {
+                        setToAmount('');
+                      } else if (currency === 'IDR' && toCurrency === 'USD') {
+                        const estUsd = Math.round((num / 16000) * 100) / 100;
+                        setToAmount(formatExpression(estUsd.toString(), 'USD'));
+                      } else if (currency === 'USD' && toCurrency === 'IDR') {
+                        const estIdr = Math.round(num * 16000);
+                        setToAmount(formatExpression(estIdr.toString(), 'IDR'));
                       }
                     }
                   } else if (setToAmount) {
+                    setHasManualToAmount(true);
                     setToAmount(val);
                   }
                 }}
@@ -723,16 +751,14 @@ export const TransactionModal = ({
               />
             </Animated.View>
           )}
-        </View>
-      </View>
-    </Modal>
+    </BottomSheetModal>
   );
 };
 
 const txStyles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 6, 9, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   dismissArea: {
@@ -872,8 +898,8 @@ const txStyles = StyleSheet.create({
   receivedCard: {
     marginTop: 12,
     borderWidth: 1.5,
-    borderColor: 'rgba(56, 189, 248, 0.4)',
-    backgroundColor: 'rgba(56, 189, 248, 0.05)',
+    borderColor: 'rgba(37, 99, 235, 0.4)',
+    backgroundColor: '#EDF4FF',
     minHeight: 112,
     justifyContent: 'space-between',
   },
@@ -884,12 +910,12 @@ const txStyles = StyleSheet.create({
     marginBottom: 6,
   },
   receivedPill: {
-    backgroundColor: 'rgba(56, 189, 248, 0.16)',
+    backgroundColor: 'rgba(37, 99, 235, 0.16)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.35)',
+    borderColor: 'rgba(37, 99, 235, 0.35)',
   },
   receivedPillText: {
     color: COLORS.finance,
@@ -900,9 +926,9 @@ const txStyles = StyleSheet.create({
     marginTop: 12,
     padding: 12,
     borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    backgroundColor: '#EDF4FF',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderColor: 'rgba(37, 99, 235, 0.28)',
     gap: 4,
   },
   rateBadgeRow: {
@@ -990,7 +1016,7 @@ const txStyles = StyleSheet.create({
   saveBtnText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#08090C',
+    color: COLORS.textInverse,
     letterSpacing: 0.5,
   },
   keypadWrapper: {

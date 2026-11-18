@@ -1,13 +1,18 @@
 import { create } from 'zustand';
-import { readStored, writeStored } from '../storage';
+import { readStored, updateStored } from '../storage';
 import { StickyNote } from '../types/notes';
 
 interface NotesState {
   notes: StickyNote[];
   isLoaded: boolean;
   loadNotes: (force?: boolean) => Promise<void>;
-  saveNote: (note: StickyNote) => Promise<void>;
-  deleteNote: (id: string) => Promise<void>;
+  saveNote: (note: StickyNote) => Promise<boolean>;
+  deleteNote: (id: string) => Promise<boolean>;
+}
+
+function upsertNote(list: StickyNote[], note: StickyNote): StickyNote[] {
+  const exists = list.some((n) => n.id === note.id);
+  return exists ? list.map((n) => (n.id === note.id ? note : n)) : [note, ...list];
 }
 
 export const useNotesStore = create<NotesState>((set, get) => ({
@@ -23,25 +28,33 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     }
   },
   saveNote: async (savedNote: StickyNote) => {
-    const current = get().notes;
-    const exists = current.some((n) => n.id === savedNote.id);
-    const updated = exists
-      ? current.map((n) => (n.id === savedNote.id ? savedNote : n))
-      : [savedNote, ...current];
-    set({ notes: updated });
+    const previous = get().notes;
+    set({ notes: upsertNote(previous, savedNote) });
     try {
-      await writeStored('generalNotes', updated);
+      const persisted = await updateStored('generalNotes', (current) =>
+        upsertNote(current, savedNote)
+      );
+      set({ notes: persisted });
+      return true;
     } catch (e) {
       console.warn('Failed to persist sticky note', e);
+      set({ notes: previous });
+      return false;
     }
   },
   deleteNote: async (id: string) => {
-    const updated = get().notes.filter((n) => n.id !== id);
-    set({ notes: updated });
+    const previous = get().notes;
+    set({ notes: previous.filter((n) => n.id !== id) });
     try {
-      await writeStored('generalNotes', updated);
+      const persisted = await updateStored('generalNotes', (current) =>
+        current.filter((n) => n.id !== id)
+      );
+      set({ notes: persisted });
+      return true;
     } catch (e) {
       console.warn('Failed to persist note deletion', e);
+      set({ notes: previous });
+      return false;
     }
   },
 }));

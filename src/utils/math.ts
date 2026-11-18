@@ -10,11 +10,31 @@ export const MAX_NOMINAL_VALUE = 9_999_999_999_999;
 export const MAX_NOMINAL_VALUE_BIGINT = 9_999_999_999_999n;
 
 /**
+ * Rounds a monetary amount to 2 decimal places (snap tiny float noise to 0).
+ */
+export function roundCurrencyAmount(
+  value: number,
+  _currency: 'IDR' | 'USD' = 'IDR'
+): number {
+  if (!Number.isFinite(value)) return 0;
+  const sign = value < 0 ? -1 : 1;
+  const rounded = (sign * Math.round((Math.abs(value) + Number.EPSILON) * 100)) / 100;
+  return Math.abs(rounded) < 0.005 ? 0 : rounded;
+}
+
+/** Recognizes JS float dot-decimal strings (e.g. "1000.5", "0.250", "3333.3333") vs IDR thousand dots. */
+function isDotDecimalLiteralForIdr(trimmed: string): boolean {
+  return /^0\.\d+$/.test(trimmed) || /^\d+\.\d{1,2}$/.test(trimmed) || /^\d+\.\d{4,}$/.test(trimmed);
+}
+
+/**
  * Returns true if the string contains any arithmetic operator.
  */
 export function hasMathOperators(expr: string): boolean {
   if (!expr || typeof expr !== 'string') return false;
-  return /[\+\-\*\/×÷]/.test(expr);
+  // Leading '-' represents negative sign rather than a binary subtraction expression.
+  const body = expr.trim().replace(/^-/, '');
+  return /[\+\-\*\/×÷]/.test(body);
 }
 
 /**
@@ -34,9 +54,10 @@ export function cleanOperandDigits(
     return { intDigits, decDigits };
   }
 
-  // Check if dot was used as a decimal like 10.5 in IDR
-  if (currency === 'IDR' && /^\d+\.\d{1,2}$/.test(operandStr.trim())) {
-    const parts = operandStr.trim().split('.');
+  // Recognize raw JS float literals (e.g. "1000.5" or "3333.3333") passed into IDR formatters
+  const trimmed = operandStr.trim();
+  if (currency === 'IDR' && isDotDecimalLiteralForIdr(trimmed)) {
+    const parts = trimmed.split('.');
     return { intDigits: parts[0], decDigits: parts[1] };
   }
 
@@ -54,14 +75,14 @@ export function formatSingleOperand(
   if (!operandStr) return '';
   const thousandSep = currency === 'USD' ? ',' : '.';
   const decimalSep = currency === 'USD' ? '.' : ',';
-  const hasDec = operandStr.includes(decimalSep);
   const { intDigits, decDigits } = cleanOperandDigits(operandStr, currency);
+  const hasDec = decDigits !== null;
 
   const cappedInt = intDigits.slice(0, MAX_OPERAND_DIGITS);
   const formattedInt = cappedInt.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSep);
 
   if (hasDec) {
-    return formattedInt + decimalSep + (decDigits !== null ? decDigits.slice(0, 2) : '');
+    return formattedInt + decimalSep + decDigits.slice(0, 2);
   }
   return formattedInt;
 }
@@ -87,13 +108,13 @@ export function formatExpression(
       const clean = part.trim();
       if (!clean) return '';
 
-      const hasDec = clean.includes(decimalSep);
       const { intDigits, decDigits } = cleanOperandDigits(clean, currency);
+      const hasDec = decDigits !== null;
       const cappedInt = intDigits.slice(0, MAX_OPERAND_DIGITS);
       const formattedInt = cappedInt.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSep);
 
       if (hasDec) {
-        return formattedInt + decimalSep + (decDigits !== null ? decDigits.slice(0, 2) : '');
+        return formattedInt + decimalSep + decDigits.slice(0, 2);
       }
       return formattedInt;
     })
@@ -123,7 +144,7 @@ export function cleanExpressionForEval(
           const cleanInt = intP.replace(/\./g, '');
           return decP !== undefined ? `${cleanInt}.${decP}` : cleanInt;
         }
-        if (/^\d+\.\d{1,2}$/.test(p)) {
+        if (isDotDecimalLiteralForIdr(p)) {
           return p;
         }
         return p.replace(/\./g, '');
@@ -334,6 +355,8 @@ export function evaluateArithmeticStr(
       }
       if (total > MAX_NOMINAL_VALUE_BIGINT) {
         total = MAX_NOMINAL_VALUE_BIGINT;
+      } else if (total < -MAX_NOMINAL_VALUE_BIGINT) {
+        total = -MAX_NOMINAL_VALUE_BIGINT;
       }
       return total.toString();
     } catch {
@@ -377,8 +400,12 @@ export function evaluateArithmeticStr(
   if (isNaN(total) || !isFinite(total)) return '0';
   if (total > MAX_NOMINAL_VALUE) {
     total = MAX_NOMINAL_VALUE;
+  } else if (total < -MAX_NOMINAL_VALUE) {
+    total = -MAX_NOMINAL_VALUE;
   }
-  return (Math.round(total * 10000) / 10000).toString();
+  const rounded = Math.round(total * 10000) / 10000;
+  if (Object.is(rounded, -0) || Math.abs(rounded) < 1e-4) return '0';
+  return rounded.toString();
 }
 
 /**
@@ -422,4 +449,61 @@ export function formatCalculatedDisplay(
   }
 
   return isNegative ? `-${result}` : result;
+}
+
+/** Normalizes decimal input (accepting comma or dot) keeping only digits and a single dot. */
+export function sanitizeDecimalInput(text: string): string {
+  const normalized = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+  const firstDot = normalized.indexOf('.');
+  if (firstDot === -1) return normalized;
+  return normalized.slice(0, firstDot + 1) + normalized.slice(firstDot + 1).replace(/\./g, '');
+}
+
+/** Parses a non-negative decimal string (handling comma decimal separators safely). */
+export function parseNonNegativeDecimal(text?: string, fallback = 0): number {
+  if (!text) return fallback;
+  const parsed = parseFloat(text.replace(/,/g, '.').trim());
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+export interface RemainingKeyboardOverlapInput {
+  platformOS: string;
+  keyboardHeight: number;
+  closedOverlayHeight: number;
+  currentOverlayHeight: number;
+  screenHeight: number;
+  wasResizedInSession?: boolean;
+}
+
+/**
+ * Computes how many pixels of bottom keyboard overlap a modal container still
+ * experiences so resized Android windows never receive duplicate bottom padding.
+ */
+export function computeRemainingKeyboardOverlap({
+  platformOS,
+  keyboardHeight,
+  closedOverlayHeight,
+  currentOverlayHeight,
+  screenHeight,
+  wasResizedInSession = false,
+}: RemainingKeyboardOverlapInput): number {
+  if (keyboardHeight <= 0) return 0;
+  if (platformOS !== 'android') return keyboardHeight;
+  if (wasResizedInSession) return 0;
+
+  if (closedOverlayHeight > 0 && currentOverlayHeight > 0) {
+    const shrunkBy = Math.max(0, closedOverlayHeight - currentOverlayHeight);
+    if (shrunkBy >= keyboardHeight * 0.45) {
+      return 0;
+    }
+    return Math.max(0, keyboardHeight - shrunkBy);
+  }
+
+  if (currentOverlayHeight > 0 && screenHeight > 0) {
+    if (currentOverlayHeight <= screenHeight - keyboardHeight * 0.5) {
+      return 0;
+    }
+  }
+
+  return keyboardHeight;
 }

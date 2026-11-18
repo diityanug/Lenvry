@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   Text,
   View,
-  Modal,
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
@@ -11,9 +10,10 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { FadeModalHost } from '../Common/BottomSheetModal';
 import { COLORS, RADIUS } from '../../constants/theme';
 import { AVAILABLE_HABIT_ICONS, HabitCategoryIconItem } from '../../constants/habits';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { KEEP_KEYBOARD_SCROLL_PROPS, useKeyboardAwareSheet } from '../../hooks/useKeyboardHeight';
 
 interface AddCategoryModalProps {
   visible: boolean;
@@ -27,9 +27,9 @@ export default function AddCategoryModal({
   onClose,
 }: AddCategoryModalProps) {
   return (
-    <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
+    <FadeModalHost visible={visible} onRequestClose={onClose}>
       {visible ? <AddCategoryContent onSave={onSave} onClose={onClose} /> : null}
-    </Modal>
+    </FadeModalHost>
   );
 }
 
@@ -40,7 +40,7 @@ function AddCategoryContent({
   onSave: (categoryName: string, iconConfig?: HabitCategoryIconItem) => void;
   onClose: () => void;
 }) {
-  const keyboardHeight = useKeyboardHeight();
+  const { keyboardOverlap, onOverlayLayout } = useKeyboardAwareSheet(16);
   const [localText, setLocalText] = useState('');
   const [selectedIconItem, setSelectedIconItem] = useState<HabitCategoryIconItem>(AVAILABLE_HABIT_ICONS[0]);
   const [error, setError] = useState('');
@@ -69,13 +69,14 @@ function AddCategoryContent({
 
   return (
     <ScrollView
+      onLayout={onOverlayLayout}
       contentContainerStyle={[
         modalStyles.scrollOverlayCenter,
-        { paddingBottom: Math.max(16, keyboardHeight + 16) },
+        { paddingBottom: Math.max(16, keyboardOverlap + 16) },
       ]}
       bounces={false}
       showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
+      {...KEEP_KEYBOARD_SCROLL_PROPS}
     >
       <TouchableWithoutFeedback onPress={handleDismissOverlay}>
         <View style={StyleSheet.absoluteFill} />
@@ -142,7 +143,7 @@ function AddCategoryContent({
                               modalStyles.iconPickBtn,
                               {
                                 backgroundColor: isSelected ? item.color : item.bg,
-                                borderColor: isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.08)',
+                                borderColor: isSelected ? COLORS.textPrimary : COLORS.border,
                               },
                             ]}
                             onPress={() => setSelectedIconItem(item)}
@@ -151,12 +152,12 @@ function AddCategoryContent({
                             <Ionicons
                               name={item.icon as any}
                               size={22}
-                              color={isSelected ? '#08090C' : item.color}
+                              color={isSelected ? COLORS.textInverse : item.color}
                             />
                             <Text
                               style={[
                                 modalStyles.iconLabelText,
-                                { color: isSelected ? '#08090C' : COLORS.textMuted },
+                                { color: isSelected ? COLORS.textInverse : COLORS.textMuted },
                               ]}
                               numberOfLines={1}
                             >
@@ -199,7 +200,7 @@ function AddCategoryContent({
 const modalStyles = StyleSheet.create({
   scrollOverlayCenter: {
     flexGrow: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
@@ -351,7 +352,7 @@ const modalStyles = StyleSheet.create({
     alignItems: 'center',
   },
   btnConfirmText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 13,
     fontWeight: '800',
   },

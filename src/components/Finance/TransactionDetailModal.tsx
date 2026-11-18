@@ -1,15 +1,14 @@
 import React from 'react';
 import {
-  Modal,
   View,
   Text,
   TouchableOpacity,
   ScrollView,
-  Pressable,
   StyleSheet,
   Platform,
 } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { BottomSheetModal } from '../Common/BottomSheetModal';
 import {
   Transaction,
   Account,
@@ -93,19 +92,19 @@ export const TransactionDetailModal = ({
 
   const fromTheme = account
     ? ACCOUNT_TYPE_THEME[account.type]
-    : { color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.14)', border: 'rgba(56, 189, 248, 0.34)' };
+    : { color: '#2563EB', bg: 'rgba(37, 99, 235, 0.14)', border: 'rgba(37, 99, 235, 0.34)' };
   const fromIcon = account ? getAccountIcon(account.type) : 'wallet';
 
   const toTheme = toAccount
     ? ACCOUNT_TYPE_THEME[toAccount.type]
-    : { color: '#C084FC', bg: 'rgba(192, 132, 252, 0.14)', border: 'rgba(192, 132, 252, 0.34)' };
+    : { color: '#7E22CE', bg: 'rgba(126, 34, 206, 0.14)', border: 'rgba(126, 34, 206, 0.34)' };
   const toIcon = toAccount ? getAccountIcon(toAccount.type) : 'university';
 
   const iconInfo = getCategoryIconInfo(transaction.category, transaction.type, customCategoryIcons);
   const typeTheme = TX_TYPE_THEME[transaction.type];
   const catTheme = getCategoryTheme(transaction.category, customCategoryIcons);
 
-  const amountColor = isIncome ? '#34D399' : isTransfer ? '#818CF8' : '#FB7185';
+  const amountColor = isIncome ? '#16794B' : isTransfer ? '#4F46E5' : '#C93B3B';
   const formattedAmount = `${isIncome ? '+ ' : isTransfer ? '' : '- '}${formatMoney(transaction.amount, accCurrency)}`;
   const amountFontSize = getDynamicAmountFontSize(formattedAmount);
 
@@ -135,12 +134,14 @@ export const TransactionDetailModal = ({
   };
 
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <Pressable style={styles.dismissArea} onPress={onClose} />
-
-        <View style={styles.content}>
-          <View style={styles.handle} />
+    <BottomSheetModal
+      visible={visible}
+      onRequestClose={onClose}
+      onBackdropPress={onClose}
+      overlayStyle={styles.overlay}
+      sheetStyle={styles.content}
+    >
+      <View style={styles.handle} />
 
           {/* Modal Header */}
           <View style={styles.headerRow}>
@@ -200,8 +201,8 @@ export const TransactionDetailModal = ({
             {isTransfer ? (
               <View style={styles.sectionWrap}>
                 <View style={styles.sectionHeadingRow}>
-                  <Ionicons name="swap-horizontal" size={14} color="#818CF8" />
-                  <Text style={[styles.sectionHeading, { color: '#818CF8', marginBottom: 0 }]}>
+                  <Ionicons name="swap-horizontal" size={14} color="#4F46E5" />
+                  <Text style={[styles.sectionHeading, { color: '#4F46E5', marginBottom: 0 }]}>
                     TRANSFER ROUTE
                   </Text>
                 </View>
@@ -218,11 +219,11 @@ export const TransactionDetailModal = ({
                       <Text style={styles.nodeSubName}>{subName || 'Main'} • {account?.type || 'Bank'}</Text>
                     </View>
                     <View style={styles.nodeAmountBox}>
-                      <Text style={[styles.nodeAmountText, { color: '#FB7185' }]}>
+                      <Text style={[styles.nodeAmountText, { color: '#C93B3B' }]}>
                         - {formatMoney(transaction.amount, accCurrency)}
                       </Text>
                       <View style={styles.outflowTag}>
-                        <Ionicons name="arrow-up" size={10} color="#FB7185" />
+                        <Ionicons name="arrow-up" size={10} color="#C93B3B" />
                         <Text style={styles.outflowTagText}>Sent</Text>
                       </View>
                     </View>
@@ -232,7 +233,7 @@ export const TransactionDetailModal = ({
                   <View style={styles.connectorRow}>
                     <View style={styles.connectorLine} />
                     <View style={styles.connectorBadge}>
-                      <Ionicons name="arrow-down" size={12} color="#818CF8" />
+                      <Ionicons name="arrow-down" size={12} color="#4F46E5" />
                       <Text style={styles.connectorBadgeText}>Transferred</Text>
                     </View>
                     <View style={styles.connectorLine} />
@@ -249,11 +250,11 @@ export const TransactionDetailModal = ({
                       <Text style={styles.nodeSubName}>{toSubName || 'Main'} • {toAccount?.type || 'Bank'}</Text>
                     </View>
                     <View style={styles.nodeAmountBox}>
-                      <Text style={[styles.nodeAmountText, { color: '#34D399' }]}>
+                      <Text style={[styles.nodeAmountText, { color: '#16794B' }]}>
                         + {formatMoney(transaction.toAmount ?? transaction.amount, toAccount?.currency || accCurrency)}
                       </Text>
                       <View style={styles.inflowTag}>
-                        <Ionicons name="arrow-down" size={10} color="#34D399" />
+                        <Ionicons name="arrow-down" size={10} color="#16794B" />
                         <Text style={styles.inflowTagText}>Received</Text>
                       </View>
                     </View>
@@ -263,7 +264,7 @@ export const TransactionDetailModal = ({
                   {isCrossCurrency && transaction.exchangeRate && (
                     <View style={styles.exchangeRateCard}>
                       <View style={styles.rateIconCircle}>
-                        <Ionicons name="repeat" size={16} color="#38BDF8" />
+                        <Ionicons name="repeat" size={16} color="#2563EB" />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.rateLabel}>APPLIED EXCHANGE RATE</Text>
@@ -358,7 +359,7 @@ export const TransactionDetailModal = ({
                 onPress={handleEdit}
                 activeOpacity={0.8}
               >
-                <Ionicons name="pencil" size={15} color="#08090C" style={{ marginRight: 6 }} />
+                <Ionicons name="pencil" size={15} color={COLORS.textInverse} style={{ marginRight: 6 }} />
                 <Text style={styles.actionBtnPrimaryText}>Edit</Text>
               </TouchableOpacity>
 
@@ -382,16 +383,14 @@ export const TransactionDetailModal = ({
               </TouchableOpacity>
             </View>
           </ScrollView>
-        </View>
-      </View>
-    </Modal>
+    </BottomSheetModal>
   );
 };
 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   dismissArea: {
@@ -451,7 +450,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   receiptCard: {
-    backgroundColor: '#11141D',
+    backgroundColor: COLORS.bgCardSub,
     borderRadius: 20,
     paddingVertical: 22,
     paddingHorizontal: 20,
@@ -523,11 +522,11 @@ const styles = StyleSheet.create({
   // Transfer Pathway Card (Best Practice)
   // ------------------------------------------------------------------
   transferPathwayCard: {
-    backgroundColor: '#11141D',
+    backgroundColor: COLORS.bgCardSub,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(129, 140, 248, 0.22)',
+    borderColor: 'rgba(79, 70, 229, 0.22)',
   },
   transferNode: {
     flexDirection: 'row',
@@ -558,7 +557,7 @@ const styles = StyleSheet.create({
   nodeAccountName: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: COLORS.textPrimary,
     letterSpacing: -0.2,
   },
   nodeSubName: {
@@ -581,33 +580,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: 'rgba(251, 113, 133, 0.12)',
+    backgroundColor: 'rgba(201, 59, 59, 0.12)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: 'rgba(251, 113, 133, 0.25)',
+    borderColor: 'rgba(201, 59, 59, 0.25)',
   },
   outflowTagText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#FB7185',
+    color: '#C93B3B',
   },
   inflowTag: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: 'rgba(52, 211, 153, 0.12)',
+    backgroundColor: 'rgba(22, 121, 75, 0.12)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: 'rgba(52, 211, 153, 0.25)',
+    borderColor: 'rgba(22, 121, 75, 0.25)',
   },
   inflowTagText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#34D399',
+    color: '#16794B',
   },
   connectorRow: {
     flexDirection: 'row',
@@ -618,23 +617,23 @@ const styles = StyleSheet.create({
   connectorLine: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(129, 140, 248, 0.25)',
+    backgroundColor: 'rgba(79, 70, 229, 0.25)',
   },
   connectorBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(129, 140, 248, 0.12)',
+    backgroundColor: 'rgba(79, 70, 229, 0.12)',
     paddingHorizontal: 10,
     paddingVertical: 3.5,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(129, 140, 248, 0.3)',
+    borderColor: 'rgba(79, 70, 229, 0.3)',
   },
   connectorBadgeText: {
     fontSize: 10.5,
     fontWeight: '800',
-    color: '#818CF8',
+    color: '#4F46E5',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
@@ -642,31 +641,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    backgroundColor: '#EDF4FF',
     borderRadius: 12,
     padding: 12,
     marginTop: 14,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.22)',
+    borderColor: 'rgba(37, 99, 235, 0.25)',
   },
   rateIconCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(56, 189, 248, 0.16)',
+    backgroundColor: 'rgba(37, 99, 235, 0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   rateLabel: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#38BDF8',
+    color: '#2563EB',
     letterSpacing: 0.6,
   },
   rateValue: {
     fontSize: 13.5,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: COLORS.textPrimary,
     marginTop: 2,
     fontVariant: ['tabular-nums'],
   },
@@ -677,20 +676,20 @@ const styles = StyleSheet.create({
   accountSourceCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#11141D',
+    backgroundColor: COLORS.bgCardSub,
     borderRadius: 16,
     padding: 14,
     gap: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.border,
   },
   currencyPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: COLORS.bgCardSub,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: COLORS.border,
   },
   currencyPillText: {
     fontSize: 11,
@@ -706,12 +705,12 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   detailsCard: {
-    backgroundColor: '#11141D',
+    backgroundColor: COLORS.bgCardSub,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.border,
   },
   detailItem: {
     flexDirection: 'row',
@@ -722,7 +721,7 @@ const styles = StyleSheet.create({
   },
   detailItemBorder: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    borderTopColor: COLORS.border,
   },
   detailLabelRow: {
     flexDirection: 'row',
@@ -737,7 +736,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontSize: 13,
-    color: '#F8FAFC',
+    color: COLORS.textPrimary,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
@@ -761,7 +760,7 @@ const styles = StyleSheet.create({
   },
   noteText: {
     fontSize: 13,
-    color: '#F8FAFC',
+    color: COLORS.textPrimary,
     fontWeight: '700',
     lineHeight: 19,
     textAlign: 'right',
@@ -785,7 +784,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   actionBtnPrimaryText: {
-    color: '#08090C',
+    color: COLORS.textInverse,
     fontSize: 14,
     fontWeight: '800',
   },
